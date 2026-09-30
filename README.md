@@ -86,7 +86,7 @@ fastboot reboot
 | 触摸 (Goodix GT9886) | ✅ | 靠作者内核里的 `goodix_gtx8` 驱动（主线没有 gt9886，只有这套定制内核能点亮触摸） |
 | GPU (Adreno 640, freedreno) | ✅ | `qcom/a640_gmu.bin` + `qcom/a630_sqe.fw`（A640 与 A630 共用 SQE） |
 | Wi-Fi (WCN3990, ath10k_snoc) | ✅ | 网卡名是 **`wld0`**（systemd 改名，不是 wlan0）。需要 `skip_otp=y` + **tqftpserv 必须运行**（见 §8.1）；真机已实测扫描到 AP |
-| 蓝牙 (WCN399x, hci_qca) | ✅ | `qca/crbtfw21.tlv` + `qca/crnv21.bin` |
+| 蓝牙 (WCN3998, hci_qca) | ⚠️ | **固件加载成功**（`QCA setup on UART is completed`），但内核 HCI 初始化最后一步失败 → `hci0` 从未 open → BlueZ 看不到控制器。详见 [notes/bluetooth.md](notes/bluetooth.md)（需要内核侧调试） |
 | 音频输出 (ADSP + UCM) | ✅ | 声卡 `card 0: Raphael`；UCM 提供 `Speaker (TFA9874)` 与 `Headphone (WCD9340)` 两个输出；已实测 440Hz 播放正常。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
 | 麦克风 | ❌ | 作者提供的 UCM 里只定义了 Speaker/Headphone，没有采集设备 |
 | 电池 / 充电 / RTC | ✅ | 内核内建 |
@@ -360,7 +360,7 @@ wireplumber.service`，已写进 `07-desktop.sh`）：
 | 桌面起不来 | 用 USB NCM 网络 SSH 进去：`ssh winter@172.16.42.1`，然后 `journalctl -b -u sddm`；必要时 `KWIN_COMPOSE=Q startplasma-wayland` 用软件渲染验证 |
 | 想回 Android | `fastboot flash boot <备份>`，再刷小米线刷包 |
 
-深度资料：`notes/camera.md`（相机适配结论与路线图）、`notes/porting-checklist.md`（Debian→Arch 逐条移植对照）、
+深度资料：`notes/camera.md`（相机适配结论与路线图）、`notes/bluetooth.md`（蓝牙排查记录）、`notes/porting-checklist.md`（Debian→Arch 逐条移植对照）、
 `notes/plasma-mobile.md`（Plasma 包与配置校验）、`notes/qcom-userspace.md`（Qualcomm 用户态服务构建）。
 
 ---
