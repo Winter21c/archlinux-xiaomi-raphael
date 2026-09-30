@@ -87,7 +87,8 @@ fastboot reboot
 | GPU (Adreno 640, freedreno) | ✅ | `qcom/a640_gmu.bin` + `qcom/a630_sqe.fw`（A640 与 A630 共用 SQE） |
 | Wi-Fi (WCN3990, ath10k_snoc) | ✅ | 网卡名是 **`wld0`**（systemd 改名，不是 wlan0）。需要 `skip_otp=y` + **tqftpserv 必须运行**（见 §8.1）；真机已实测扫描到 AP |
 | 蓝牙 (WCN399x, hci_qca) | ✅ | `qca/crbtfw21.tlv` + `qca/crnv21.bin` |
-| 音频 (ADSP + UCM) | ✅ | 声卡 `card 0: Raphael` 已注册；依赖 rmtfs + tqftpserv + 内核 pd-mapper |
+| 音频输出 (ADSP + UCM) | ✅ | 声卡 `card 0: Raphael`；UCM 提供 `Speaker (TFA9874)` 与 `Headphone (WCD9340)` 两个输出；已实测 440Hz 播放正常。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
+| 麦克风 | ❌ | 作者提供的 UCM 里只定义了 Speaker/Headphone，没有采集设备 |
 | 电池 / 充电 / RTC | ✅ | 内核内建 |
 | USB (dwc3, OTG) | ✅ | 含 **USB NCM 网络共享**：插电脑后设备是 `172.16.42.1`，可 `ssh winter@172.16.42.1` |
 | 手电筒 / 振动 | ⚠️ | 未验证 |
@@ -310,7 +311,31 @@ DisableSandboxSyscalls
 
 （构建脚本 `02-pacman.sh` 已自动写入。注意构建机上的 userns 环境同样需要这两项。）
 
-### 8.8 其它已知限制
+### 8.8 有声音选项但没有任何声音设备 ★
+
+**症状**：Plasma 音量面板能打开，但里面一个输出设备都没有；`wpctl status` 报
+`Could not connect to PipeWire`。
+
+**根因**：`pipewire` / `pipewire-pulse` / `wireplumber` 三个**用户会话**服务全是
+`inactive`。本项目的构建跳过了 pacman 的 scriptlet/hook，发行版的 user preset
+没有执行，所以用户家目录里没有任何 systemd 用户单元 —— **服务从未被 enable**。
+
+**修复**（等价于 `systemctl --user enable --now pipewire.socket pipewire-pulse.socket
+wireplumber.service`，已写进 `07-desktop.sh`）：
+
+```
+~/.config/systemd/user/sockets.target.wants/pipewire.socket
+~/.config/systemd/user/sockets.target.wants/pipewire-pulse.socket
+~/.config/systemd/user/pipewire.service.wants/wireplumber.service
+~/.config/systemd/user/pipewire-session-manager.service -> wireplumber.service
+```
+
+**验证**：`wpctl status` 能看到 `内置音频` 设备与 `Speaker (TFA9874)` /
+`Headphone (WCD9340)` 两个 Sink；`speaker-test -c 2 -t sine -f 440 -l 1` 能出声。
+
+> 提示：`pipewire-pulse` 平时显示 inactive 是正常的 —— 它由 socket 按需拉起。
+
+### 8.9 其它已知限制
 
 | 项 | 说明 |
 |:--|:--|

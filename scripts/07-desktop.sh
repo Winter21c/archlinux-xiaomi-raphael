@@ -165,6 +165,26 @@ patch:
 EOF
 log "  已关闭初始设置向导 + 写入 Rime 配置"
 
+# ---------------------------------------------------------------------------
+# 启用用户会话的音频服务 (PipeWire / WirePlumber)
+# ★ 必须显式 enable: 构建时 pacman 跳过了 scriptlet/hook, 发行版的 user preset
+#   没有执行, 用户家目录里没有任何 systemd 用户单元 -> 三个服务全不启动 ->
+#   表现为 "系统里有声音选项, 但一个声音设备都没有" (真机踩过)。
+#   这几条软链等价于 systemctl --user enable --now pipewire.socket \
+#   pipewire-pulse.socket wireplumber.service
+# ---------------------------------------------------------------------------
+mkdir -p "$USERDIR/.config/systemd/user/sockets.target.wants" \
+         "$USERDIR/.config/systemd/user/pipewire.service.wants"
+ln -sfn /usr/lib/systemd/user/pipewire.socket \
+        "$USERDIR/.config/systemd/user/sockets.target.wants/pipewire.socket"
+ln -sfn /usr/lib/systemd/user/pipewire-pulse.socket \
+        "$USERDIR/.config/systemd/user/sockets.target.wants/pipewire-pulse.socket"
+ln -sfn /usr/lib/systemd/user/wireplumber.service \
+        "$USERDIR/.config/systemd/user/pipewire.service.wants/wireplumber.service"
+ln -sfn /usr/lib/systemd/user/wireplumber.service \
+        "$USERDIR/.config/systemd/user/pipewire-session-manager.service"
+log "  已启用音频用户服务 (pipewire / pipewire-pulse / wireplumber)"
+
 chown -R 1000:1000 "$USERDIR" 2>/dev/null || true
 
 # 让 Plasma 首启动不弹向导/欢迎页
