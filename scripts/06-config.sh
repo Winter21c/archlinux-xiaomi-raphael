@@ -143,10 +143,17 @@ EOF
 cat > "$ROOT/etc/NetworkManager/conf.d/00-raphael.conf" <<'EOF'
 [main]
 dns=default
+# 自己写 /etc/resolv.conf: systemd-resolved 已被禁用, 不能让 resolv.conf 继续
+# 是指向 /run/systemd/resolve/stub-resolv.conf 的软链 (那样会彻底没有 DNS)
+rc-manager=file
 
 [device]
 wifi.scan-rand-mac-address=no
 EOF
+# 清掉发行版的 systemd-resolved 桩软链, 写一个兜底 DNS (联网后 NM 会重写)
+rm -f "$ROOT/etc/resolv.conf"
+printf 'nameserver 223.5.5.5\nnameserver 119.29.29.29\n' > "$ROOT/etc/resolv.conf"
+chmod 644 "$ROOT/etc/resolv.conf"
 mkdir -p "$ROOT/etc/modprobe.d"
 cat > "$ROOT/etc/modprobe.d/ath10k.conf" <<'EOF'
 # WCN3990 需要从设备分区读取校准数据, 跳过 OTP 校验 (上游 Debian 构建同款参数)

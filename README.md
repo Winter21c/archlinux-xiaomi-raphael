@@ -124,8 +124,11 @@ fastboot reboot
   外接键盘用 `Ctrl+Space` 切中英；触摸屏用屏幕键盘（plasma-keyboard）。
 - **锁屏/PIN**：默认**不锁屏**（`~/.config/kscreenlockerrc` 里 `Autolock=false`），
   所以不存在"锁了以后解不开"的问题。密码 `1234` 只用于 `sudo` 和 SSH。
-- **装软件**：已加 archlinuxcn 源并预装 `paru`，联网后直接
+- **装软件**：已加 archlinuxcn 源（含密钥环）并预装 `paru`，联网后直接
   `paru -S 包名`（AUR）/ `sudo pacman -S 包名`（官方仓库）。
+  > ⚠️ 作者内核**没有编 Landlock**，而 pacman 7.1 默认用它做下载沙箱 —— 镜像里已经
+  > 预先关掉（`/etc/pacman.conf` 的 `DisableSandboxFilesystem`/`DisableSandboxSyscalls`），
+  > 否则 `pacman -Sy` 会直接报错、连软件都装不了。
 - 电源键：默认交给 PowerDevil（短按切换屏幕）。若没反应：
   `sudo systemctl enable --now raphael-power-key`（自定义守护：短按熄屏，长按 1.5 秒关机），
   并把 `~/.config/powerdevilrc` 的 `PowerButtonAction=128` 改成 `0` 避免重复触发。
@@ -285,7 +288,29 @@ systemd 的可预测命名把它命名为 **`wld0`**（`nmcli device` 里显示�
 现在主屏是空的属于正常，**上滑**打开应用抽屉即可看到全部 190+ 个应用。
 想要传统桌面就选 `Plasma (Wayland)` 会话。
 
-### 8.7 其它已知限制
+### 8.7 `pacman` 报 "Landlock is not supported by the kernel" ★
+
+**症状**：设备上执行 `pacman -Sy` / `pacman -S` 直接失败：
+
+```
+error: restricting filesystem access failed because Landlock is not supported by the kernel!
+error: switching to sandbox user 'alpm' failed!
+```
+
+**根因**：pacman 7.1 默认给下载进程加 **Landlock** 沙箱，而作者内核
+`# CONFIG_SECURITY_LANDLOCK is not set`（没编进去），于是整个下载流程失败 ——
+表现为"什么软件都装不了"。
+
+**修复**：目标系统的 `/etc/pacman.conf` 里加
+
+```ini
+DisableSandboxFilesystem
+DisableSandboxSyscalls
+```
+
+（构建脚本 `02-pacman.sh` 已自动写入。注意构建机上的 userns 环境同样需要这两项。）
+
+### 8.8 其它已知限制
 
 | 项 | 说明 |
 |:--|:--|

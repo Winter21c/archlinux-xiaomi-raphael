@@ -22,7 +22,13 @@ IMG="$OUT/rootfs.img"
 log "清理构建残留"
 rm -rf "$ROOT/.raphael-build"
 rm -rf "$ROOT/var/cache/pacman/pkg"/* 2>/dev/null || true
-rm -f "$ROOT/etc/resolv.conf" 2>/dev/null || true
+# 注意: 不要删 /etc/resolv.conf —— 06-config.sh 已写入兜底 DNS, 且 NM 配了
+# rc-manager=file 会自行接管。这里只保证它存在且是普通文件 (不是 resolved 桩软链)。
+# 始终写成兜底 DNS: 构建过程中 ns_mount 会把宿主机的 resolv.conf 拷进来
+# (tailscale 之类的地址带进镜像就错了), 联网后 NetworkManager (rc-manager=file) 会重写。
+rm -f "$ROOT/etc/resolv.conf"
+printf 'nameserver 223.5.5.5\nnameserver 119.29.29.29\n' > "$ROOT/etc/resolv.conf"
+chmod 644 "$ROOT/etc/resolv.conf"
 rm -rf "$ROOT/tmp"/* "$ROOT/var/tmp"/* 2>/dev/null || true
 rm -f "$ROOT/etc/machine-id" 2>/dev/null || true
 echo "uninitialized" > "$ROOT/etc/machine-id"

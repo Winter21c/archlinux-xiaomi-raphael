@@ -59,15 +59,27 @@ Server = http://mirror.archlinuxarm.org/\$arch/\$repo
 EOF
 sed -i -e 's/^Architecture = .*/Architecture = aarch64/' \
        -e 's/^#Color/Color/' "$ROOT/etc/pacman.conf"
+# ★ 关键: 作者内核没有编 CONFIG_SECURITY_LANDLOCK, 而 pacman 7.1 默认用 Landlock
+#   沙箱下载, 在真机上会直接失败 ("Landlock is not supported by the kernel"),
+#   结果是用户根本没法用 pacman 装软件。这里关掉沙箱。
+for opt in DisableSandboxFilesystem DisableSandboxSyscalls; do
+  grep -q "^$opt" "$ROOT/etc/pacman.conf" || sed -i "/^\[options\]/a $opt" "$ROOT/etc/pacman.conf"
+done
 # 目标系统加 archlinuxcn 源 (密钥由 raphael-firstboot 首次开机导入)
 if ! grep -q '^\[archlinuxcn\]' "$ROOT/etc/pacman.conf"; then
   cat >> "$ROOT/etc/pacman.conf" <<'CNEOF'
 
 [archlinuxcn]
+# 密钥由 archlinuxcn-keyring 提供, raphael-firstboot 首次开机会 pacman-key --populate
+SigLevel = Optional TrustedOnly
 Server = https://mirrors.ustc.edu.cn/archlinuxcn/$arch
 Server = https://mirrors.tuna.tsinghua.edu.cn/archlinuxcn/$arch
 Server = https://repo.archlinuxcn.org/$arch
 CNEOF
+fi
+# 幂等: 老 rootfs 里已有 [archlinuxcn] 段时补上 SigLevel
+if ! grep -A1 '^\[archlinuxcn\]' "$ROOT/etc/pacman.conf" | grep -q '^SigLevel'; then
+  sed -i '/^\[archlinuxcn\]/a SigLevel = Optional TrustedOnly' "$ROOT/etc/pacman.conf"
 fi
 grep -q '^Architecture' "$ROOT/etc/pacman.conf" || echo 'Architecture = aarch64' >> "$ROOT/etc/pacman.conf"
 # 目标系统上启用签名校验 (需要先 archlinuxarm-keyring)
