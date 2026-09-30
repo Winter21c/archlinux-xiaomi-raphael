@@ -146,6 +146,25 @@ VirtualKeyboardMode=1
 EOF
 log "  已为桌面会话启用虚拟键盘 (plasma-keyboard, 非鼠标输入时弹出)"
 
+# 关掉 Plasma Mobile 的"初始设置向导" (plasma-mobile-initial-start)。
+# 它的开关在 ~/.config/plasmamobilerc 的 [InitialStart] wizardRun。
+# 不清掉它的话每次登录都会弹一次; 想看可以手动跑:
+#   plasma-mobile-initial-start --test-wizard
+cat > "$USERDIR/.config/plasmamobilerc" <<'EOF'
+[InitialStart]
+wizardRun=true
+EOF
+
+# Rime 输入法配置 (取自 Shorin 指南: Shift 交给 fcitx5 切中英)
+mkdir -p "$USERDIR/.local/share/fcitx5/rime"
+cat > "$USERDIR/.local/share/fcitx5/rime/default.custom.yaml" <<'EOF'
+patch:
+  # Shift 交给 fcitx5 的 AltTriggerKeys（rime/mozd ↔ keyboard-us），Rime 内部不再用 Shift 切中英
+  "ascii_composer/switch_key/Shift_L": noop
+  "ascii_composer/switch_key/Shift_R": noop
+EOF
+log "  已关闭初始设置向导 + 写入 Rime 配置"
+
 chown -R 1000:1000 "$USERDIR" 2>/dev/null || true
 
 # 让 Plasma 首启动不弹向导/欢迎页

@@ -106,12 +106,6 @@ if ! grep -q "^$USERNAME:" "$ROOT/etc/passwd"; then
   cp -a "$ROOT/etc/skel/." "$ROOT$HOME_DIR/" 2>/dev/null || true
   mkdir -p "$ROOT$HOME_DIR"/{Desktop,Documents,Downloads,Pictures,Music,Videos}
   chmod 700 "$ROOT$HOME_DIR"
-  # 构建时无法 chown 到非 0 uid (userns 只映射了 uid 0), 交给首次开机的 tmpfiles
-  mkdir -p "$ROOT/etc/tmpfiles.d"
-  cat > "$ROOT/etc/tmpfiles.d/raphael-home.conf" <<TFEOF
-# 修正用户家目录属主 (镜像构建时无法设置非 root 属主)
-Z $HOME_DIR - $UID_N $UID_N -
-TFEOF
   log "  已创建 $USERNAME (uid $UID_N, 组: wheel video audio input storage power rfkill)"
 fi
 
@@ -295,6 +289,10 @@ if [ ! -s /etc/pacman.d/gnupg/pubring.gpg ]; then
   pacman-key --init
   pacman-key --populate archlinuxarm
 fi
+# archlinuxcn 源密钥 (装了 paru / rime-ice 之类的社区包需要)
+if [ -f /usr/share/pacman/keyrings/archlinuxcn.gpg ] && ! pacman-key --list-keys archlinuxcn >/dev/null 2>&1; then
+  pacman-key --populate archlinuxcn || true
+fi
 systemctl disable raphael-firstboot.service || true
 EOF
 chmod 755 "$ROOT/usr/local/sbin/raphael-firstboot.sh"
@@ -372,15 +370,49 @@ if [ -x "$ROOT/usr/bin/kscreen-doctor" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 16. 服务状态目录属主 (构建时无法 chown 到非 0 uid, 由 tmpfiles 兜底)
+# 16. 属主修正 (构建时 userns 只映射了 uid 0, 无法 chown 到 1000)
+#     ★ 这里必须【无条件】写: 之前写在"创建用户"分支里, 用户已存在时被跳过,
+#       结果 /home/<user> 一直是 root:root, KDE 写不了配置 ->
+#       初始化向导每次开机都弹、向导里改的设置不生效、证书/私钥保存失败。
 # ---------------------------------------------------------------------------
-cat >> "$ROOT/etc/tmpfiles.d/raphael-home.conf" <<'TFEOF'
+USER_UID="$(grep "^$USERNAME:" "$ROOT/etc/passwd" | cut -d: -f3)"
+USER_GID="$(grep "^$USERNAME:" "$ROOT/etc/passwd" | cut -d: -f4)"
+mkdir -p "$ROOT/etc/tmpfiles.d"
+cat > "$ROOT/etc/tmpfiles.d/raphael-home.conf" <<TFEOF
+# 修正用户家目录属主 (镜像构建时无法设置非 root 属主, 首次开机由 tmpfiles 修正)
+Z /home/$USERNAME - $USER_UID $USER_GID -
 d /var/lib/sddm 0750 sddm sddm -
 d /var/lib/NetworkManager 0755 root root -
 d /var/lib/bluetooth 0700 root root -
 d /var/lib/ModemManager 0755 root root -
 d /var/lib/rmtfs 0755 root root -
+d /var/lib/tqftpserv 0755 root root -
 TFEOF
+if [ -x "$ROOT/usr/local/sbin/raphael-firstboot.sh" ]; then
+  # 兜底: 首次开机再 chown 一次 (tmpfiles 万一没跑到)
+  sed -i "2i chown -R $USER_UID:$USER_GID /home/$USERNAME 2>/dev/null || true" \
+      "$ROOT/usr/local/sbin/raphael-firstboot.sh"
+fi
+
+# ---------------------------------------------------------------------------
+# 16b. 输入法环境变量 + 默认编辑器 (参考 Shorin 指南)
+# ---------------------------------------------------------------------------
+cat > "$ROOT/etc/environment" <<'EOF'
+GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+SDL_IM_MODULE=fcitx
+EDITOR=vim
+EOF
+
+# ---------------------------------------------------------------------------
+# 16c. faillock 放宽 (手机常走 SSH 调试, 默认 deny=3 很容易把自己锁在外面)
+# ---------------------------------------------------------------------------
+mkdir -p "$ROOT/etc/security"
+cat > "$ROOT/etc/security/faillock.conf" <<'EOF'
+deny = 10
+unlock_time = 300
+EOF
 
 # ---------------------------------------------------------------------------
 # 17. 闪光灯 / 手电筒 (pm8150l_flash, 内核模块 leds-qcom-flash)

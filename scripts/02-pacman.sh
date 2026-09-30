@@ -39,6 +39,11 @@ Server = $ALARM_MIRROR_FALLBACK/\$arch/\$repo
 [extra]
 Server = $ALARM_MIRROR_PRIMARY/\$arch/\$repo
 Server = $ALARM_MIRROR_FALLBACK/\$arch/\$repo
+# archlinuxcn: AUR 助手 (paru)、rime-ice 等社区包, 参考 Shorin 指南
+[archlinuxcn]
+Server = https://mirrors.ustc.edu.cn/archlinuxcn/\$arch
+Server = https://mirrors.tuna.tsinghua.edu.cn/archlinuxcn/\$arch
+Server = https://repo.archlinuxcn.org/\$arch
 EOF
 
 PACMAN=(pacman --arch aarch64 -r "$ROOT" --config "$BUILD_CONF"
@@ -54,6 +59,16 @@ Server = http://mirror.archlinuxarm.org/\$arch/\$repo
 EOF
 sed -i -e 's/^Architecture = .*/Architecture = aarch64/' \
        -e 's/^#Color/Color/' "$ROOT/etc/pacman.conf"
+# 目标系统加 archlinuxcn 源 (密钥由 raphael-firstboot 首次开机导入)
+if ! grep -q '^\[archlinuxcn\]' "$ROOT/etc/pacman.conf"; then
+  cat >> "$ROOT/etc/pacman.conf" <<'CNEOF'
+
+[archlinuxcn]
+Server = https://mirrors.ustc.edu.cn/archlinuxcn/$arch
+Server = https://mirrors.tuna.tsinghua.edu.cn/archlinuxcn/$arch
+Server = https://repo.archlinuxcn.org/$arch
+CNEOF
+fi
 grep -q '^Architecture' "$ROOT/etc/pacman.conf" || echo 'Architecture = aarch64' >> "$ROOT/etc/pacman.conf"
 # 目标系统上启用签名校验 (需要先 archlinuxarm-keyring)
 if ! grep -q '^SigLevel' "$ROOT/etc/pacman.conf"; then
@@ -79,6 +94,15 @@ log "准备安装 ${#VALID[@]} 个包 (含依赖)"
 # 安装
 # ---------------------------------------------------------------------------
 "${PACMAN[@]}" -S --noscriptlet --needed "${VALID[@]}" 2>&1 | tail -30
+
+# ---------------------------------------------------------------------------
+# 移除手机上不需要的电视版界面 (plasma-bigscreen):
+# 它的自启动项会拉起 plasma-bigscreen-inputhandler, 缺 libcec 时报 status=127
+# ---------------------------------------------------------------------------
+if ls -d "$ROOT"/var/lib/pacman/local/plasma-bigscreen-* >/dev/null 2>&1; then
+  log "移除 plasma-bigscreen (电视版界面, 手机用不到)"
+  "${PACMAN[@]}" -Rdd plasma-bigscreen >/dev/null 2>&1 || warn "  移除失败"
+fi
 
 # ---------------------------------------------------------------------------
 # 清理发行版自带内核遗留 & 默认用户

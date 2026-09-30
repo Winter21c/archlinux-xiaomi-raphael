@@ -115,6 +115,17 @@ fastboot reboot
 - 熄屏/亮屏快捷命令（KDE 版）：`leijun`（熄屏） / `jinfan`（亮屏）
 - 相机相关工具：`shoudian on|off|toggle`（手电筒，KDE 菜单里也有「手电筒」）、
   `camera-check`（一条命令诊断相机卡在哪一层：内核驱动/设备树/CCI 总线/V4L2/闪光灯/USB 摄像头）
+- **应用在哪**：Plasma Mobile 是手机形态，主屏只放收藏夹，**从屏幕底部上滑**打开应用抽屉
+  （Konsole 终端、系统设置、Dolphin 文件管理器、Kate、Okular、Spectacle 等都预装了，共 190+ 个应用）。
+  想要传统桌面（底部任务栏 + 开始菜单）就在 SDDM 里选 **Plasma (Wayland)** 会话
+  （注销后选择即可，SDDM 会记住上次的选择）。
+- **中文输入法**：已装 `fcitx5 + fcitx5-rime + fcitx5-chinese-addons`（和 Shorin 指南同一套），
+  环境变量写在 `/etc/environment`，Rime 配置在 `~/.local/share/fcitx5/rime/`。
+  外接键盘用 `Ctrl+Space` 切中英；触摸屏用屏幕键盘（plasma-keyboard）。
+- **锁屏/PIN**：默认**不锁屏**（`~/.config/kscreenlockerrc` 里 `Autolock=false`），
+  所以不存在"锁了以后解不开"的问题。密码 `1234` 只用于 `sudo` 和 SSH。
+- **装软件**：已加 archlinuxcn 源并预装 `paru`，联网后直接
+  `paru -S 包名`（AUR）/ `sudo pacman -S 包名`（官方仓库）。
 - 电源键：默认交给 PowerDevil（短按切换屏幕）。若没反应：
   `sudo systemctl enable --now raphael-power-key`（自定义守护：短按熄屏，长按 1.5 秒关机），
   并把 `~/.config/powerdevilrc` 的 `PowerButtonAction=128` 改成 `0` 避免重复触发。
@@ -245,7 +256,36 @@ KExecWatchdogSec=off
 systemd 的可预测命名把它命名为 **`wld0`**（`nmcli device` 里显示的名字也是它）。
 自己的脚本里请用 `nmcli device wifi ...`，不要硬编码 `wlan0`。
 
-### 8.4 其它已知限制
+### 8.4 每次开机都弹"初始化向导"，而且改了不生效 ★
+
+**症状**：每次登录都出现 Plasma Mobile 的初始设置向导；在里面改的语言/时区等不会生效；
+同时还报"无法保存证书文件/私钥文件"。
+
+**根因**：`/home/winter` 属主是 `root:root`（镜像构建时 user namespace 只映射了 uid 0，
+无法 chown 到 1000），用户**写不了自己的家目录** → KDE 存不了任何配置 →
+向导每次都认为"还没配置过"、证书/私钥无处可写。
+
+**修复**：
+1. `/etc/tmpfiles.d/raphael-home.conf` 里 `Z /home/winter - 1000 1000 -`
+   （这条以前被写在"创建用户"分支里，用户已存在时被跳过 —— 现在无条件写）；
+2. `raphael-firstboot.service` 首次开机再 `chown -R` 一次兜底；
+3. 预置 `~/.config/plasmamobilerc` 的 `[InitialStart] wizardRun=true` 关掉向导
+   （想再看一次：`plasma-mobile-initial-start --test-wizard`）。
+
+### 8.5 开机报 "启动 plasma-bigscreen-inputhandler 失败（状态码 127）"
+
+`plasma-bigscreen` 是 KDE 的**电视版界面**，它的自启动项会拉起
+`plasma-bigscreen-inputhandler`，而该程序依赖 `libcec.so.8`（HDMI-CEC，手机上没人装），
+于是退出码 127。已经**从镜像里移除 `plasma-bigscreen`**，报错消失。
+
+### 8.6 桌面"什么软件都没有"
+
+除了 §8.4 的权限问题（导致主屏收藏夹/抽屉初始化失败），还因为 Plasma Mobile 的
+**默认收藏夹指向手机专属应用**（电话/短信/相机），而主线内核上这些应用不可用。
+现在主屏是空的属于正常，**上滑**打开应用抽屉即可看到全部 190+ 个应用。
+想要传统桌面就选 `Plasma (Wayland)` 会话。
+
+### 8.7 其它已知限制
 
 | 项 | 说明 |
 |:--|:--|
@@ -253,6 +293,8 @@ systemd 的可预测命名把它命名为 **`wld0`**（`nmcli device` 里显示�
 | 挂起/休眠 | SM8150 只有 s2idle，已 mask；用熄屏 (`leijun`) 代替 |
 | 摄像头 | 主线缺 sm8150 的 CAMSS/CCI 设备树与驱动，也缺 IMX586 等 sensor 驱动 —— 详见 [camera.md](camera.md) |
 | 手电筒 | ✅ 可用：`shoudian on/off/toggle`（KDE 菜单里也有） |
+| 锁屏 | 默认关闭（不设 PIN），避免手机上解不开 |
+| 中文输入法 | ✅ fcitx5 + Rime（Ctrl+Space 切换） |
 
 ## 9. 排障
 
