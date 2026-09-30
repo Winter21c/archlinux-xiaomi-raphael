@@ -86,9 +86,9 @@ fastboot reboot
 | 触摸 (Goodix GT9886) | ✅ | 靠作者内核里的 `goodix_gtx8` 驱动（主线没有 gt9886，只有这套定制内核能点亮触摸） |
 | GPU (Adreno 640, freedreno) | ✅ | `qcom/a640_gmu.bin` + `qcom/a630_sqe.fw`（A640 与 A630 共用 SQE） |
 | Wi-Fi (WCN3990, ath10k_snoc) | ✅ | 网卡名是 **`wld0`**（systemd 改名，不是 wlan0）。需要 `skip_otp=y` + **tqftpserv 必须运行**（见 §8.1）；真机已实测扫描到 AP |
-| 蓝牙 (WCN3998, hci_qca) | ⚠️ | **固件加载成功**（`QCA setup on UART is completed`），但内核 HCI 初始化最后一步失败 → `hci0` 从未 open → BlueZ 看不到控制器。详见 [notes/bluetooth.md](notes/bluetooth.md)（需要内核侧调试） |
+| 蓝牙 (WCN3998, hci_qca) | ✅ | **已修好**：真机实测扫描到 9 个设备、可 `powered`。需要**修补设备树**（补 `local-bd-address`）+ **机器自带的原厂 NVM**（`bluetooth` 分区里的 `crnv21.bin`），两者缺一不可 —— 详见 §8.9 |
 | 音频输出 (ADSP + UCM) | ✅ | 声卡 `card 0: Raphael`；UCM 提供 `Speaker (TFA9874)` 与 `Headphone (WCD9340)` 两个输出；已实测 440Hz 播放正常。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
-| 麦克风 | ❌ | 不只是 UCM 缺采集设备 —— 实测 12 种采集路由组合全部数字静音，**采集后端在设备树/内核侧就没有定义**。详见 [notes/microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md) |
+| 麦克风 | ⚠️ | 采集链路已修到**全部上电**（`AMIC MUX0` 默认断开 + 设备树缺 MCLK 路由，两处已修），但样本仍为全零，还差最后一层（DSP/ADM 或模拟前端）。详见 §8.10 与 [notes/microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md) |
 | 电池 / 充电 / RTC | ✅ | 内核内建 |
 | USB (dwc3, OTG) | ✅ | 含 **USB NCM 网络共享**：插电脑后设备是 `172.16.42.1`，可 `ssh winter@172.16.42.1` |
 | 手电筒 / 振动 | ⚠️ | 未验证 |
@@ -335,7 +335,101 @@ wireplumber.service`，已写进 `07-desktop.sh`）：
 
 > 提示：`pipewire-pulse` 平时显示 inactive 是正常的 —— 它由 socket 按需拉起。
 
-### 8.9 其它已知限制
+### 8.9 蓝牙完全不可用（`Invalid Index` / 没有控制器）★
+
+**症状**：`bluetoothctl` 里没有控制器；`btmgmt info` 报 `Index list with 0 items`；
+对 `hci0` 执行任何操作都返回 `status 0x11 (Invalid Index)`。内核日志里 QCA 固件
+下载却是**成功**的（`QCA setup on UART is completed`）。
+
+**完整根因链**（用 dyndbg + ftrace 逐层挖出来）：
+
+1. `btqca` 驱动会给 hci 设备设置 `HCI_QUIRK_USE_BDADDR_PROPERTY`，内核因此在
+   `hci_dev_open_sync()` 里从**设备树父节点**读 `local-bd-address` 作为控制器地址；
+2. U-Boot 下发的设备树里 `bluetooth { ... }` 节点**没有** `local-bd-address`；
+3. 同时控制器自身（NVM 不匹配时）上报的 BD_ADDR 是**全零**；
+4. 于是 `hci_power_on()` 走到这段判断后**立刻关闭设备**，并且**没有**发出
+   `mgmt Index Added`：
+
+   ```c
+   if (hci_dev_test_flag(hdev, HCI_RFKILLED) ||
+       hci_dev_test_flag(hdev, HCI_UNCONFIGURED) ||
+       (!bacmp(&hdev->bdaddr, BDADDR_ANY) &&
+        !bacmp(&hdev->static_addr, BDADDR_ANY))) {
+           hci_dev_clear_flag(hdev, HCI_AUTO_OFF);
+           hci_dev_do_close(hdev);        /* ← 蓝牙"没有控制器"的直接原因 */
+   }
+   ```
+
+   表现为：`hci0` 设备节点存在、rfkill 正常，但 mgmt 里一个 index 都没有。日志里能
+   看到 `hdev hci0 event 3`（UP）后 **36 微秒**就出现 `hci_dev_do_close` + `err 0x13`。
+
+**修复**（两处都要，缺一不可，已写进构建脚本）：
+
+1. **设备树补 `local-bd-address`**（`dtb/raphael-redmi-k20pro.dtb`，
+   `scripts/10-image-boot.sh` 会把它写进 `/boot/dtbs/qcom/` 并在引导条目里加
+   `devicetree` 行）：
+
+   ```dts
+   bluetooth {
+       compatible = "qcom,wcn3998-bt";
+       ...
+       local-bd-address = [f0 04 e0 78 00 02];   /* 02:00:78:E0:04:F0（本机地址，小端序）*/
+   };
+   ```
+
+2. **用机器自带的原厂 NVM**：`linux-firmware` 里的 `qca/crnv21.bin` 与本机板级校准
+   不匹配（换用它时即使有上面的地址也仍然失败）。设备自带的 `bluetooth` 分区
+   （FAT16，`/dev/disk/by-partlabel/bluetooth`）里 `image/` 目录就是原厂固件：
+
+   ```bash
+   mkdir -p /mnt/bt && mount -o ro /dev/disk/by-partlabel/bluetooth /mnt/bt
+   cp /mnt/bt/image/crnv21.bin     /lib/firmware/qca/crnv21.bin
+   cp /mnt/bt/image/crbtfw21.tlv   /lib/firmware/qca/crbtfw21.tlv
+   umount /mnt/bt
+   ```
+
+   `06-config.sh` 已把它做成 `raphael-bt-firmware.service`（开机自动、幂等）。
+
+**验证**：
+
+```
+$ btmgmt info
+Index list with 1 item
+hci0:  Primary controller
+       addr 02:00:78:E0:04:F0  version 9  manufacturer 29
+       current settings: powered bondable ssp br/edr le secure-conn ...
+$ bluetoothctl --timeout 15 scan on     # 实测扫到 9 个真实设备
+```
+
+### 8.10 麦克风录音全是 0（采集链路不上电）★
+
+**症状**：`arecord -D hw:0,0` 能录到文件，但样本**全为 0**（连本底噪声都没有）。
+
+**根因（已确认并修好第一层）**：
+
+1. 厂商 UCM 只有 `Speaker` / `Headphone`，**从来没有配置过采集路由**，
+   `AMIC MUX0` 停留在默认值 `ZERO`（断开）→ DAPM 找不到完整的采集通路 →
+   整个 `ADC1 / DEC0 / SLIM TX0 / AIF1 CAP` 链路**根本不上电** → 全零。
+   把 `amixer -c 0 cset name='AMIC MUX0' 1`（= ADC1，主麦克风 AMIC1）设上以后，
+   采集链路立刻全部 `On`（可用 `asoc` debugfs 观察）。
+
+2. U-Boot 设备树的 `sound/audio-routing` 只给播放侧（`RX_BIAS`）挂了 `MCLK`，
+   **采集侧没有任何 MCLK 依赖** → WCD9340 数字核无时钟、`ANA_BIAS` 也不开。
+   修补版设备树补上了：
+
+   ```dts
+   audio-routing = ..., "AIF1 CAP", "MCLK", "AIF2 CAP", "MCLK",
+                        "AIF3 CAP", "MCLK", "SLIM TX0", "MCLK";
+   ```
+
+   验证：录音时 `MCLK` 部件变为 `On`（此前一直是 `Off`）。
+
+**当前状态**：链路已全部上电（codec 的 `ADC1/AMIC1/MIC BIAS3/CDC_IF TX0/SLIM TX0`、
+q6afe 的 `SLIMBUS_0_TX`、q6asm 的 `MM_UL1` 全部 `On`，`TX port` 不再溢出），
+但录到的样本**仍是全零** —— 说明还差 DSP/ADM 侧或模拟前端的最后一步，
+排查过程与后续计划见 [microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md)。
+
+### 8.11 其它已知限制
 
 | 项 | 说明 |
 |:--|:--|

@@ -32,6 +32,21 @@ cp -f "$ROOT/boot/Image" "$STAGE/linux.efi" || die "缺少内核 Image (先跑 0
 cp -f "$WORK/initramfs.img" "$STAGE/initramfs" || die "缺少 initramfs (先跑 08-initramfs.sh)"
 cp -f "$ROOT/usr/lib/modules/$KV/dtbs/qcom/sm8150-xiaomi-raphael.dtb" "$STAGE/dtbs/qcom/" 2>/dev/null || true
 
+# 修补过的设备树: 内核树自带的 DTB 是残缺的 (sound 节点为空, 无相机节点),
+# 实际生效的是 U-Boot 下发的 DT, 但它缺两项关键配置:
+#   1) 蓝牙节点缺 local-bd-address -> 控制器上报全零 BD_ADDR ->
+#      内核 hci_power_on() 立刻关闭设备且不发 mgmt Index Added -> 蓝牙完全不可用
+#   2) 采集路径缺 MCLK 依赖 -> WCD9340 数字核无时钟 -> 录音全零
+# dtb/raphael-redmi-k20pro.dtb = 从运行中的设备导出 U-Boot DT 后只加这两处, 其余逐字节一致
+DT_LINE=""
+if [ -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" ]; then
+  cp -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb"
+  DT_LINE="devicetree /dtbs/qcom/raphael-redmi-k20pro.dtb"
+  log "设备树: 使用修补版 (蓝牙 BD_ADDR + 麦克风 MCLK 路由)"
+else
+  warn "缺少 dtb/raphael-redmi-k20pro.dtb -> 蓝牙与麦克风不可用"
+fi
+
 # systemd-boot: 用 Arch 自己的版本 (与 rootfs 内 systemd 同版本), 同时保留模板自带版本
 SB=""
 for c in "$ROOT/usr/lib/systemd/boot/efi/systemd-bootaa64.efi" \
@@ -57,6 +72,7 @@ cat > "$STAGE/loader/entries/arch.conf" <<EOF
 title   Arch Linux ARM (raphael) - Plasma Mobile
 linux   /linux.efi
 initrd  /initramfs
+$DT_LINE
 options root=UUID=$UUID rootfstype=ext4 rw rootwait console=tty0 loglevel=4
 EOF
 
@@ -64,6 +80,7 @@ EOF
 cat > "$STAGE/loader/entries/arch-direct.conf" <<EOF
 title   Arch Linux ARM (raphael) - no initramfs (recovery)
 linux   /linux.efi
+$DT_LINE
 options root=UUID=$UUID rootfstype=ext4 rw rootwait console=tty0 loglevel=7
 EOF
 
@@ -72,6 +89,7 @@ cat > "$STAGE/loader/entries/arch-debug.conf" <<EOF
 title   Arch Linux ARM (raphael) - debug shell
 linux   /linux.efi
 initrd  /initramfs
+$DT_LINE
 options root=UUID=$UUID rootfstype=ext4 rw rootwait console=tty0 loglevel=7 systemd.log_level=debug
 EOF
 
@@ -105,6 +123,8 @@ mtools_copy "$IMG" "$STAGE/loader/entries/arch-direct.conf"  "::/loader/entries/
 mtools_copy "$IMG" "$STAGE/loader/entries/arch-debug.conf"   "::/loader/entries/arch-debug.conf"
 [ -f "$STAGE/dtbs/qcom/sm8150-xiaomi-raphael.dtb" ] && \
   mtools_copy "$IMG" "$STAGE/dtbs/qcom/sm8150-xiaomi-raphael.dtb" "::/dtbs/qcom/sm8150-xiaomi-raphael.dtb"
+[ -f "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb" ] && \
+  mtools_copy "$IMG" "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb" "::/dtbs/qcom/raphael-redmi-k20pro.dtb"
 [ -n "$SB" ] && mtools_copy "$IMG" "$STAGE/bootaa64.efi" "::/efi/boot/bootaa64.efi"
 
 log "镜像内容:"

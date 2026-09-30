@@ -1,8 +1,16 @@
 # 蓝牙排查记录（Redmi K20 Pro / WCN3998 / hci_qca）
 
-> 结论：**固件和驱动都正常，卡在内核 HCI 初始化的最后一步**。
-> `hci0` 从未被 open，因此内核从不向 BlueZ 发 "Index Added" → `bluetoothctl` 报
-> "No default controller available"。这不是配置问题，需要内核侧调试。
+> **结论：已修复 ✅**
+> 根因是**两个小配置**：设备树缺 `local-bd-address`，以及 `linux-firmware` 里的
+> `qca/crnv21.bin` 与本机板级校准不匹配。两者都补上后蓝牙完全可用
+> （真机实测扫描到 9 个设备）。修复步骤见 [README §8.9](../README.md#89-蓝牙完全不可用invalid-index--没有控制器)。
+
+## 0. 一句话链路
+
+控制器上报全零 BD_ADDR + 设备树没有 `local-bd-address` 覆盖 →
+`hci_power_on()` 里的「地址无效就关机」分支命中 →
+`hci_dev_do_close()` 立刻执行、**mgmt Index Added 从不发出** →
+BlueZ 看不到任何控制器（`Invalid Index`）。固件下载其实是**成功**的。
 
 ## 1. 已经确认正常的部分
 
@@ -10,76 +18,111 @@
 |:--|:--|
 | 固件加载 | `QCA Downloading qca/crbtfw21.tlv` → `QCA Downloading qca/crnv21.bin` → **`QCA setup on UART is completed`**（完整成功） |
 | 芯片识别 | `QCA Product ID 0x0a` / `SOC Version 0x40010224` / `ROM 0x1001` / `Patch 0x6699` |
-| 设备树节点 | live DT 与内核自带 DTB **完全一致**：`compatible = "qcom,wcn3998-bt"` + `vddio/vddxo/vddrf/vddch0-supply` |
-| serdev 绑定 | `/sys/bus/serial/devices/serial0-0` → 驱动 `hci_uart_qca` |
-| rfkill | `0: hci0: Bluetooth  Soft blocked: no  Hard blocked: no` |
-| 内核模块 | `bluetooth`(=m) / `hci_uart`(=m) / `btqca` / `btbcm` 均已加载 |
+| serdev 绑定 | `/sys/bus/serial/devices/serial0-0` → 驱动 `hci_uart_qca`（注意总线名是 `serial`，不是 `serdev`） |
+| 供电序列 | `wcn3998-pmu`（驱动 `pwrseq-qcom_wcn`）是 `serial0-0` 的 supplier |
+| rfkill | 软/硬阻塞均为 no；`/var/lib/systemd/rfkill/platform-c8c000.serial:bluetooth = 0` |
+| 内核模块 | `bluetooth` / `hci_uart` / `btqca` 均已加载 |
 
-## 2. 失败点
+## 2. 定位过程（可复现）
+
+调试用内核在 `.config` 里打开 `DYNAMIC_DEBUG` + `BT_DEBUGFS` + `SND_DEBUG`
+（`dsh` 构建的 `7.2.0-sm8150` 复刻版即可），然后：
+
+```bash
+# 只对蓝牙相关文件打开动态调试（带函数名+行号）
+for f in net/bluetooth/hci_core.c net/bluetooth/hci_sync.c net/bluetooth/mgmt.c \
+         drivers/bluetooth/hci_qca.c drivers/bluetooth/hci_uart.c drivers/bluetooth/btqca.c; do
+  echo "file $f +pfl" > /sys/kernel/debug/dynamic_debug/control
+done
+# 触发重新探测（等价于重新下载固件）
+echo serial0-0 > /sys/bus/serial/drivers/hci_uart_qca/unbind
+echo serial0-0 > /sys/bus/serial/drivers/hci_uart_qca/bind
+```
+
+关键日志（时间戳间隔 36 微秒）：
+
+```
+__hci_cmd_sync_sk:202: hci0: end: err 0
+hdev hci0 event 3                     ← HCI_DEV_UP，open 成功
+hci_dev_do_close:495: hci0 ...        ← 36 微秒后立刻关闭
+hci_cmd_sync_cancel_sync:684: hci0: err 0x13   ← -ENODEV
+cancel_interleave_scan:2350: hci0: cancelling interleave scan
+```
+
+`hci_core.c` 里 `hci_power_on()` 的这段就是元凶：
+
+```c
+if (hci_dev_test_flag(hdev, HCI_RFKILLED) ||
+    hci_dev_test_flag(hdev, HCI_UNCONFIGURED) ||
+    (!bacmp(&hdev->bdaddr, BDADDR_ANY) &&
+     !bacmp(&hdev->static_addr, BDADDR_ANY))) {
+        hci_dev_clear_flag(hdev, HCI_AUTO_OFF);
+        hci_dev_do_close(hdev);
+}
+```
+
+而 `btqca` 会设 `HCI_QUIRK_USE_BDADDR_PROPERTY`，内核于是去读
+**父设备节点（也就是 DT 的 `bluetooth {}`）的 `local-bd-address`**；
+我们的 DT 没有这个属性，控制器自己上报的地址又是全零 → 命中关机分支。
+
+## 3. 修复
+
+### 3.1 设备树补地址
+
+```dts
+bluetooth {
+        compatible = "qcom,wcn3998-bt";
+        vddio-supply = <&vreg_l17a_1p3>;
+        ...
+        local-bd-address = [f0 04 e0 78 00 02];   /* 02:00:78:E0:04:F0，小端序 */
+};
+```
+
+`dtb/raphael-redmi-k20pro.dtb` 就是「从运行中的设备导出 U-Boot DT + 这一处 +
+麦克风 MCLK 路由」得到的；`scripts/10-image-boot.sh` 会把它放进
+`/boot/dtbs/qcom/` 并在引导条目里加 `devicetree` 行。地址可用本机
+`wld0` 的 MAC 附近值，保持固定即可（同一台机器每次启动地址要一致）。
+
+### 3.2 用机器自带的原厂 NVM
+
+只补 DT **还不够**：`linux-firmware` 的 `crnv21.bin` 换上去时依然失败
+（实测 `Index list with 0 items`）。设备自带的 `bluetooth` 分区（FAT16）里
+`image/` 目录就是原厂固件（还有 `.b44/.b46/.b47/.b55/.b71` 等板级变体）：
+
+```bash
+mount -o ro /dev/disk/by-partlabel/bluetooth /mnt/bt
+cp /mnt/bt/image/crnv21.bin   /lib/firmware/qca/crnv21.bin
+cp /mnt/bt/image/crbtfw21.tlv /lib/firmware/qca/crbtfw21.tlv
+umount /mnt/bt
+```
+
+`06-config.sh` 已把它做成 `raphael-bt-firmware.service`（开机自动执行、幂等；
+若固件有变化且当前没有控制器，会重新探测 serdev 让它重新下载 NVM）。
+
+## 4. 验证
 
 ```
 $ btmgmt info
-Index list with 0 items
+Index list with 1 item
+hci0:  Primary controller
+       addr 02:00:78:E0:04:F0  version 9  manufacturer 29  class 0x6c0110
+       supported settings: powered connectable fast-connectable discoverable
+                           bondable link-security ssp br/edr le advertising ...
+       current settings: powered bondable ssp br/edr le secure-conn ll-privacy
+       name raphael
 
-$ btmgmt --index 0 info
-Reading hci0 info failed with status 0x11 (Invalid Index)
-
-$ bluetoothctl list
-No default controller available
-
-$ ls /sys/kernel/debug/bluetooth/hci0/
-（空 —— 正常应有 features / commands / …，说明该设备从未被 open）
+$ bluetoothctl --timeout 15 scan on
+[NEW] Device F8:2A:53:39:B4:A3 midea
+[NEW] Device BA:23:03:00:2A:83 RUNBEN-3
+...（一次扫描到 9 个设备）
 ```
 
-`/sys/class/bluetooth/hci0/` 里只有 `device`（→ `serial0-0`）、`power`、`reset`、`rfkillN`、
-`subsystem`、`uevent`，**没有 `address`/`bus`/`type`/`name`** —— 半注册状态。
+## 5. 踩坑提示
 
-## 3. 内核代码里的因果链
-
-来源：`net/bluetooth/hci_core.c`（Aospa `sm8150/7.2.0`）
-
-```c
-hci_register_dev()                 /* device_add + rfkill_register 都成功 */
-  └─ queue_work(req_workqueue, &hdev->power_on)
-
-hci_power_on()                     /* 约 905 行 */
-  ├─ err = hci_dev_do_open(hdev);
-  │    if (err < 0) { mgmt_set_powered_failed(hdev, err); return; }   ← 不发 Index Added
-  └─ if (hci_dev_test_and_clear_flag(hdev, HCI_SETUP))
-         mgmt_index_added(hdev);   /* 957 行：BlueZ 只有收到这个才知道有控制器 */
-```
-
-也就是说：`hci_dev_do_open()` 失败 → 没有 Index Added → BlueZ 完全看不到控制器。
-而 `hci_dev_do_open()` 的失败**没有打日志**（该路径的报错在内核里是 debug 级别），
-所以 dmesg 里"什么都看不到"，只有前面那两条
-`Frame reassembly failed (-84)`（EILSEQ，UART 组帧异常）值得怀疑。
-
-## 4. 排除项
-
-- 不是模块缺失：`hci_uart` 已绑定 serdev
-- 不是固件缺失/错误：rampatch 与 NVM 都下载完成
-- 不是设备树：live DT 与内核 DTB 逐属性一致
-- 不是 rfkill：软/硬阻塞都是 no
-- 不是线程卡死：`ps -eLo comm | grep hci` 无卡住的工作队列线程；也没有 hung task 警告
-- 不是 BlueZ 配置：`bluetoothd -n -d` 启动正常，只是收不到任何控制器事件
-
-## 5. 下一步该怎么做（需要内核侧迭代）
-
-1. 用 Aospa `sm8150/7.2.0` 源码重新编译内核，打开
-   `CONFIG_DYNAMIC_DEBUG=y`（当前内核**没有**编这个，所以无法开动态调试）
-   和 `CONFIG_BT_DEBUGFS=y`（已有）
-2. 开机后对 `hci_qca` / `hci_core` / `btqca` 打开动态调试，观察
-   `hci_dev_do_open()` 具体在哪一步返回错误（大概率在 HCI Reset /
-   Read Local Version / Read BD Addr 这一串初始化命令中的某一条超时）
-3. 按结果决定修法：
-   - 若是初始化命令超时 → 检查 `qca_set_baudrate()` 之后的 UART 波特率切换
-     （`Frame reassembly failed (-84)` 支持这个方向）
-   - 若是 BD 地址读取失败 → 在设备树里补 `local-bd-address`，或用
-     `qca_set_bdaddr()` 写入
-4. 备选：换用 postmarketOS 的 `soc/qualcomm-sm8150/linux` 树（他们标注
-   Bluetooth 可用），代价是内核基线从 Aospa 7.2 换成 pmOS 的版本
-
-## 6. 现状
-
-蓝牙**当前不可用**（`bluetoothctl` 看不到控制器，BLE/耳机/文件传输都不行）；
-Wi-Fi（含 5GHz）、音频输出、显示、触摸、GPU、USB 网络共享、调制解调器均正常。
+- **不要**频繁 unbind/bind BT serdev：一次异常操作后设备卡在关机流程
+  （ping 通但 sshd 已停），只能长按电源强重启。改配置优先用「替换文件 + 重启」。
+- 本机 `10-raphael-watchdog.conf` 把硬件看门狗全关了（为了修 §8.2 的重启卡死），
+  因此真挂起时不会自动复位 —— 记住长按电源 10 秒。
+- 内核树自带的 `sm8150-xiaomi-raphael.dtb` 与**实际生效**的 U-Boot DT 不是一回事：
+  `sound {}` 是空的、也没有相机节点。判断问题要看 `/proc/device-tree/` 或
+  `/sys/firmware/fdt`（后者仅 root 可读）。

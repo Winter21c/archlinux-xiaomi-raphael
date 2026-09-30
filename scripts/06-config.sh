@@ -320,6 +320,66 @@ EOF
 enable_unit raphael-firstboot.service
 
 # ---------------------------------------------------------------------------
+# 11b. UCM: 声卡 driver 名在不同内核构建下可能是 sm8150 / sm8150_raphael,
+#      alsa-ucm2 按 conf.d/<driver>/<longname>.conf 查找, 两套名字都要能命中
+# ---------------------------------------------------------------------------
+if [ -d "$ROOT/usr/share/alsa/ucm2/conf.d/sm8150_raphael" ] \
+   && [ ! -e "$ROOT/usr/share/alsa/ucm2/conf.d/sm8150" ]; then
+  ln -s sm8150_raphael "$ROOT/usr/share/alsa/ucm2/conf.d/sm8150"
+  log "UCM: 增加 sm8150 -> sm8150_raphael 兼容链接"
+fi
+
+# ---------------------------------------------------------------------------
+# 11c. 蓝牙原厂固件/NVM: linux-firmware 里的 qca/crnv21.bin 与 raphael 的板级
+#      校准不匹配 -> 控制器上报全零 BD_ADDR -> 内核 hci_power_on() 立即关闭设备,
+#      不发 mgmt Index Added, 表现为 btmgmt "Invalid Index"。
+#      设备自带的 bluetooth 分区 (FAT16, image/ 目录) 里是原厂 NVM+固件, 用它替换。
+# ---------------------------------------------------------------------------
+cat > "$ROOT/usr/local/sbin/raphael-bt-firmware.sh" <<'EOF'
+#!/bin/bash
+# 从设备自带的 bluetooth 分区安装原厂蓝牙 NVM/固件 (幂等)
+part=/dev/disk/by-partlabel/bluetooth
+[ -b "$part" ] || exit 0
+mnt=$(mktemp -d)
+if mount -o ro "$part" "$mnt" 2>/dev/null; then
+  changed=0
+  for f in crnv21.bin crbtfw21.tlv; do
+    if [ -f "$mnt/image/$f" ] && ! cmp -s "$mnt/image/$f" "/lib/firmware/qca/$f"; then
+      cp -f "$mnt/image/$f" "/lib/firmware/qca/$f" && changed=1
+      echo "installed /lib/firmware/qca/$f from bluetooth partition"
+    fi
+  done
+  umount "$mnt"
+  rmdir "$mnt" 2>/dev/null || true
+  # 固件换了以后必须重新探测 serdev 才会重新下载 NVM
+  if [ "$changed" = 1 ] && [ -d /sys/bus/serial/drivers/hci_uart_qca ]; then
+    if [ "$(btmgmt info 2>/dev/null | head -1)" = "Index list with 0 items" ]; then
+      echo serial0-0 > /sys/bus/serial/drivers/hci_uart_qca/unbind 2>/dev/null || true
+      sleep 2
+      echo serial0-0 > /sys/bus/serial/drivers/hci_uart_qca/bind 2>/dev/null || true
+    fi
+  fi
+fi
+EOF
+chmod 755 "$ROOT/usr/local/sbin/raphael-bt-firmware.sh"
+cat > "$ROOT/etc/systemd/system/raphael-bt-firmware.service" <<'EOF'
+[Unit]
+Description=Install factory Bluetooth firmware/NVM from the bluetooth partition
+After=local-fs.target
+Before=bluetooth.service
+ConditionPathExists=/dev/disk/by-partlabel/bluetooth
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/raphael-bt-firmware.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+enable_unit raphael-bt-firmware.service
+
+# ---------------------------------------------------------------------------
 # 12. SSH 会话使用中文 (上游脚本 07 的 profile.d 片段, 原样可用)
 # ---------------------------------------------------------------------------
 mkdir -p "$ROOT/etc/profile.d"
