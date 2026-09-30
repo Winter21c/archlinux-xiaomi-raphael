@@ -146,7 +146,17 @@ raphael-arch/
 └── out/                     # 产物
 ```
 
-## 6. 重新构建
+## 6. 发布自己的镜像（可选）
+
+```bash
+./scripts/99-make-release.sh v1.0.0            # 压缩+分卷+生成校验和与刷机说明
+./scripts/99-make-release.sh v1.0.0 --upload   # 直接发布到本仓库的 Release
+```
+
+GitHub Release 单个文件上限 2 GB，而 rootfs 有 6 GB 左右，脚本会自动用 zstd 压缩并把大文件切成
+`*.part00`/`*.part01`…，同时生成 `SHA256SUMS` 和一份给下载者的《刷机说明.txt》。
+
+## 7. 重新构建
 
 ```bash
 ./build.sh                 # 全流程（首次约 40-60 分钟，主要是下载）
@@ -174,7 +184,7 @@ raphael-arch/
 
 ---
 
-## 7. 排障
+## 8. 排障
 
 | 现象 | 处理 |
 |:--|:--|
@@ -191,7 +201,7 @@ raphael-arch/
 
 ---
 
-## 8. 致谢
+## 9. 致谢
 
 - [GengWei1997/linux-xiaomi-raphael-uboot](https://github.com/GengWei1997/linux-xiaomi-raphael-uboot) —
   U-Boot、定制内核（7.2）、设备固件、ALSA UCM，本项目直接复用其产物
@@ -202,7 +212,7 @@ raphael-arch/
 
 ---
 
-## 9. 许可与归属
+## 10. 许可与归属
 
 本项目**不分发**别人的二进制产物，所有上游文件都由 `scripts/00-fetch.sh` 在构建时从原始发布页下载：
 
