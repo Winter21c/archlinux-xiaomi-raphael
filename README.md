@@ -88,7 +88,7 @@ fastboot reboot
 | Wi-Fi (WCN3990, ath10k_snoc) | ✅ | 网卡名是 **`wld0`**（systemd 改名，不是 wlan0）。需要 `skip_otp=y` + **tqftpserv 必须运行**（见 §8.1）；真机已实测扫描到 AP |
 | 蓝牙 (WCN3998, hci_qca) | ⚠️ | **固件加载成功**（`QCA setup on UART is completed`），但内核 HCI 初始化最后一步失败 → `hci0` 从未 open → BlueZ 看不到控制器。详见 [notes/bluetooth.md](notes/bluetooth.md)（需要内核侧调试） |
 | 音频输出 (ADSP + UCM) | ✅ | 声卡 `card 0: Raphael`；UCM 提供 `Speaker (TFA9874)` 与 `Headphone (WCD9340)` 两个输出；已实测 440Hz 播放正常。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
-| 麦克风 | ❌ | 作者提供的 UCM 里只定义了 Speaker/Headphone，没有采集设备 |
+| 麦克风 | ❌ | 不只是 UCM 缺采集设备 —— 实测 12 种采集路由组合全部数字静音，**采集后端在设备树/内核侧就没有定义**。详见 [notes/microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md) |
 | 电池 / 充电 / RTC | ✅ | 内核内建 |
 | USB (dwc3, OTG) | ✅ | 含 **USB NCM 网络共享**：插电脑后设备是 `172.16.42.1`，可 `ssh winter@172.16.42.1` |
 | 手电筒 / 振动 | ⚠️ | 未验证 |
