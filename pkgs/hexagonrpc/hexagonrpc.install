@@ -1,0 +1,50 @@
+# hexagonrpcd unit selection for Xiaomi Redmi K20 Pro (raphael / SM8150).
+#
+# Upstream ships three units with mutually-exclusive conditions:
+#   hexagonrpcd-adsp-rootpd.service     ConditionPathExists=!/dev/fastrpc-sdsp
+#                                       ConditionPathExists=/dev/fastrpc-adsp
+#   hexagonrpcd-adsp-sensorspd.service  ConditionPathExists=!/dev/fastrpc-sdsp
+#                                       ConditionPathExists=/dev/fastrpc-adsp
+#   hexagonrpcd-sdsp.service            ConditionPathExists=/dev/fastrpc-sdsp
+#
+# On raphael the device tree exposes FOUR remoteprocs, and the SLPI one
+# (qcom,sm8150-slpi-pas @0x2400000, firmware slpi.mbn) carries a fastrpc child
+# node whose DT label is "sdsp" -- NOT "slpi":
+#     remoteproc@17300000  qcom,sm8150-adsp-pas   fastrpc label = "adsp"
+#     remoteproc@2400000   qcom,sm8150-slpi-pas   fastrpc label = "sdsp"   <-- !
+#     remoteproc@4080000   qcom,sm8150-mpss-pas   (no fastrpc node)
+#     remoteproc@8300000   qcom,sm8150-cdsp-pas   fastrpc label = "cdsp"
+# The fastrpc driver names the node "fastrpc-%s%s" -> /dev/fastrpc-{adsp,sdsp,cdsp}.
+#
+# Therefore on raphael ONLY hexagonrpcd-sdsp.service can start; the two adsp
+# units are suppressed by ConditionPathExists=!/dev/fastrpc-sdsp.
+# (Verified by decompiling sm8150-xiaomi-raphael.dtb with dtc.)
+
+post_install() {
+  systemctl daemon-reload >/dev/null 2>&1 || true
+
+  # raphael: SLPI is labelled "sdsp", so this is the unit that actually runs.
+  systemctl enable hexagonrpcd-sdsp.service >/dev/null 2>&1 || true
+
+  # These can never start on raphael (suppressed by !/dev/fastrpc-sdsp).
+  systemctl disable hexagonrpcd-adsp-rootpd.service >/dev/null 2>&1 || true
+  systemctl disable hexagonrpcd-adsp-sensorspd.service >/dev/null 2>&1 || true
+
+  echo ">>> hexagonrpc installed. Enabled hexagonrpcd-sdsp.service (SLPI)."
+  echo ">>> Requires CONFIG_QCOM_FASTRPC (module fastrpc) and the fastrpc user."
+  echo ">>> Check: ls -l /dev/fastrpc-*  ;  systemctl status hexagonrpcd-sdsp"
+}
+
+post_upgrade() {
+  post_install
+}
+
+pre_remove() {
+  systemctl disable hexagonrpcd-sdsp.service >/dev/null 2>&1 || true
+  systemctl disable hexagonrpcd-adsp-rootpd.service >/dev/null 2>&1 || true
+  systemctl disable hexagonrpcd-adsp-sensorspd.service >/dev/null 2>&1 || true
+}
+
+post_remove() {
+  systemctl daemon-reload >/dev/null 2>&1 || true
+}

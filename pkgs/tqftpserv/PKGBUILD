@@ -1,0 +1,62 @@
+# Maintainer: raphael-arch bring-up
+# linux-msm/tqftpserv -- TFTP server over AF_QIPCRTR. The TFTP *client* is the
+# firmware running on the Hexagon modem, so this daemon serves modem firmware
+# and persist files to the modem at boot.
+#
+# Verified upstream state: master = c2559a26098f6d2b36a946ef0b6ad02223264c3e
+# (2026-09-02). Upstream has NO git tags. meson.build declares version 1.1.1
+# (Debian labels the same code 1.2).
+#
+# Build system: meson + ninja (NOT a Makefile).
+#   meson.build: dependency('libzstd')   -> ALARM `zstd`
+#                dependency('qrtr')      -> our `qrtr` package (qrtr.pc)
+#                dependency('systemd')   -> optional, only to locate the unit dir
+#   The unit directory is resolved as:
+#     if get_option('systemd-unit-prefix') != ''  -> use it verbatim
+#     elif systemd.found()                        -> systemd.pc
+#   so we pass -Dsystemd-unit-prefix explicitly and do not need systemd at all
+#   in a clean chroot.
+#
+# Installed files (verified from meson.build):
+#   /usr/bin/tqftpserv
+#   /usr/lib/systemd/system/tqftpserv.service   (StateDirectory=tqftpserv)
+# NOTE: tqftpserv-populate-readwrite.service.in and populate-readwrite.sh exist
+# in the tree but meson.build does NOT install them. They are only for devices
+# with a `persist` partition; raphael has none in the mainline DT.
+
+pkgname=tqftpserv
+pkgver=1.1.1
+pkgrel=1
+pkgdesc="TFTP server over AF_QIPCRTR (serves firmware/files to the modem DSP)"
+arch=('aarch64')
+url="https://github.com/linux-msm/tqftpserv"
+license=('BSD-3-Clause')
+depends=('glibc' 'zstd' 'qrtr')
+makedepends=('meson')
+install=tqftpserv.install
+source=("git+${url}#branch=master")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd tqftpserv
+  printf '1.1.1.r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  cd tqftpserv
+  meson setup build \
+    --prefix=/usr \
+    --buildtype=release \
+    -Dsystemd-unit-prefix=/usr/lib/systemd/system
+  meson compile -C build
+}
+
+package() {
+  cd tqftpserv
+  meson install -C build --destdir "$pkgdir"
+
+  # /tmp/tqftpserv is the readwrite root the daemon translates /readwrite/ to.
+  install -d -m 755 "$pkgdir/usr/lib/tmpfiles.d"
+  printf 'd /tmp/tqftpserv 0755 root root -\n' \
+    > "$pkgdir/usr/lib/tmpfiles.d/tqftpserv.conf"
+}

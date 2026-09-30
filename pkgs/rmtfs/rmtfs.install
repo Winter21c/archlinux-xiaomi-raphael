@@ -1,0 +1,29 @@
+post_install() {
+  # rmtfs.service is triggered by udev (rmtfs.rules: SYSTEMD_WANTS on
+  # /dev/qcom_rmtfs_mem*) AND has ConditionPathExists=/dev/qcom_rmtfs_mem1.
+  # Enabling it here is what the Debian package does too.
+  systemctl daemon-reload >/dev/null 2>&1 || true
+  systemctl enable rmtfs.service >/dev/null 2>&1 || true
+
+  # rmtfs-dir.service MUST stay disabled (races with rmtfs.service).
+  systemctl disable rmtfs-dir.service >/dev/null 2>&1 || true
+
+  if ! [ -e /dev/qcom_rmtfs_mem1 ]; then
+    echo ">>> /dev/qcom_rmtfs_mem1 is missing. It is created by the kernel"
+    echo ">>> (CONFIG_QCOM_RMTFS_MEM=y) when the modem memory region probes."
+    echo ">>> Without it rmtfs.service will not start."
+  fi
+}
+
+post_upgrade() {
+  post_install
+}
+
+pre_remove() {
+  systemctl disable rmtfs.service >/dev/null 2>&1 || true
+  systemctl disable rmtfs-dir.service >/dev/null 2>&1 || true
+}
+
+post_remove() {
+  systemctl daemon-reload >/dev/null 2>&1 || true
+}

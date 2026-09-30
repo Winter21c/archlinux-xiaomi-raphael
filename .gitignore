@@ -1,0 +1,22 @@
+# ---- 构建产物（体积巨大，不进仓库；用 ./build.sh 重新生成）----
+out/
+work/
+dl/
+logs/
+tools/
+*.img
+*.img.zst
+*.img.xz
+*.deb
+*.tar.gz
+*.pkg.tar.*
+
+# ---- 本地调研草稿（含上游未授权脚本与下载物，不随仓库分发）----
+_recon/
+
+# ---- 编辑器/系统 ----
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store

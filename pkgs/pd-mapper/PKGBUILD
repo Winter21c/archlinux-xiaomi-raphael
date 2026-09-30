@@ -1,0 +1,58 @@
+# Maintainer: raphael-arch bring-up
+# linux-msm/pd-mapper -- Qualcomm Protection Domain mapper. Serves the
+# `servreg_loc` QMI service over AF_QIPCRTR so remote processors can look up
+# where a protection domain lives.
+#
+# Verified upstream state: master = 5ecd2fe926aca7abfe40724177f63b942cff3947
+# (2025-12-30). Upstream has NO git tags.
+#
+# Build system: plain Makefile (no CMake/QMake).
+#   prefix ?= /usr/local  -> overridable by env or command line.
+#   Debian's debian/rules does exactly: PD_MAPPER_BUILD_OPTS=prefix=/usr
+#   LDFLAGS are hardcoded to `-lqrtr -llzma` (liblzma -> ALARM package `xz`).
+#
+# Installed files (verified from the Makefile install target):
+#   /usr/bin/pd-mapper
+#   /usr/lib/systemd/system/pd-mapper.service
+#
+# *** READ THIS BEFORE ENABLING ***
+# The 7.2.0 kernel for this device is built with CONFIG_QCOM_PD_MAPPER=m and
+# ships qcom_pd_mapper.ko, which binds the auxiliary device "qcom_common.pd-mapper"
+# that qcom_common.ko creates from qcom_q6v5_pas.c (called UNCONDITIONALLY, see
+# qcom_add_pdm_subdev() at qcom_q6v5_pas.c:918). For compatible "qcom,sm8150" it
+# serves: adsp_audio_pd, adsp_root_pd, cdsp_root_pd, mpss_root_pd_gps,
+# mpss_wlan_pd. So the KERNEL already answers servreg_loc on sm8150 and this
+# userspace daemon is, strictly, redundant -- and both cannot own the same QRTR
+# service. Install it (the known-good Debian image for this device does), but
+# verify on the device and mask it if it cannot bind:
+#     systemctl status pd-mapper
+#     journalctl -u pd-mapper
+#     qrtr-lookup | grep -i servreg
+
+pkgname=pd-mapper
+pkgver=1.0
+pkgrel=1
+pkgdesc="Qualcomm Protection Domain mapper (servreg_loc over QRTR)"
+arch=('aarch64')
+url="https://github.com/linux-msm/pd-mapper"
+license=('BSD-3-Clause')
+depends=('glibc' 'xz' 'qrtr')
+makedepends=()
+install=pd-mapper.install
+source=("git+${url}#branch=master")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd pd-mapper
+  printf '1.0.r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  cd pd-mapper
+  make prefix=/usr
+}
+
+package() {
+  cd pd-mapper
+  make DESTDIR="$pkgdir" prefix=/usr install
+}

@@ -1,0 +1,116 @@
+#!/bin/bash
+# ============================================================================
+#  阶段 10 — 生成 cache 分区的 FAT32 引导镜像
+#  引导链: U-Boot(boot 分区) -> EFI 启动项 \EFI\BOOT\BOOTAA64.EFI (systemd-boot)
+#          -> loader/entries/*.conf -> linux.efi (内核 Image) + initramfs
+#          -> root=UUID=<rootfs> (userdata 分区)
+#  以作者提供的 256MB FAT32 镜像为模板, 只替换/新增文件 (无需 root)。
+# ============================================================================
+set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+require_ns
+ns_mount
+setup_mtools
+
+confirm_stage "10 生成 cache 引导镜像"
+KV="$(cat "$WORK/kver" 2>/dev/null || true)"
+UUID="$(rootfs_uuid)"
+IMG="$OUT/boot-cache.img"
+
+[ -s "$DL/xiaomi-k20pro-boot.img" ] || die "缺少 FAT 模板 ($DL/xiaomi-k20pro-boot.img)"
+cp -f "$DL/xiaomi-k20pro-boot.img" "$IMG"
+log "基于模板: $(basename "$DL/xiaomi-k20pro-boot.img") ($(du -h "$IMG" | cut -f1))"
+
+# ---- 准备要写入的文件 -----------------------------------------------------
+STAGE="$WORK/bootstage"
+rm -rf "$STAGE"
+mkdir -p "$STAGE/loader/entries" "$STAGE/dtbs/qcom"
+
+cp -f "$ROOT/boot/Image" "$STAGE/linux.efi" || die "缺少内核 Image (先跑 03-kernel.sh)"
+cp -f "$WORK/initramfs.img" "$STAGE/initramfs" || die "缺少 initramfs (先跑 08-initramfs.sh)"
+cp -f "$ROOT/usr/lib/modules/$KV/dtbs/qcom/sm8150-xiaomi-raphael.dtb" "$STAGE/dtbs/qcom/" 2>/dev/null || true
+
+# systemd-boot: 用 Arch 自己的版本 (与 rootfs 内 systemd 同版本), 同时保留模板自带版本
+SB=""
+for c in "$ROOT/usr/lib/systemd/boot/efi/systemd-bootaa64.efi" \
+         "$ROOT/usr/lib/systemd/boot/efi/systemd-bootaarch64.efi"; do
+  [ -f "$c" ] && { SB="$c"; break; }
+done
+if [ -n "$SB" ]; then
+  cp -f "$SB" "$STAGE/bootaa64.efi"
+  log "systemd-boot: $(basename "$SB") ($(du -h "$SB" | cut -f1))"
+else
+  warn "rootfs 内找不到 systemd-bootaa64.efi, 保留模板自带的引导器"
+fi
+
+# ---- loader 配置 ----------------------------------------------------------
+cat > "$STAGE/loader/loader.conf" <<'EOF'
+default  arch.conf
+timeout  3
+editor   yes
+console-mode keep
+EOF
+
+cat > "$STAGE/loader/entries/arch.conf" <<EOF
+title   Arch Linux ARM (raphael) - Plasma Mobile
+linux   /linux.efi
+initrd  /initramfs
+options root=UUID=$UUID rootfstype=ext4 rw rootwait console=tty0 loglevel=4
+EOF
+
+# 兜底条目: 不加载 initramfs, 由内核直接挂载根分区 (UFS/ext4 均已内建)
+cat > "$STAGE/loader/entries/arch-direct.conf" <<EOF
+title   Arch Linux ARM (raphael) - no initramfs (recovery)
+linux   /linux.efi
+options root=UUID=$UUID rootfstype=ext4 rw rootwait console=tty0 loglevel=7
+EOF
+
+# 调试条目: 详细日志 + 单用户救援
+cat > "$STAGE/loader/entries/arch-debug.conf" <<EOF
+title   Arch Linux ARM (raphael) - debug shell
+linux   /linux.efi
+initrd  /initramfs
+options root=UUID=$UUID rootfstype=ext4 rw rootwait console=tty0 loglevel=7 systemd.log_level=debug
+EOF
+
+# 保留上游 Debian 条目会让菜单里出现一个必然失败的选项, 删掉
+# (模板里叫 ubuntu.conf)
+
+# ---- 写入 FAT 镜像 --------------------------------------------------------
+log "写入 FAT 镜像"
+mtools_mkdir "$IMG" "::/loader"
+mtools_mkdir "$IMG" "::/loader/entries"
+mtools_mkdir "$IMG" "::/dtbs"
+mtools_mkdir "$IMG" "::/dtbs/qcom"
+
+mtools_del "$IMG" "::/loader/entries/ubuntu.conf"
+
+# 先把模板自带的厂商引导器取出来备份, 再覆盖它
+mkdir -p "$WORK/vendor-efi"
+if 7z x -y -o"$WORK/vendor-efi" "$DL/xiaomi-k20pro-boot.img" "efi/boot/bootaa64.efi" >/dev/null 2>&1 \
+   && [ -f "$WORK/vendor-efi/efi/boot/bootaa64.efi" ]; then
+  mtools_copy "$IMG" "$WORK/vendor-efi/efi/boot/bootaa64.efi" "::/efi/boot/bootaa64-vendor.efi"
+  log "已备份模板引导器为 /efi/boot/bootaa64-vendor.efi"
+else
+  warn "未能抽取模板自带引导器用于备份 (不影响构建)"
+fi
+
+mtools_copy "$IMG" "$STAGE/linux.efi"                        "::/linux.efi"
+mtools_copy "$IMG" "$STAGE/initramfs"                        "::/initramfs"
+mtools_copy "$IMG" "$STAGE/loader/loader.conf"               "::/loader/loader.conf"
+mtools_copy "$IMG" "$STAGE/loader/entries/arch.conf"         "::/loader/entries/arch.conf"
+mtools_copy "$IMG" "$STAGE/loader/entries/arch-direct.conf"  "::/loader/entries/arch-direct.conf"
+mtools_copy "$IMG" "$STAGE/loader/entries/arch-debug.conf"   "::/loader/entries/arch-debug.conf"
+[ -f "$STAGE/dtbs/qcom/sm8150-xiaomi-raphael.dtb" ] && \
+  mtools_copy "$IMG" "$STAGE/dtbs/qcom/sm8150-xiaomi-raphael.dtb" "::/dtbs/qcom/sm8150-xiaomi-raphael.dtb"
+[ -n "$SB" ] && mtools_copy "$IMG" "$STAGE/bootaa64.efi" "::/efi/boot/bootaa64.efi"
+
+log "镜像内容:"
+mtools_list "$IMG" "::/" | sed 's/^/    /'
+
+# ---- 校验 -----------------------------------------------------------------
+SIZE=$(stat -c %s "$IMG")
+log "boot-cache.img: $((SIZE/1024/1024)) MiB (cache 分区需 ≥ ${BOOTFAT_SIZE_MB}MiB)"
+[ "$SIZE" -eq $((BOOTFAT_SIZE_MB*1024*1024)) ] || warn "镜像大小与模板不一致, 请确认 cache 分区足够大"
+
+log "cache 引导镜像完成: $IMG"

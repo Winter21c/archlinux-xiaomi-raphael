@@ -1,0 +1,49 @@
+# Maintainer: raphael-arch bring-up
+# linux-msm/qrtr -- userspace reference for net/qrtr. Provides libqrtr.so,
+# qrtr-lookup and qrtr-cfg. REQUIRED by rmtfs, pd-mapper and tqftpserv.
+#
+# Verified upstream state:
+#   tag v1.2  = b51ffaf22707b6000ecfb894c5b750f3bb7843b2
+#   master    = 29e36ae164389580a0f8ea7a7fdb728140ae978d (2026-09-15)
+# NOTE: master has REMOVED src/ns.c and qrtr-ns.service.in. The QRTR name
+# service lives in the kernel (net/qrtr/ns.c, CONFIG_QRTR=m) -- see
+# /tmp/raphael-arch notes. Do NOT build qrtr-ns; there is nothing to run.
+
+pkgname=qrtr
+pkgver=1.2
+pkgrel=1
+pkgdesc="Userspace reference for net/qrtr in the Linux kernel (libqrtr, qrtr-lookup, qrtr-cfg)"
+arch=('aarch64')
+url="https://github.com/linux-msm/qrtr"
+license=('BSD-3-Clause')
+depends=('glibc')
+makedepends=('meson')
+provides=('libqrtr.so=1-64')
+conflicts=()
+source=("git+${url}#tag=v${pkgver}")
+sha256sums=('SKIP')
+
+build() {
+  cd qrtr
+
+  # qrtr-ns is obsolete: the kernel serves the QRTR name service itself
+  # (qrtr.ko description is literally "Qualcomm IPC Router Nameservice").
+  # systemd-service is disabled because we do not want qrtr-ns.service.
+  meson setup build \
+    --prefix=/usr \
+    --buildtype=release \
+    -Dqrtr-ns=disabled \
+    -Dsystemd-service=disabled
+
+  meson compile -C build
+}
+
+check() {
+  cd qrtr
+  meson test -C build --print-errorlogs || true
+}
+
+package() {
+  cd qrtr
+  meson install -C build --destdir "$pkgdir"
+}

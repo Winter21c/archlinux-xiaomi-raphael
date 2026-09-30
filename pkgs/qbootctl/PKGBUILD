@@ -1,0 +1,49 @@
+# Maintainer: raphael-arch bring-up
+# linux-msm/qbootctl -- reads/writes the Qualcomm A/B slot metadata stored in
+# the UFS boot LUNs (via the SG/BSG ioctl interface).
+#
+# OPTIONAL for raphael. Nothing in the Wi-Fi / BT / audio / modem / sensor boot
+# path needs it. Install it only if you want to inspect or flip the A/B slot
+# from Linux.
+#
+# Verified upstream state: main = 39a6e6daaf029fb0a083777679a15ea2c18f72de
+# (2025-03-24). Default branch is `main`, not `master`.
+#
+# Build system: meson + ninja.
+#   meson.build requires <linux/bsg.h> (ALARM: `linux-api-headers`, which is
+#   also a hard dependency of glibc so it is always present).
+#
+# Installed files (verified from meson.build -- `install: true` only):
+#   /usr/bin/qbootctl
+#   (no systemd unit, no udev rule)
+
+pkgname=qbootctl
+pkgver=0.1
+pkgrel=1
+pkgdesc="Control the Qualcomm A/B boot slots from Linux (UFS BSG interface)"
+arch=('aarch64')
+url="https://github.com/linux-msm/qbootctl"
+license=('GPL-3.0-or-later')
+depends=('glibc')
+makedepends=('meson' 'linux-api-headers')
+source=("git+${url}#branch=main")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd qbootctl
+  printf '0.1.r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  cd qbootctl
+  meson setup build \
+    --prefix=/usr \
+    --buildtype=release \
+    -Dc_std=gnu11
+  meson compile -C build
+}
+
+package() {
+  cd qbootctl
+  meson install -C build --destdir "$pkgdir"
+}

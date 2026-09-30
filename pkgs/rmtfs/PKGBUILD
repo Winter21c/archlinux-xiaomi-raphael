@@ -1,0 +1,61 @@
+# Maintainer: raphael-arch bring-up
+# linux-msm/rmtfs -- Qualcomm Remote Filesystem Service.
+# REQUIRED on raphael: the modem (qcom,sm8150-mpss-pas) needs it for its
+# EFS/persist partitions.
+#
+# Verified upstream state: master = b30a3eb38f9af283f18dbd3c7755653efc52c094
+# (2026-06-22). Upstream has NO git tags and no releases.
+#
+# Build system: plain Makefile (no CMake/QMake).
+#   prefix        : plain `=` in the Makefile -> a `make prefix=/usr` command
+#                   line DOES override it (command-line vars win over
+#                   makefile assignments).
+#   RMTFS_EFS_PATH: `?=` -> overridable.
+#
+# Installed files (verified from the Makefile install target):
+#   /usr/bin/rmtfs
+#   /usr/lib/systemd/system/rmtfs.service
+#   /usr/lib/systemd/system/rmtfs-dir.service
+#   /usr/lib/udev/rules.d/rmtfs.rules
+#
+# ONLY rmtfs.service is enabled. rmtfs-dir.service must stay DISABLED: Debian's
+# packaging comment states it "must be disabled by default in order to prevent
+# race conditions with the main rmtfs service".
+
+pkgname=rmtfs
+pkgver=1.0
+pkgrel=1
+pkgdesc="Qualcomm Remote Filesystem Service (EFS/persist proxy for the modem)"
+arch=('aarch64')
+url="https://github.com/linux-msm/rmtfs"
+license=('BSD-3-Clause')
+depends=('glibc' 'systemd-libs' 'qrtr')
+makedepends=()
+install=rmtfs.install
+source=("git+${url}#branch=master")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd rmtfs
+  printf '1.0.r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  cd rmtfs
+  # Makefile hardcodes `prefix = /usr/local` and installs the units into
+  # $(prefix)/lib/systemd/system + $(prefix)/lib/udev/rules.d, so prefix=/usr
+  # lands them exactly where Arch expects them.
+  make prefix=/usr RMTFS_EFS_PATH=/var/lib/rmtfs
+}
+
+package() {
+  cd rmtfs
+  make DESTDIR="$pkgdir" prefix=/usr RMTFS_EFS_PATH=/var/lib/rmtfs install
+
+  # The modem writes its EFS under /var/lib/rmtfs; provide the directory and a
+  # tmpfiles entry so it is recreated on boot.
+  install -d -m 755 "$pkgdir/var/lib/rmtfs"
+  install -d -m 755 "$pkgdir/usr/lib/tmpfiles.d"
+  printf 'd /var/lib/rmtfs 0755 root root -\n' \
+    > "$pkgdir/usr/lib/tmpfiles.d/rmtfs.conf"
+}

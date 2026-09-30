@@ -1,0 +1,76 @@
+# Maintainer: raphael-arch bring-up
+# linux-msm/hexagonrpc -- hexagonrpcd, the userspace FastRPC "reverse tunnel"
+# that serves the ADSP/CDSP/SLPI filesystem and provides the CHRE (sensor)
+# path. This is the descendant of the old `fastrpc`/`libfastrpc` userspace.
+#
+# OPTIONAL. Needed for sensors via CHRE and for running unsigned FastRPC
+# "shell" on the DSPs. Wi-Fi, Bluetooth, audio and modem do NOT need it.
+#
+# Verified upstream state: main = 598b591ae9da6a6cfe2ca5ea78998019ca6395ea
+# (2026-08-24). Default branch is `main`.
+#
+# Build system: meson + ninja, meson_version >= 1.1 (ALARM meson is 1.12.1).
+# Options come from `meson.options` (the new name; there is NO
+# meson_options.txt): hexagonrpcd_verbose (boolean, default false).
+# tools/sscregistrygen is built only if json-c is present (optional).
+# tests/ builds 3 test binaries that are compiled but not installed.
+#
+# Installed files (verified from the subdir meson.build files):
+#   /usr/bin/hexagonrpcd
+#   /usr/share/man/man1/hexagonrpcd.1
+#   /usr/lib/libhexagonrpc.so.0.5 (+ .so.0.5.0 / .so symlinks)
+#   /usr/lib/hexagonrpc/chrecd
+#   /usr/lib/systemd/system/hexagonrpcd-adsp-rootpd.service
+#   /usr/lib/systemd/system/hexagonrpcd-adsp-sensorspd.service
+#   /usr/lib/systemd/system/hexagonrpcd-sdsp.service
+#
+# The units run as User=fastrpc / Group=fastrpc. Upstream ships NO sysusers.d
+# or tmpfiles.d file for that account, so this PKGBUILD creates one.
+
+pkgname=hexagonrpc
+pkgver=0.5.0
+pkgrel=1
+pkgdesc="FastRPC reverse tunnel / filesystem server for Hexagon DSPs (hexagonrpcd)"
+arch=('aarch64')
+url="https://github.com/linux-msm/hexagonrpc"
+license=('BSD-3-Clause')
+depends=('glibc')
+makedepends=('meson')
+optdepends=('json-c: to build the sscregistrygen helper')
+install=hexagonrpc.install
+source=("git+${url}#branch=main")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd hexagonrpc
+  printf '0.5.0.r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+build() {
+  cd hexagonrpc
+  meson setup build \
+    --prefix=/usr \
+    --buildtype=release \
+    -Dhexagonrpcd_verbose=false
+  meson compile -C build
+}
+
+package() {
+  cd hexagonrpc
+  meson install -C build --destdir "$pkgdir"
+
+  # System account for the services (upstream has no sysusers.d file).
+  install -d -m 755 "$pkgdir/usr/lib/sysusers.d"
+  printf 'u fastrpc - "FastRPC reverse tunnel" /var/lib/fastrpc /usr/bin/nologin\n' \
+    > "$pkgdir/usr/lib/sysusers.d/hexagonrpc.conf"
+
+  # The units all hardcode User=fastrpc, so the device nodes created by the
+  # fastrpc kernel driver (CONFIG_QCOM_FASTRPC=m, name pattern "fastrpc-%s%s")
+  # must be reachable by that group. Upstream ships only Android .rc files and
+  # no udev rule -- this is a packaging addition. Deliberately no SUBSYSTEM
+  # match, because the driver's class name is not documented upstream.
+  install -d -m 755 "$pkgdir/usr/lib/udev/rules.d"
+  printf '%s\n' \
+    'KERNEL=="fastrpc-*", GROUP="fastrpc", MODE="0660"' \
+    > "$pkgdir/usr/lib/udev/rules.d/60-hexagonrpc.rules"
+}
