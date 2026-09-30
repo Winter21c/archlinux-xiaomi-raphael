@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2026 Winter21c <https://github.com/Winter21c>
 # ============================================================================
 #  阶段 08 — 生成 initramfs (手工组装, 不依赖 mkinitcpio 执行环境)
 #  为什么需要: root 分区在 UFS 上, 内核已内建 ufshcd/ext4, 理论上可以不用

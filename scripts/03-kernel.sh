@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2026 Winter21c <https://github.com/Winter21c>
 # ============================================================================
 #  阶段 03 — 安装 raphael 定制内核 (作者预编译) + 设备树
 #  源: GengWei1997/kernel-deb 的 linux-image/headers deb

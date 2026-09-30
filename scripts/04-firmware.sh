@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2026 Winter21c <https://github.com/Winter21c>
 # ============================================================================
 #  阶段 04 — 安装 raphael 定制固件 + ALSA UCM 音频配置 + 精简无关固件
 #

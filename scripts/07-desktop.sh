@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2026 Winter21c <https://github.com/Winter21c>
 # ============================================================================
 #  阶段 07 — KDE Plasma 桌面 + Plasma Mobile 配置
 #  两个会话同时安装, 登录界面可切换:

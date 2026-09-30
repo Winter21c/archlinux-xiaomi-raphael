@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2026 Winter21c <https://github.com/Winter21c>
 # ============================================================================
 #  阶段 10 — 生成 cache 分区的 FAT32 引导镜像
 #  引导链: U-Boot(boot 分区) -> EFI 启动项 \EFI\BOOT\BOOTAA64.EFI (systemd-boot)

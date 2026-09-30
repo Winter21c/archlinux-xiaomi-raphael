@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2026 Winter21c <https://github.com/Winter21c>
 # ============================================================================
 #  阶段 01 — 解包 Arch Linux ARM rootfs
 #  在 user namespace 内以 "假 root" 解包, 这样 setuid 位与属主才能正确落盘。

@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2026 Winter21c <https://github.com/Winter21c>
 # ============================================================================
 #  阶段 02 — 用 pacman 安装 Arch Linux ARM 软件包
 #  做法: 在 user namespace 内, 用宿主 x86_64 的 pacman 以 --arch aarch64

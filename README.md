@@ -214,18 +214,41 @@ GitHub Release 单个文件上限 2 GB，而 rootfs 有 6 GB 左右，脚本会�
 
 ## 10. 许可与归属
 
-本项目**不分发**别人的二进制产物，所有上游文件都由 `scripts/00-fetch.sh` 在构建时从原始发布页下载：
+### 本仓库
 
-- **内核 / 固件 / ALSA UCM / 内核更新包**：来自
-  [GengWei1997/kernel-deb](https://github.com/GengWei1997/kernel-deb)（releases）
-- **U-Boot**：来自
-  [GengWei1997/linux-xiaomi-raphael-uboot](https://github.com/GengWei1997/linux-xiaomi-raphael-uboot)
-  releases v1.0.0（该仓库**未声明开源许可证**，本项目只引用其发布产物，不复制其源码）
-- **FAT 引导模板**：`xiaomi-k20pro-boot.img`（同上，构建时下载）
-- **rootfs**：Arch Linux ARM 官方 aarch64 通用 tarball
-- **用户态服务源码**：`linux-msm/{qrtr,rmtfs,pd-mapper,tqftpserv}`（构建时 git/curl 拉取）
-- **本仓库自身内容**（`build.sh` / `scripts/` / `config/` / `pkgs/` / `notes/` / 文档）：
-  暂未声明许可证。**如果你要指定，告诉我用 MIT 还是 GPL-2.0，我加一个 LICENSE 文件。**
+**GPL-2.0-only**（见 [LICENSE](LICENSE)）—— 与 Linux 内核生态保持一致，
+任何衍生作品都必须以同样的方式开源。
 
-> 构建产物里包含的设备固件（`firmware-xiaomi-raphael.deb` 内容）是从你自己的手机/上游发布页来的，
-> 属于厂商版权材料，因此**不随本仓库分发**，请自行构建。
+```
+Copyright (C) 2026 Winter21c
+SPDX-License-Identifier: GPL-2.0-only
+```
+
+### 第三方材料
+
+本项目**不分发**别人的二进制产物，所有上游文件都由 `scripts/00-fetch.sh` 在**构建时**从原始发布页下载：
+
+| 材料 | 来源 | 说明 |
+|:--|:--|:--|
+| 定制内核 / 设备固件 / ALSA UCM / 内核更新包 | [GengWei1997/kernel-deb](https://github.com/GengWei1997/kernel-deb) releases | 构建时下载，不随仓库分发 |
+| U-Boot、cache 分区 FAT 模板 | [GengWei1997/linux-xiaomi-raphael-uboot](https://github.com/GengWei1997/linux-xiaomi-raphael-uboot) releases v1.0.0 | 该仓库**未声明许可证**，本项目只引用其发布产物 |
+| Arch Linux ARM aarch64 rootfs | [archlinuxarm.org](https://archlinuxarm.org/) | 构建时下载 |
+| 用户态服务源码 qrtr / rmtfs / pd-mapper / tqftpserv | [linux-msm](https://github.com/linux-msm) | 构建时拉取 |
+| 内核源码 sm8150 分支 | [Aospa-raphael-unofficial/linux](https://github.com/Aospa-raphael-unofficial/linux) | 仅作参考（产物用上面的预编译包） |
+
+设备固件（`firmware-xiaomi-raphael.deb` 的内容）属于厂商版权材料，
+因此**不随本仓库分发**，请自行构建获取。
+
+### 关于 notes/
+
+`notes/` 下的调研文档为目标项目的**互操作性分析**，其中引用了上游 Debian 构建脚本的片段
+（上游未声明许可证）。这些引用仅用于说明"哪个行为移植到了哪里"，
+**不在本项目的 GPL-2.0 授权范围内**，版权归原作者所有。
+
+---
+
+## 11. 免责声明
+
+刷机有风险：可能变砖、丢数据、失去保修。请先备份（至少 `boot`/`dtbo` 分区和 Android 数据）。
+本项目按"现状"提供，不对任何损失负责。默认密码（`winter`/`winter`、`root`/`root`）
+**仅供首次登录使用，刷完请立刻修改**：`passwd && sudo passwd root`。

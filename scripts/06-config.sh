@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2026 Winter21c <https://github.com/Winter21c>
 # ============================================================================
 #  阶段 06 — 系统基础配置
 #  (对照上游 Debian 构建的 scripts/04,07,08,10,11,12,13,14,15,16 逐条移植)

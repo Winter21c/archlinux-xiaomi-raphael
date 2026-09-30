@@ -1,4 +1,6 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2026 Winter21c <https://github.com/Winter21c>
 # ============================================================================
 #  公共函数库 — 所有阶段脚本共用
 #  设计约束: 本机没有 root 权限, 因此全部构建在 user namespace 内以 "假 root"
