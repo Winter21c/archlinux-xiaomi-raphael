@@ -19,6 +19,9 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 require_ns
 ns_mount
+# 注意: 09-image-rootfs.sh 会删除 rootfs 内的 qemu 垫片, 重新跑本阶段时必须补回,
+# 否则后面的 enable_unit / ldconfig (需要 chroot+qemu) 会静默失败。
+setup_qemu_shim
 
 confirm_stage "05 构建 Qualcomm 用户态服务 (交叉编译)"
 
@@ -169,9 +172,24 @@ if [ "$OK_PDMAP" = 1 ]; then
 fi
 if [ "$OK_TQ" = 1 ]; then
   install -D -m 755 "$STAGE/tqftpserv" "$ROOT/usr/bin/tqftpserv"
-  sed -e 's+TQFTPSERV_PATH+/usr/bin+g' -e 's+@bindir@+/usr/bin+g' \
-      "$SRC/tqftpserv/tqftpserv.service.in" \
-      > "$ROOT/usr/lib/systemd/system/tqftpserv.service" 2>/dev/null || true
+  # 注意: 必须直接写单元文件, 不能 sed 上游的 *.service.in ——
+  # 模板里有 @prefix@/@bindir@ 等多个占位符, 漏替换任何一个都会让 systemd
+  # 报 "bad unit file setting" 而拒绝加载, 结果就是没有 Wi-Fi (已踩过坑)。
+  cat > "$ROOT/usr/lib/systemd/system/tqftpserv.service" <<'UNIT'
+[Unit]
+Description=QRTR TFTP service
+# 通过 QRTR 给远端处理器提供固件。没有它: 调制解调器的 msm/modem/wlan_pd
+# 电源域起不来 -> 不发布 WLFW(69) 服务 -> ath10k 拿不到网卡 -> Wi-Fi 扫描为空。
+After=qrtr.service
+
+[Service]
+ExecStart=/usr/bin/tqftpserv
+Restart=always
+StateDirectory=tqftpserv
+
+[Install]
+WantedBy=multi-user.target
+UNIT
 fi
 
 # ---------------------------------------------------------------------------
@@ -180,16 +198,29 @@ fi
 for u in "$ROOT"/usr/lib/systemd/system/{pd-mapper,rmtfs}.service; do
   [ -f "$u" ] && sed -i '/ConditionKernelVersion/d' "$u"
 done
-# 内核内建 pd-mapper (CONFIG_QCOM_PD_MAPPER) 与用户态版争抢同一个 QMI 服务号,
-# 用户态版支持 SLPI (传感器), 因此屏蔽内核模块。
-# 想换回内核版: 删除本文件并 systemctl disable pd-mapper
-cat > "$ROOT/etc/modprobe.d/raphael-pd-mapper.conf" <<'EOF'
-blacklist qcom_pd_mapper
+# servreg 电源域映射表: 必须由【内核】qcom_pd_mapper 提供 ——
+# 真机验证: 设备固件里的 *.jsn 只有 adsp/cdsp/slpi 条目, 而
+# msm/modem/wlan_pd (Wi-Fi 必需) 只存在于内核的硬编码表里。
+# 用 modules-load.d 让它尽早加载, 而不是靠 udev 异步 modalias。
+cat > "$ROOT/etc/modules-load.d/raphael-pd-mapper.conf" <<'EOF'
+# 调制解调器在启动早期就会查 servreg 要 msm/modem/wlan_pd, 必须提前就位
+qcom_pd_mapper
 EOF
 
 [ -x "$ROOT/usr/bin/rmtfs" ]     && enable_unit rmtfs.service
-[ -x "$ROOT/usr/bin/pd-mapper" ] && enable_unit pd-mapper.service
 [ -f "$ROOT/usr/lib/systemd/system/tqftpserv.service" ] && enable_unit tqftpserv.service
+# 用户态 pd-mapper 默认不启用: 真机验证内核 qcom_pd_mapper 已覆盖
+# adsp_audio_pd / adsp_root_pd / cdsp_root_pd / mpss_root_pd_gps / mpss_wlan_pd。
+# 若以后要调 SLPI/传感器, 可以 systemctl enable --now pd-mapper 再试。
+if [ -e "$ROOT/usr/lib/systemd/system/pd-mapper.service" ]; then
+  gq /usr/bin/systemctl --root=/ disable pd-mapper >/dev/null 2>&1 || true
+  rm -f "$ROOT/etc/systemd/system"/*.wants/pd-mapper.service
+  log "  用户态 pd-mapper 保持禁用 (内核 qcom_pd_mapper 已提供必需的电源域)"
+fi
+# 清理历史遗留: 早期版本写过 blacklist (会导致 Wi-Fi 完全不可用)
+rm -f "$ROOT/etc/modprobe.d/raphael-pd-mapper.conf"
+rm -f "$ROOT/etc/systemd/system/multi-user.target.wants/pd-mapper.service"
+rm -f "$ROOT/etc/systemd/system/graphical.target.wants/pd-mapper.service"
 
 gq /usr/bin/ldconfig >/dev/null 2>&1 || true
 

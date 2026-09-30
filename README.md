@@ -72,9 +72,9 @@ fastboot reboot
 
 1. 屏幕亮起 → U-Boot 菜单（3 秒倒计时，默认第一项）→ systemd-boot → 内核
 2. 首启动会自动：扩容根分区到 userdata 全尺寸 / 初始化 pacman 密钥环 / 修正家目录属主
-3. 自动登录到 **Plasma Mobile**（用户 `winter`，密码 `winter`；`root` 密码 `root`）
+3. 自动登录到 **Plasma Mobile**（用户 `winter`，密码 `1234`；`root` 密码 `1234`）
 
-**改密码**：`passwd` / `sudo passwd root`。
+**改密码**：`passwd` / `sudo passwd root`（默认 1234 是为了锁屏能用数字键盘解开）。
 
 ---
 
@@ -85,9 +85,9 @@ fastboot reboot
 | 屏幕 (三星 AMOLED 1080×2340) | ✅ | 主线 panel 驱动 `samsung,ams639rq08` |
 | 触摸 (Goodix GT9886) | ✅ | 靠作者内核里的 `goodix_gtx8` 驱动（主线没有 gt9886，只有这套定制内核能点亮触摸） |
 | GPU (Adreno 640, freedreno) | ✅ | `qcom/a640_gmu.bin` + `qcom/a630_sqe.fw`（A640 与 A630 共用 SQE） |
-| Wi-Fi (WCN3990, ath10k_snoc) | ✅ | 需要 `options ath10k_core skip_otp=y`（已配置）；固件用作者的设备专属版本 |
+| Wi-Fi (WCN3990, ath10k_snoc) | ✅ | 网卡名是 **`wld0`**（systemd 改名，不是 wlan0）。需要 `skip_otp=y` + **tqftpserv 必须运行**（见 §8.1）；真机已实测扫描到 AP |
 | 蓝牙 (WCN399x, hci_qca) | ✅ | `qca/crbtfw21.tlv` + `qca/crnv21.bin` |
-| 音频 (ADSP + UCM) | ✅ | 已装作者 ALSA UCM + rmtfs/pd-mapper/tqftpserv（音频必需） |
+| 音频 (ADSP + UCM) | ✅ | 声卡 `card 0: Raphael` 已注册；依赖 rmtfs + tqftpserv + 内核 pd-mapper |
 | 电池 / 充电 / RTC | ✅ | 内核内建 |
 | USB (dwc3, OTG) | ✅ | 含 **USB NCM 网络共享**：插电脑后设备是 `172.16.42.1`，可 `ssh winter@172.16.42.1` |
 | 手电筒 / 振动 | ⚠️ | 未验证 |
@@ -184,15 +184,87 @@ GitHub Release 单个文件上限 2 GB，而 rootfs 有 6 GB 左右，脚本会�
 
 ---
 
-## 8. 排障
+## 8. 已知问题与修复（真机踩坑记录）
+
+> 这一节是 2026-09-30 在真机上定位出来的两个会让人以为"系统坏了"的坑，已在当前镜像中修复。
+
+### 8.1 Wi-Fi 打开但扫描不到任何网络 ★
+
+**症状**：Wi-Fi 开关是开着的，点进去也显示"无线已启用"，但列表里一个 AP 都没有。
+
+**根因**（逐层定位出来的完整链条）：
+
+```
+tqftpserv.service 里有一个没被替换的 @prefix@ 占位符
+  → systemd 报 "bad unit file setting" 拒绝加载 → tqftpserv 从未启动
+  → 主机侧没人给调制解调器提供 WLAN 电源域所需的固件服务
+    （设备固件 *.jsn 里写明需要 kernel/elf_loader + wlan/fw）
+  → 调制解调器的 msm/modem/wlan_pd 电源域起不来
+  → 调制解调器不发布 WLFW(69) QMI 服务
+  → ath10k_snoc 的 probe 正常返回，但 ath10k_core_register() 只在收到
+    FW_READY_IND 时才被调用 → 永远不注册 wiphy → 没有无线网卡 → 扫描为空
+```
+
+**三步判定**（以后遇到同类问题照这个查）：
+
+```bash
+systemctl status tqftpserv                                  # 必须 active
+qrtr-lookup | awk '$1==69'                                  # 必须能看到 ATH10k WLAN firmware service
+ls /sys/class/ieee80211/                                    # 必须有 phyN
+journalctl -b -k | grep ath10k                              # 看到 "wld0: renamed from wlan0" 就成了
+```
+
+**修复**：
+1. `tqftpserv.service` **直接写单元文件**，不要 sed 上游的 `*.service.in`
+   （模板里有 `@prefix@`/`@bindir@` 多个占位符，漏一个就整个服务加载失败）；
+2. servreg 电源域映射表必须由**内核** `qcom_pd_mapper` 提供 ——
+   设备固件的 `.jsn` 里**只有** adsp/cdsp/slpi 条目，`msm/modem/wlan_pd`
+   只存在于内核硬编码表里，所以**绝不能** blacklist 它；
+3. 内核模块通过 `/etc/modules-load.d/raphael-pd-mapper.conf` 尽早加载。
+
+### 8.2 重启卡死 ★
+
+**症状**：`systemctl reboot` 之后屏幕停在
+`Fail to set watchdog hardware timeout to 10 minutes: Invalid argument`，
+既不进系统也不重启；此时 USB 网络还能 ping 通，但 sshd 连不上（关机流程里已停）。
+
+**根因**：systemd 重启时会按 `RebootWatchdogSec`（编译默认 10 分钟）去设置硬件看门狗，
+PM8150 的看门狗不支持这个超时，返回 EINVAL 后卡在关机流程。
+
+**修复**：`/etc/systemd/system.conf.d/10-raphael-watchdog.conf`：
+
+```ini
+[Manager]
+RuntimeWatchdogSec=off
+RebootWatchdogSec=off
+KExecWatchdogSec=off
+```
+
+### 8.3 无线网卡叫 wld0，不是 wlan0
+
+systemd 的可预测命名把它命名为 **`wld0`**（`nmcli device` 里显示的名字也是它）。
+自己的脚本里请用 `nmcli device wifi ...`，不要硬编码 `wlan0`。
+
+### 8.4 其它已知限制
+
+| 项 | 说明 |
+|:--|:--|
+| 自动旋转 | 设备树里没有加速度计节点，无法自动旋转 |
+| 挂起/休眠 | SM8150 只有 s2idle，已 mask；用熄屏 (`leijun`) 代替 |
+| 摄像头 | 主线缺 sm8150 的 CAMSS/CCI 设备树与驱动，也缺 IMX586 等 sensor 驱动 —— 详见 [camera.md](camera.md) |
+| 手电筒 | ✅ 可用：`shoudian on/off/toggle`（KDE 菜单里也有） |
+
+## 9. 排障
 
 | 现象 | 处理 |
 |:--|:--|
 | 刷完黑屏 | 长按电源 10 秒强制重启；确认 `fastboot flash cache` 成功（cache 分区需 ≥256 MiB） |
 | 卡在 systemd-boot 菜单 | 选 `arch-direct.conf`（不用 initramfs） |
 | 内核起来了但挂载根失败 | 在 `arch-debug.conf` 里看 log；initramfs 会掉进救援 shell（需 OTG 键盘） |
-| 没有 Wi-Fi | `dmesg \| grep -i ath10k`；确认 `/etc/modprobe.d/ath10k.conf` 存在且固件是**设备专属** `.zst`（`04-firmware.sh` 会自检） |
-| 没有声音 | `systemctl status rmtfs pd-mapper tqftpserv`；`wpctl status` 看 UCM 是否识别成 `sm8150_raphael` |
+| **Wi-Fi 扫描不到任何 AP** | 先查 `systemctl status tqftpserv` 是否 active、`qrtr-lookup` 里有没有 69 号 WLFW 服务 —— 详见 §8.1 |
+| 网卡名不是 wlan0 | 正常，systemd 把它叫 `wld0`（§8.3） |
+| 没有声音 | `aplay -l` 看有没有 `card 0: Raphael`；再查 `systemctl status rmtfs tqftpserv` |
+| 无法重启 | 见 §8.2（关机卡在 watchdog 设置），新镜像已修复 |
 | 桌面起不来 | 用 USB NCM 网络 SSH 进去：`ssh winter@172.16.42.1`，然后 `journalctl -b -u sddm`；必要时 `KWIN_COMPOSE=Q startplasma-wayland` 用软件渲染验证 |
 | 想回 Android | `fastboot flash boot <备份>`，再刷小米线刷包 |
 
@@ -201,7 +273,7 @@ GitHub Release 单个文件上限 2 GB，而 rootfs 有 6 GB 左右，脚本会�
 
 ---
 
-## 9. 致谢
+## 10. 致谢
 
 - [GengWei1997/linux-xiaomi-raphael-uboot](https://github.com/GengWei1997/linux-xiaomi-raphael-uboot) —
   U-Boot、定制内核（7.2）、设备固件、ALSA UCM，本项目直接复用其产物
@@ -212,7 +284,7 @@ GitHub Release 单个文件上限 2 GB，而 rootfs 有 6 GB 左右，脚本会�
 
 ---
 
-## 10. 许可与归属
+## 11. 许可与归属
 
 ### 本仓库
 
@@ -247,7 +319,7 @@ SPDX-License-Identifier: GPL-2.0-only
 
 ---
 
-## 11. 免责声明
+## 12. 免责声明
 
 刷机有风险：可能变砖、丢数据、失去保修。请先备份（至少 `boot`/`dtbo` 分区和 Android 数据）。
 本项目按"现状"提供，不对任何损失负责。默认密码（`winter`/`winter`、`root`/`root`）

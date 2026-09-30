@@ -115,7 +115,11 @@ TFEOF
   log "  已创建 $USERNAME (uid $UID_N, 组: wheel video audio input storage power rfkill)"
 fi
 
-# root 密码 + 允许密码登录 SSH (与上游一致, 方便首次调试)
+# 密码: 每次都重设 (幂等), 这样改 build.conf 后重跑本阶段即可生效
+# 默认 1234: 锁屏是数字键盘, 4 位 PIN 才按得出来
+if grep -q "^$USERNAME:" "$ROOT/etc/passwd"; then
+  sed -i "s|^$USERNAME:[^:]*:|$USERNAME:$(hash_pw "$USER_PASSWORD"):|" "$ROOT/etc/shadow"
+fi
 sed -i "s|^root:[^:]*:|root:$(hash_pw "$ROOT_PASSWORD"):|" "$ROOT/etc/shadow"
 mkdir -p "$ROOT/etc/sudoers.d"
 echo '%wheel ALL=(ALL:ALL) ALL' > "$ROOT/etc/sudoers.d/00-wheel"
@@ -515,6 +519,20 @@ cat > "$ROOT/etc/modules-load.d/raphael-video.conf" <<'EOF'
 # USB 视频类设备 (USB 摄像头/采集卡)
 uvcvideo
 # Qualcomm Venus 视频编解码由设备树 modalias 自动加载 (venus-core/-dec/-enc)
+EOF
+
+# ---------------------------------------------------------------------------
+# 20. 关掉 systemd 的看门狗 (真机验证: 否则重启会卡死在关机流程)
+#     PM8150 硬件看门狗不支持 10 分钟超时, systemd 重启时设置失败会卡住,
+#     表现为屏幕显示 "Fail to set watchdog hardware timeout to 10 minutes:
+#     Invalid argument" 且设备无法重启 (sshd 已停但 USB gadget 还在)。
+# ---------------------------------------------------------------------------
+mkdir -p "$ROOT/etc/systemd/system.conf.d"
+cat > "$ROOT/etc/systemd/system.conf.d/10-raphael-watchdog.conf" <<'EOF'
+[Manager]
+RuntimeWatchdogSec=off
+RebootWatchdogSec=off
+KExecWatchdogSec=off
 EOF
 
 log "系统基础配置完成"
