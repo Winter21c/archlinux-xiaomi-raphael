@@ -67,7 +67,10 @@ log "写 /etc/fstab (布局: $ROOTFS_LAYOUT)"
   printf '# <device>                     <dir>   <type>  <options>                                   <dump> <pass>\n'
   case "$ROOTFS_LAYOUT" in
     btrfs-subvol)
-      printf 'PARTLABEL=userdata             /       btrfs   rw,%s,nofail,x-systemd.growfs       0      1\n' "$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
+      # 注意: / 这一行**不要**加 nofail —— 加了 systemd 可能跳过"把根重挂成 rw",
+# 结果根一直是只读, sshd(生成主机密钥)、usb-ncm(写 configfs) 等一堆要写文件的服务全失败。
+# 原版 ext4 镜像就是不带 nofail 的, 那是验证过可用的写法。
+      printf 'PARTLABEL=userdata             /       btrfs   rw,%s,x-systemd.growfs       0      1\n' "$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
       # /home **不单独挂载**: 家目录数据本来就在 @/home 里 (@home 只是它的副本)。
       # 实测单独挂 @home 会让 user@1000 会话因 "Dependency failed" 起不来
       # (挂载失败 -> Session N of user 依赖失败 -> SDDM respawn 循环 -> 进不了桌面),
