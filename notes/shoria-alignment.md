@@ -135,8 +135,31 @@
 8. **文档**：README 增加「日常维护（快照/滚挂口诀/downgrade）」章节
 9. 提交推送 → CI 构建验证 → 出镜像
 
-## 7. 需要你拍板的三件事
+## 7. 已确定的三个决定（已按此实施）
 
-1. **snapper** 依赖 `@` 子卷 → 要用它就刷 CI 镜像（本机无 sudo 构建是单子卷）。是否可以？
-2. **faillock `deny=0`**（指南做法，牺牲安全性）—— 手机上要不要这么放开？（我建议 `deny=0` 但保留 `unlock_time`，或折中 `deny=5`）
-3. **AUR 首启动自动安装**（约 10 个包，手机会编译几分钟到十几分钟，期间可正常用）—— 接受吗？还是只装清单、你自己按需 `paru -S`？
+1. **snapper 布局**：本机 `sudo` 可用 → **本机也能构建出 `@`/`@home` 完整布局**：
+   ```bash
+   sudo ./build.sh            # 有 root -> rootfs_layout() 返回 btrfs-subvol
+   ./build.sh                 # 无 root -> btrfs-flat（snapper 会自动跳过并说明原因）
+   ```
+   CI 构建（有 root）同样产出完整布局。首启动服务会自己探测，不适用的项会打印原因而不是报错。
+2. **faillock**：折中 **`deny = 5`**（比指南的 `deny=0` 安全，比原来的 10 宽松）。
+3. **AUR 包**：**首启动 paru 自动安装**，清单 =
+   `btrfs-assistant snap-pac downgrade plasma6-applets-wallpaper-effects
+   kwin-effects-geometry-change kwin-effect-rounded-corners-git rime-ice-git
+   rime-wanxiang-gram-zh-hans`；
+   失败时写入 `/etc/motd` 与 `~/AUR-安装失败-请看这里.txt`，**不写完成标记，下次开机自动重试**，
+   也可随时手动重跑：`sudo /usr/local/sbin/raphael-aur-setup.sh`（日志 `/var/log/raphael-aur-setup.log`）。
+
+> 附带：为了让 paru 能非交互安装，按指南的可选步骤加了
+> `/etc/sudoers.d/10-pacman-nopasswd`（wheel 免密 **仅 pacman**）。
+
+## 8. 落地位置速查
+
+| 内容 | 文件 |
+|:--|:--|
+| 包清单/字体版本/压缩级别等配置 | `config/build.conf` |
+| 编辑器、faillock、霞鹜文楷、性能模式、flatpak、sudoers、snapper、AUR 首启动 | `scripts/06-config.sh`（第 13 节） |
+| multilib、oh-my-zsh/bash、zshrc/bashrc、starship、Konsole、KDE 预置、输入法 | `scripts/07-desktop.sh`（第 13 节） |
+| 布局判定（btrfs-subvol / btrfs-flat / ext4） | `scripts/lib.sh` → `rootfs_layout()` / `btrfs_opts()` |
+| 镜像与引导参数随布局自动生成 | `scripts/09-image-rootfs.sh` / `scripts/10-image-boot.sh` |
