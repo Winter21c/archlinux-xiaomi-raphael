@@ -197,6 +197,31 @@ GitHub Release 单个文件上限 2 GB，而 rootfs 有 6 GB 左右，脚本会�
 如果你愿意装一次 `qemu-user-binfmt`（`sudo pacman -S qemu-user-binfmt && sudo systemctl restart systemd-binfmt`），
 构建会更快、也能跑完整 scriptlet —— 但不是必需的。
 
+### 7.1 线上编译（GitHub Actions）
+
+仓库自带 [`.github/workflows/build.yml`](.github/workflows/build.yml)，不用本地环境也能出镜像：
+
+- **手动触发**：Actions → 「构建镜像」→ *Run workflow*
+  - `stages` 留空 = 完整 `00 → 10`；填 `09 10` 就只重打包镜像
+  - `upload_rootfs` 勾上才会额外上传 rootfs 发布包（zstd 分卷，约 2-3 GB）
+- **自动触发**：改动 `scripts/` `config/` `dtb/` `build.sh` 后 push 到 `main` 会自动跑一次
+- **产物**：`boot-cache-image`（引导镜像 + 校验和 + 刷机说明，约 256 MB，保留 30 天）；
+  勾选后另有 `rootfs-release`（保留 14 天）。**不会**自动发到 Releases
+- 构建约 30-60 分钟；`dl/` 与 pacman 包缓存有缓存，第二次会快很多
+
+几个关键的 CI 设计点（照抄时注意）：
+
+| 点 | 原因 |
+|:--|:--|
+| 用 `archlinux:latest` **容器**，不是 ubuntu runner | 构建脚本依赖**宿主 pacman**（`--arch aarch64` 离线装包），Ubuntu 上跑不了 |
+| `options: --privileged` | 脚本在 user namespace 里 `unshare -m -p` + bind mount 出 chroot，Docker 默认 seccomp 会拦掉 |
+| `-v /mnt:/mnt` + 把 `dl/ work/ out/` 软链过去 | runner 的 `/` 只有 ~14 GB，而 rootfs 镜像本身 8 GB；大磁盘挂在宿主 `/mnt`（≈74 GB），容器默认看不到 |
+| 先装 `archlinux-keyring` 再 `pacman -Syu` | 官方 Arch 镜像可能过期，直接 `-Syu` 会因 keyring 太旧失败 |
+| `qemu-user` 装了兜底 | 个别镜像里包名不同（`qemu-emulators-full`）；脚本用 `qemu-aarch64` 跑 chroot 内的 aarch64 命令 |
+
+> `99-make-release.sh` 会把 `rootfs.sparse.img` 用 zstd 压到 19 级并切成 <1.9 GB 的分卷
+> （GitHub Release 单 asset 上限 2 GB），`release/` 里同时生成 `SHA256SUMS` 与刷机说明。
+
 ---
 
 ## 8. 已知问题与修复（真机踩坑记录）

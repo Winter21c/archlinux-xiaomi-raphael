@@ -1,0 +1,222 @@
+# ============================================================================
+#  线上编译: Arch Linux ARM (raphael / Redmi K20 Pro) 镜像
+#
+#  为什么用 Arch 容器:
+#    ※ 构建脚本用「宿主 pacman 以 --arch aarch64」离线组装 rootfs,
+#      宿主必须是 Arch (pacman 语义 + 包缓存), ubuntu runner 直接跑不了。
+#  为什么需要 --privileged:
+#    ※ 脚本在 user namespace 里 bind-mount 出 chroot 环境 (unshare -r -m -p -f),
+#      Docker 默认 seccomp 会拦掉 unshare/mount, 必须放开。
+#  为什么要把 /mnt 挂进容器:
+#    ※ runner 的 / 只有 ~14 GB, 而 rootfs 镜像本身就有 8 GB;
+#      runner 的大磁盘 (≈74 GB) 挂在宿主的 /mnt 上, 容器默认看不到, 必须 -v 进去。
+#      脚本按相对路径读写 dl/ work/ out/, 所以把它们软链到大磁盘即可。
+#
+#  产物:
+#    ※ 始终上传 boot-cache.img (引导镜像, ~256 MB) 与校验和/说明
+#    ※ rootfs 发布包 (zstd 分卷, ~2-3 GB) 需勾选 upload_rootfs 才上传
+#      —— 依作者要求, 镜像不自动发到 Release
+# ============================================================================
+name: 构建镜像
+
+on:
+  workflow_dispatch:
+    inputs:
+      stages:
+        description: '只跑指定阶段 (空格分隔, 如 "09 10")。CI 每次都是干净环境, 留空才有意义 —— 填了需要缓存里已有前序产物'
+        required: false
+        default: ''
+      upload_rootfs:
+        description: '同时上传 rootfs 发布包 (约 2-3 GB, 上传较慢)'
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'config/**'
+      - 'dtb/**'
+      - 'build.sh'
+      - '.github/workflows/build.yml'
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: 构建 rootfs + 引导镜像
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    container:
+      image: archlinux:latest
+      # runner 的大磁盘在宿主的 /mnt, 必须显式挂进容器
+      options: --privileged -v /mnt:/mnt
+
+    steps:
+      # ---------------------------------------------------------------- 环境
+      - name: 选择大容量工作磁盘
+        id: disk
+        run: |
+          set -e
+          best=""
+          for d in /mnt /workspace /; do
+            [ -d "$d" ] || continue
+            avail=$(df -Pk "$d" | awk 'NR==2{print $4}')
+            echo "候选 $d : 可用 $(( ${avail:-0} / 1024 / 1024 )) GiB"
+            if [ "${avail:-0}" -ge 31457280 ]; then best="$d"; break; fi   # >=30 GiB
+          done
+          if [ -z "$best" ]; then
+            echo "::error::找不到 30 GiB 以上的可写磁盘; 容器可能没有把宿主 /mnt 挂进来 (需要 -v /mnt:/mnt)"
+            df -h
+            exit 1
+          fi
+          echo "dir=$best" >> "$GITHUB_OUTPUT"
+          echo "选定工作磁盘: $best"
+          df -h / "$best"
+
+      - name: 初始化 pacman 与 keyring
+        run: |
+          pacman-key --init 2>/dev/null || true
+          pacman -Sy --noconfirm --needed archlinux-keyring
+          pacman -Syu --noconfirm
+
+      - name: 安装构建依赖
+        run: |
+          pacman -S --noconfirm --needed \
+            base-devel git curl wget \
+            zstd xz 7zip libarchive \
+            e2fsprogs android-tools mtools \
+            clang lld bc kmod util-linux
+          # qemu 用户态模拟器: 包名在不同镜像上可能是 qemu-user 或 qemu-emulators-full
+          pacman -S --noconfirm --needed qemu-user \
+            || pacman -S --noconfirm --needed qemu-emulators-full
+
+      - name: 校验关键工具齐全
+        run: |
+          missing=0
+          # 注意: mcopy/mmd/mdir 不在这里检查 —— 阶段 00 的 setup_mtools 会从
+          # Arch x86_64 仓库下载一份到 tools/mtools/, 不依赖系统 mtools
+          for b in unshare mount chroot ar depmod curl zstd mke2fs img2simg 7z \
+                   qemu-aarch64 make clang; do
+            if command -v "$b" >/dev/null 2>&1; then
+              printf '  \033[32m✔\033[0m %s\n' "$b"
+            else
+              printf '  \033[31m✘\033[0m %s\n' "$b"; missing=1
+            fi
+          done
+          [ "$missing" = 0 ] || { echo "::error::缺少构建所需工具, 见上面 ✘ 项"; exit 1; }
+          echo "qemu: $(qemu-aarch64 --version | head -1)"
+          echo "clang: $(clang --version | head -1)"
+          # 有系统 mtools 更好 (校验步骤用), 没有也不影响构建
+          command -v mdir >/dev/null 2>&1 && echo "mtools: 系统自带" || echo "mtools: 将由 setup_mtools 下载"
+
+      - uses: actions/checkout@v4
+
+      # ------------------------------------------------------ 大目录 -> 大磁盘
+      - name: 把 dl/work/out 等大目录软链到大磁盘
+        run: |
+          BIG='${{ steps.disk.outputs.dir }}/raphael-build'
+          mkdir -p "$BIG"
+          for d in dl work out tools logs release _recon; do
+            mkdir -p "$BIG/$d"
+            rm -rf "$GITHUB_WORKSPACE/$d"
+            ln -sfn "$BIG/$d" "$GITHUB_WORKSPACE/$d"
+          done
+          df -h "$BIG" | tail -1
+          ls -la "$GITHUB_WORKSPACE" | sed -n '1,14p'
+
+      # ------------------------------------------------------------- 缓存下载
+      - name: 缓存下载物与 pacman 包缓存
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.disk.outputs.dir }}/raphael-build/dl
+            ${{ steps.disk.outputs.dir }}/raphael-build/work/pkgcache
+          key: raphael-dl-${{ hashFiles('config/build.conf', 'scripts/00-fetch.sh', 'scripts/02-pacman.sh') }}
+          restore-keys: |
+            raphael-dl-
+
+      # ---------------------------------------------------------------- 构建
+      - name: 显示构建配置
+        run: grep -vE '^\s*#|^\s*$' config/build.conf | head -40
+
+      - name: 运行 build.sh
+        run: |
+          set -o pipefail
+          STAGES='${{ inputs.stages }}'
+          if [ -n "$STAGES" ]; then
+            echo ">> 只构建阶段: $STAGES"
+            # shellcheck disable=SC2086
+            ./build.sh --only $STAGES 2>&1 | tee logs/ci-build.log
+          else
+            echo ">> 完整构建 (00 -> 10)"
+            ./build.sh 2>&1 | tee logs/ci-build.log
+          fi
+
+      - name: 打包发布文件 (zstd + 分卷)
+        run: ./scripts/99-make-release.sh 2>&1 | tee -a logs/ci-build.log
+
+      - name: 校验产物
+        run: |
+          set -e
+          echo "== out/ =="; ls -lh out/ || true
+          echo "== release/ =="; ls -lh release/ || true
+          ( cd release && sha256sum -c SHA256SUMS )
+          # 优先用系统 mtools, 没有就用阶段 00 下载到 tools/ 的那份
+          MDIR="$(command -v mdir || echo "$PWD/tools/mtools/usr/bin/mdir")"
+          echo "== 引导镜像分区内容 ($MDIR) =="
+          "$MDIR" -i out/boot-cache.img ::/ 2>/dev/null | head -20 || true
+          echo "== 补丁设备树是否已写进引导镜像 =="
+          "$MDIR" -i out/boot-cache.img ::/dtbs/qcom 2>/dev/null || true
+          echo "== 引导条目是否带 devicetree 行 =="
+          "$MDIR" -i out/boot-cache.img ::/loader/entries/arch.conf 2>/dev/null || true
+
+      # ---------------------------------------------------------------- 上传
+      - name: 上传引导镜像与校验和 (始终)
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-cache-image
+          path: |
+            ${{ steps.disk.outputs.dir }}/raphael-build/out/boot-cache.img
+            ${{ steps.disk.outputs.dir }}/raphael-build/release/SHA256SUMS
+            ${{ steps.disk.outputs.dir }}/raphael-build/release/刷机说明.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: 上传 rootfs 发布包 (可选)
+        if: ${{ inputs.upload_rootfs }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rootfs-release
+          path: ${{ steps.disk.outputs.dir }}/raphael-build/release/*
+          compression-level: 0     # 已经是 zstd, 别再压一遍
+          retention-days: 14
+
+      - name: 失败时上传日志
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: ${{ steps.disk.outputs.dir }}/raphael-build/logs/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: 构建摘要
+        if: always()
+        run: |
+          {
+            echo "### 构建结果"
+            echo
+            echo '```'
+            ls -lh out/ release/ 2>/dev/null || true
+            echo '```'
+            if [ -s release/SHA256SUMS ]; then
+              echo "#### 校验和"; echo '```'
+              cat release/SHA256SUMS
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
