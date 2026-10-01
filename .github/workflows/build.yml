@@ -55,6 +55,11 @@ jobs:
       image: archlinux:latest
       # runner 的大磁盘在宿主的 /mnt, 必须显式挂进容器
       options: --privileged -v /mnt:/mnt
+    env:
+      # runner 在海外, 默认的国内 ALARM 源会很慢 -> 换官方源,
+      # 国内镜像留作兜底 (config/build.conf 里是 ${RAPHAEL_...:-默认值})
+      RAPHAEL_ALARM_MIRROR_PRIMARY: http://mirror.archlinuxarm.org
+      RAPHAEL_ALARM_MIRROR_FALLBACK: https://mirrors.ustc.edu.cn/archlinuxarm
 
     steps:
       # ---------------------------------------------------------------- 环境
