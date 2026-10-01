@@ -550,20 +550,23 @@ clipboardGroup=PostScreenshotCopyImage
 launchOnStartup=false
 EOF
 
-# 13.8 中文输入法 (指南: Fcitx5 + 中州韵 + 雾凇拼音)
-#  环境变量按指南写进 ~/.config/environment.d/ (不设 GTK_IM_MODULE, 避免 Wayland 闪烁)
+# 13.8 中文输入法
+#  ★ 2026-10-01 真机踩坑: 手机只有触屏键盘, 所以 Qt 的输入上下文必须是
+#    qtvirtualkeyboard (Plasma 键盘 plasma-keyboard 靠它把字送进输入框)。
+#    如果按 Shorin 指南设成 QT_IM_MODULE=fcitx, 现象就是:
+#      键盘能弹出来, 但点按键输入框毫无反应 (字全被交给 fcitx5 了, 而
+#      触屏键盘并不会喂给 fcitx5 的焦点)。
+#    中文由 Plasma 键盘自带的 Pinyin 插件提供
+#    (QtQuick.VirtualKeyboard.Plugins.Pinyin), 中英文都能直接打。
+#    fcitx5 仍然装着, 想要物理键盘 + 中州韵时手动开即可。
 install -d "$H/.config/environment.d"
 cat > "$H/.config/environment.d/ime.conf" <<'EOF'
-XMODIFIERS=@im=fcitx
-QT_IM_MODULES="wayland;fcitx"
-QT_IM_MODULE=fcitx
-SDL_IM_MODULE=fcitx
+QT_IM_MODULE=qtvirtualkeyboard
+XMODIFIERS=@im=none
 EOF
-# GTK 走配置文件 (优先级最低, Wayland 下不生效, 避免异常)
-printf 'gtk-im-module="fcitx"\n' > "$H/.gtkrc-2.0"
+rm -f "$H/.gtkrc-2.0"
 for v in 3.0 4.0; do
-  install -d "$H/.config/gtk-$v"
-  printf '[Settings]\ngtk-im-module=fcitx\n' > "$H/.config/gtk-$v/settings.ini"
+  rm -f "$H/.config/gtk-$v/settings.ini"
 done
 # fcitx5: 左右 Shift 都交给 Rime 处理 (指南: 右 Shift 切不回中文的修法)
 install -d "$H/.config/fcitx5"
@@ -656,5 +659,7 @@ if [ -e "$H/.config/autostart/fcitx5.desktop" ]; then
 fi
 # 5) 息屏自动变暗也关掉 (花屏最容易复现的路径), 见 raphael-display-nopm.service
 kwriteconfig6 --file powerdevilrc --group AC --group DimDisplay --key idleTime --delete 2>/dev/null || true
+# 6) GTK/fcitx 那套输入法环境 (会和触屏键盘抢输入)
+rm -f "$H/.gtkrc-2.0" "$H/.config/gtk-3.0/settings.ini" "$H/.config/gtk-4.0/settings.ini"
 chown -R 1000:1000 "$H/.config" "$H/.local" 2>/dev/null || true
 log "Shorin 个性化已撤销 (包未卸载)"

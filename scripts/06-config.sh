@@ -672,14 +672,17 @@ if [ -x "$ROOT/usr/local/sbin/raphael-firstboot.sh" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 16b. 输入法环境变量 + 默认编辑器 (参考 Shorin 指南)
+# 16b. 输入法环境变量 + 默认编辑器
+#  ★ 真机踩坑 (2026-10-01): 手机没有物理键盘, Qt 的输入上下文必须是
+#    qtvirtualkeyboard —— Plasma 的触屏键盘 (plasma-keyboard) 就是靠它把按键
+#    送进输入框。设成 QT_IM_MODULE=fcitx 的后果是: 键盘弹得出来, 但点按键
+#    输入框毫无反应 (字被交给 fcitx5, 而触屏键盘不会去喂 fcitx5 的焦点)。
+#    中文由 Plasma 键盘自带的 Pinyin 插件直接打, 不需要 fcitx5。
 # ---------------------------------------------------------------------------
 cat > "$ROOT/etc/environment" <<'EOF'
-GTK_IM_MODULE=fcitx
-QT_IM_MODULE=fcitx
-XMODIFIERS=@im=fcitx
-SDL_IM_MODULE=fcitx
-EDITOR=vim
+QT_IM_MODULE=qtvirtualkeyboard
+EDITOR=nvim
+VISUAL=nvim
 EOF
 
 # ---------------------------------------------------------------------------
