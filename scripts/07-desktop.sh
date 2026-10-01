@@ -591,13 +591,23 @@ if [ -f "$ROOT/usr/share/applications/org.kde.plasma.keyboard.desktop" ] && [ -f
   fi
   log "  虚拟键盘: Plasma 键盘 (真机验证可用)"
 fi
-# 中英文都要: Qt 虚拟键盘启用 en_US + zh_CN (自带 Pinyin 插件,
-# 触屏键盘上有个语言键可以切; 中文直接打拼音出候选词)
+# 中英文都要, 两个地方都得设:
+#  (a) plasma-keyboard 自己的语言列表 —— 它在 QML 里用
+#        VirtualKeyboardSettings.activeLocales = PlasmaKeyboardSettings.enabledLocales
+#      直接**覆盖** Qt VK 的设置, 所以这个才是真正生效的 (语言键灰不灰就看它)。
+#      配置文件名按 KDE 惯例 = 应用名 + rc -> plasma-keyboardrc。
+#  (b) Qt 虚拟键盘自己的 settings.conf 作为兜底:
+#      注意 QSettings 的 INI **等号两边不能有空格**, 否则整个键被忽略
+#      (踩过: 写成 "activeLocales = en_US,zh_CN" 结果只剩系统默认的 zh_CN)
 install -d "$H/.config/qtvirtualkeyboard"
 cat > "$H/.config/qtvirtualkeyboard/settings.conf" <<'EOF'
 [VirtualKeyboard]
-activeLocales=en_US,zh_CN
-locale=en_US
+activeLocales=en_US, zh_CN
+locale=zh_CN
+EOF
+cat > "$H/.config/plasma-keyboardrc" <<'EOF'
+[General]
+enabledLocales=en_US, zh_CN
 EOF
 log "  Qt 虚拟键盘语言: en_US + zh_CN (拼音)" 
 # fcitx5 随会话自启 (虚拟键盘 + 拼音都需要它在跑)
