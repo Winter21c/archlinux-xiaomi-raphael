@@ -576,6 +576,35 @@ if [ -f "$KBD_DESKTOP" ]; then
   sed -i 's|^Exec=plasma-keyboard$|Exec=env -u QT_IM_MODULES plasma-keyboard|' "$KBD_DESKTOP"
   grep -q 'env -u QT_IM_MODULES' "$KBD_DESKTOP" && log "  plasma-keyboard: Exec 已改为 env -u QT_IM_MODULES"
 fi
+# 触屏键盘默认选 fcitx5 那个 (它同时提供虚拟键盘 + 拼音输入法, 中英文都能打)。
+# 想换回 Plasma 键盘: 系统设置 -> 虚拟键盘 -> Plasma 键盘 (KCM 会改 kwinrc 的
+# InputMethod[$e])。两种都是合法的 X-KDE-Wayland-VirtualKeyboard 实现。
+KWINRC="$H/.config/kwinrc"
+if [ -f "$ROOT/usr/share/applications/fcitx5-wayland-launcher.desktop" ] && [ -f "$KWINRC" ]; then
+  if grep -q '^InputMethod\[\$e\]=' "$KWINRC"; then
+    sed -i 's|^InputMethod\[\$e\]=.*|InputMethod[$e]=/usr/share/applications/fcitx5-wayland-launcher.desktop|' "$KWINRC"
+  else
+    sed -i '/^\[Wayland\]/a InputMethod[$e]=/usr/share/applications/fcitx5-wayland-launcher.desktop' "$KWINRC"
+  fi
+  log "  虚拟键盘: 默认用 fcitx5 (InputMethod[$e]=fcitx5-wayland-launcher.desktop)"
+fi
+# fcitx5 随会话自启 (虚拟键盘 + 拼音都需要它在跑)
+install -d "$H/.config/autostart"
+cat > "$H/.config/autostart/fcitx5.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Fcitx 5
+Exec=fcitx5 -d
+Icon=fcitx
+X-GNOME-Autostart-Phase=Applications
+X-KDE-autostart-after=panel
+EOF
+install -d "$H/.config/fcitx5/conf"
+cat > "$H/.config/fcitx5/conf/virtualkeyboard.conf" <<'EOF'
+# 触屏虚拟键盘
+Enable=True
+AutoShow=True
+EOF
 rm -f "$H/.gtkrc-2.0"
 for v in 3.0 4.0; do
   rm -f "$H/.config/gtk-$v/settings.ini"
