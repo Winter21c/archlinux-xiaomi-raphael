@@ -599,17 +599,20 @@ fi
 #  (b) Qt 虚拟键盘自己的 settings.conf 作为兜底:
 #      注意 QSettings 的 INI **等号两边不能有空格**, 否则整个键被忽略
 #      (踩过: 写成 "activeLocales = en_US,zh_CN" 结果只剩系统默认的 zh_CN)
-install -d "$H/.config/qtvirtualkeyboard"
-# ★ 顺序很重要: 第一个就是键盘启动时的语言。中文放前面 (用户要的是中文界面 +
-#   中文键盘默认, 英文用来切), 放反了会变成"只能用英文"。
-cat > "$H/.config/qtvirtualkeyboard/settings.conf" <<'EOF'
-[VirtualKeyboard]
-activeLocales=zh_CN, en_US
-locale=zh_CN
-EOF
+# ★★ 真机结论 (2026-10-02, 折腾了一整轮):
+#   1) 语言列表的实际来源是 PlasmaKeyboardSettings.enabledLocales, 那是 KCM
+#      (kcm_plasmakeyboard) 用 C++ API 写的; 手写 ~/.config/plasma-keyboardrc
+#      **不生效** (strace 证明文件被打开过, 但值进不去);
+#      Qt VK 自己的 ~/.config/qtvirtualkeyboard/settings.conf 它根本不读。
+#      => 想加语言请走 GUI: 系统设置 -> 屏幕键盘 (On-Screen Keyboard) -> Languages
+#         中英都勾上, 地球键才会变可点。
+#   2) KConfig 的 QStringList 逗号分隔且 **不 trim 空格**:
+#      "zh_CN, en_US" -> ["zh_CN", " en_US"] -> 第二个无效被丢掉
+#      => 只剩一种语言 = 地球键变灰 (这就是之前"只能英文/只能中文"的原因)。
+#      所以逗号后面绝对不能有空格。
 cat > "$H/.config/plasma-keyboardrc" <<'EOF'
 [General]
-enabledLocales=zh_CN, en_US
+enabledLocales=zh_CN,en_US
 EOF
 # KDE 界面语言: 只写 [Formats] 不够, [Translations] 的 LANGUAGE 才决定界面语言
 # (zh_CN 优先, 没中文翻译的界面回落到英文, 这是正常的)
