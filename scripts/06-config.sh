@@ -207,12 +207,32 @@ EOF
 cat > "$ROOT/etc/modprobe.d/blacklist-raphael.conf" <<'EOF'
 # rmtfs/pd-mapper 未就绪时不要让 remoteproc 抢跑
 softdep qcom_q6v5_pas pre: rmtfs
+
 EOF
 # Arch 的 dnsmasq 默认不读取 /etc/dnsmasq.d, 必须显式打开
 touch "$ROOT/etc/dnsmasq.conf"
 if ! grep -q '^conf-dir=/etc/dnsmasq.d' "$ROOT/etc/dnsmasq.conf"; then
   echo 'conf-dir=/etc/dnsmasq.d/,*.conf' >> "$ROOT/etc/dnsmasq.conf"
 fi
+
+# ---------------------------------------------------------------------------
+# 6b. ★ pd-mapper 必须开机自启 (2026-10-01 真机排查出来的)
+#     pd-mapper 是 ADSP/CDSP 的 servreg "服务注册" 守护进程 (qcom_pd_mapper 内核
+#     模块的用户态对端)。它没跑的时候:
+#       qcom,slim-ngd-ctrl: QMI wait timeout     <- SLIMbus 控制器握手 ADSP 超时
+#       WCD9340 codec 不出现 (/sys/bus/slimbus/devices 空)
+#       声卡 "SLIM Capture 1: codec dai not found" -> 一直 EPROBE_DEFER
+#       -> aplay -l 没有 card 0, PipeWire 只剩 auto_null, 完全没声音
+#     rmtfs/tqftpserv 的包自带 enable, 但 pd-mapper 的 unit 默认是 disabled,
+#     所以必须在这里显式打开。
+# ---------------------------------------------------------------------------
+for u in pd-mapper.service rmtfs.service tqftpserv.service; do
+  if [ -e "$ROOT/usr/lib/systemd/system/$u" ]; then
+    enable_unit "$u"
+  else
+    warn "找不到 $u 的 unit (音频/调制解调器可能起不来)"
+  fi
+done
 # ALARM 基础镜像默认启用 systemd-networkd + systemd-resolved, 会和
 # NetworkManager 抢网卡/DNS, 必须关掉
 for u in systemd-networkd.service systemd-networkd.socket \
@@ -429,6 +449,68 @@ if [ -d "$UCM/sm8150_raphael" ]; then
   done
   log "UCM: conf.d 下已备好 sm8150 / sm8150_raphael 两套名字"
 fi
+
+# ---------------------------------------------------------------------------
+# 11b-2. Q6 路由 mixer 直接落盘 (2026-10-01: UCM 在新 alsa-lib 下已经不可用)
+#   alsa-lib/alsa-ucm-conf 升到 1.2.16 之后, 这套 Android 风格的 UCM 解析失败:
+#     alsaucm -c hw:0 list verbs -> "No such file or directory"
+#     PipeWire/ACP 于是只给 off / pro-audio 两个 profile, UCM 的 Speaker/Headphone
+#     全都不出现 -> 没声音。
+#   而 UCM SectionVerb 里那两条 Q6 路由 mixer 本来就是"必须常开"的
+#   (Q6 后端 DAI 不使能就会 "no backend DAIs enabled for MultiMedia-N"),
+#   所以直接用一个开机服务写死, 不依赖 UCM。
+#   注: 声卡本身能不能出现取决于 pd-mapper (见 6b) —— 那个是硬前提。
+# ---------------------------------------------------------------------------
+cat > "$ROOT/usr/local/sbin/raphael-audio-init.sh" <<'AEOF'
+#!/bin/bash
+# Raphael 音频初始化: 设置 Q6 DSP 路由 (替代失效的 UCM)
+# 不要 unbind/bind slim-ngd: 内核 qcom_slim_ngd_remove 会 WARN 打栈回溯,
+# 声卡起不来是 ADSP/SLIMbus 握手时序问题, 重绑解决不了。
+set +e
+have_card() { aplay -l 2>/dev/null | grep -q '^card 0'; }
+
+# 等声卡 (ADSP/codec 就绪后才注册), 最多 90 秒
+i=0
+while [ $i -lt 45 ] && ! have_card; do i=$((i+1)); sleep 2; done
+if ! have_card; then
+  echo "raphael-audio-init: 本次开机没有声卡 (检查 pd-mapper 是否在跑)"
+  exit 0
+fi
+
+cset() { amixer -c 0 cset "$1" "$2" >/dev/null 2>&1 || true; }
+# Q6 路由: 必须常开, 清掉会报 "Routing not setup for MultiMedia-N Session"
+cset "name='SLIMBUS_0_RX Audio Mixer MultiMedia1'" 1
+cset "name='QUAT_MI2S_RX Audio Mixer MultiMedia2'" 1
+# 耳机 (WCD9340) 路径
+cset "name='SLIM RX0 MUX'" AIF1_PB
+cset "name='SLIM RX1 MUX'" AIF1_PB
+cset "name='RX INT1_1 MIX1 INP0'" RX0
+cset "name='RX INT2_1 MIX1 INP0'" RX1
+cset "name='COMP1 Switch'" 1
+cset "name='COMP2 Switch'" 1
+cset "name='RX INT1 DEM MUX'" CLSH_DSM_OUT
+cset "name='RX INT2 DEM MUX'" CLSH_DSM_OUT
+cset "name='RX1 Digital Volume'" 68
+cset "name='RX2 Digital Volume'" 68
+echo "raphael-audio-init: Q6 路由已设置"
+exit 0
+AEOF
+chmod 755 "$ROOT/usr/local/sbin/raphael-audio-init.sh"
+cat > "$ROOT/etc/systemd/system/raphael-audio-init.service" <<'AEOF'
+[Unit]
+Description=Raphael audio routing init (Q6 mixers; UCM 失效后的替代)
+After=sound.target pd-mapper.service
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/raphael-audio-init.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+AEOF
+enable_unit raphael-audio-init.service
 
 # ---------------------------------------------------------------------------
 # 11c. 蓝牙原厂固件/NVM: linux-firmware 里的 qca/crnv21.bin 与 raphael 的板级
