@@ -576,18 +576,30 @@ if [ -f "$KBD_DESKTOP" ]; then
   sed -i 's|^Exec=plasma-keyboard$|Exec=env -u QT_IM_MODULES plasma-keyboard|' "$KBD_DESKTOP"
   grep -q 'env -u QT_IM_MODULES' "$KBD_DESKTOP" && log "  plasma-keyboard: Exec 已改为 env -u QT_IM_MODULES"
 fi
-# 触屏键盘默认选 fcitx5 那个 (它同时提供虚拟键盘 + 拼音输入法, 中英文都能打)。
-# 想换回 Plasma 键盘: 系统设置 -> 虚拟键盘 -> Plasma 键盘 (KCM 会改 kwinrc 的
-# InputMethod[$e])。两种都是合法的 X-KDE-Wayland-VirtualKeyboard 实现。
+# ★ 真机验证过的可用组合 (2026-10-01, 用户实测能打字):
+#     InputMethod[$e] = org.kde.plasma.keyboard.desktop   (Plasma 键盘)
+#   + kwin_wayland 单独带 QT_IM_MODULES=qtvirtualkeyboard  (合成器托管虚拟键盘)
+#   + plasma-keyboard 启动时 env -u QT_IM_MODULES          (清掉继承值)
+#   三者齐了才不闪退、字才进得了输入框。fcitx5 那条路在真机上不弹键盘。
+#   换键盘实现: 系统设置 -> 虚拟键盘 (KCM 会改 kwinrc)。
 KWINRC="$H/.config/kwinrc"
-if [ -f "$ROOT/usr/share/applications/fcitx5-wayland-launcher.desktop" ] && [ -f "$KWINRC" ]; then
+if [ -f "$ROOT/usr/share/applications/org.kde.plasma.keyboard.desktop" ] && [ -f "$KWINRC" ]; then
   if grep -q '^InputMethod\[\$e\]=' "$KWINRC"; then
-    sed -i 's|^InputMethod\[\$e\]=.*|InputMethod[$e]=/usr/share/applications/fcitx5-wayland-launcher.desktop|' "$KWINRC"
+    sed -i 's|^InputMethod\[\$e\]=.*|InputMethod[$e]=/usr/share/applications/org.kde.plasma.keyboard.desktop|' "$KWINRC"
   else
-    sed -i '/^\[Wayland\]/a InputMethod[$e]=/usr/share/applications/fcitx5-wayland-launcher.desktop' "$KWINRC"
+    sed -i '/^\[Wayland\]/a InputMethod[$e]=/usr/share/applications/org.kde.plasma.keyboard.desktop' "$KWINRC"
   fi
-  log "  虚拟键盘: 默认用 fcitx5 (InputMethod[$e]=fcitx5-wayland-launcher.desktop)"
+  log "  虚拟键盘: Plasma 键盘 (真机验证可用)"
 fi
+# 中英文都要: Qt 虚拟键盘启用 en_US + zh_CN (自带 Pinyin 插件,
+# 触屏键盘上有个语言键可以切; 中文直接打拼音出候选词)
+install -d "$H/.config/qtvirtualkeyboard"
+cat > "$H/.config/qtvirtualkeyboard/settings.conf" <<'EOF'
+[VirtualKeyboard]
+activeLocales=en_US,zh_CN
+locale=en_US
+EOF
+log "  Qt 虚拟键盘语言: en_US + zh_CN (拼音)" 
 # fcitx5 随会话自启 (虚拟键盘 + 拼音都需要它在跑)
 install -d "$H/.config/autostart"
 cat > "$H/.config/autostart/fcitx5.desktop" <<'EOF'
