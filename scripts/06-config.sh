@@ -735,14 +735,17 @@ fi
 
 # ---------------------------------------------------------------------------
 # 16b. 输入法环境变量 + 默认编辑器
-#  ★ 真机踩坑 (2026-10-01): 手机没有物理键盘, Qt 的输入上下文必须是
-#    qtvirtualkeyboard —— Plasma 的触屏键盘 (plasma-keyboard) 就是靠它把按键
-#    送进输入框。设成 QT_IM_MODULE=fcitx 的后果是: 键盘弹得出来, 但点按键
-#    输入框毫无反应 (字被交给 fcitx5, 而触屏键盘不会去喂 fcitx5 的焦点)。
-#    中文由 Plasma 键盘自带的 Pinyin 插件直接打, 不需要 fcitx5。
+#  ★ 真机踩坑 (2026-10-01), 三种写法只有一种对:
+#    1) QT_IM_MODULE=fcitx (Shorin 指南) -> 键盘弹得出来, 点按键输入框毫无反应
+#    2) QT_IM_MODULE=qtvirtualkeyboard (单数) -> 还是不行; plasma-keyboard 自己
+#       在日志里说: "qtvirtualkeyboard currently is not supported at client-side,
+#       use QT_IM_MODULES=qtvirtualkeyboard at compositor-side."
+#    3) QT_IM_MODULES=qtvirtualkeyboard (复数, 给合成器 kwin_wayland 用) -> 正确,
+#       plasma-keyboard 的 "input method is not set" 日志消失, 键盘真正接管输入。
+#    中文/英文都靠 Plasma 键盘自带的 Pinyin 插件, 不需要 fcitx5。
 # ---------------------------------------------------------------------------
 cat > "$ROOT/etc/environment" <<'EOF'
-QT_IM_MODULE=qtvirtualkeyboard
+QT_IM_MODULES=qtvirtualkeyboard
 EDITOR=nvim
 VISUAL=nvim
 EOF

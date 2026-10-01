@@ -551,19 +551,14 @@ launchOnStartup=false
 EOF
 
 # 13.8 中文输入法
-#  ★ 2026-10-01 真机踩坑: 手机只有触屏键盘, 所以 Qt 的输入上下文必须是
-#    qtvirtualkeyboard (Plasma 键盘 plasma-keyboard 靠它把字送进输入框)。
-#    如果按 Shorin 指南设成 QT_IM_MODULE=fcitx, 现象就是:
-#      键盘能弹出来, 但点按键输入框毫无反应 (字全被交给 fcitx5 了, 而
-#      触屏键盘并不会喂给 fcitx5 的焦点)。
-#    中文由 Plasma 键盘自带的 Pinyin 插件提供
-#    (QtQuick.VirtualKeyboard.Plugins.Pinyin), 中英文都能直接打。
+#  ★ 2026-10-01 真机踩坑: 手机只有触屏键盘。正确做法是给合成器设
+#    QT_IM_MODULES=qtvirtualkeyboard (见 06 阶段的 /etc/environment 与注释),
+#    而不是给应用设单数 QT_IM_MODULE —— plasma-keyboard 明确说客户端侧不支持。
 #    fcitx5 仍然装着, 想要物理键盘 + 中州韵时手动开即可。
-install -d "$H/.config/environment.d"
-cat > "$H/.config/environment.d/ime.conf" <<'EOF'
-QT_IM_MODULE=qtvirtualkeyboard
-XMODIFIERS=@im=none
-EOF
+# 输入法环境统一放 /etc/environment (06 阶段写), 这里不要另写一份,
+# 否则两份 environment 会互相覆盖 (踩过: environment.d 里残留 fcitx 导致键盘失效)
+rm -f "$H/.config/environment.d/ime.conf"
+rmdir "$H/.config/environment.d" 2>/dev/null || true
 rm -f "$H/.gtkrc-2.0"
 for v in 3.0 4.0; do
   rm -f "$H/.config/gtk-$v/settings.ini"
