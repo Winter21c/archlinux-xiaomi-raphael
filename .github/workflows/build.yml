@@ -60,6 +60,9 @@ jobs:
       # 国内镜像留作兜底 (config/build.conf 里是 ${RAPHAEL_...:-默认值})
       RAPHAEL_ALARM_MIRROR_PRIMARY: http://mirror.archlinuxarm.org
       RAPHAEL_ALARM_MIRROR_FALLBACK: https://mirrors.ustc.edu.cn/archlinuxarm
+      # 发布包压缩级别: 6.9GB 镜像用 -19 在 4 核 runner 上要 30 分钟以上,
+      # CI 用 -6 (几分钟); 本地出正式版仍是默认的 -19
+      RAPHAEL_RELEASE_ZSTD_LEVEL: "6"
 
     steps:
       # ---------------------------------------------------------------- 环境

@@ -23,10 +23,13 @@ DO_UPLOAD=0
 
 REL="$PROJ/release"
 PART_SIZE="1900M"          # 单卷上限 (留出余量, GitHub 限制 2GB)
+# 压缩级别: 本地出正式版用 19 (最小), CI/快速验证可用 RAPHAEL_RELEASE_ZSTD_LEVEL=6
+# (6.9GB 镜像在 4 核 runner 上: -19 要 30 分钟以上, -6 只要几分钟)
+ZSTD_LEVEL="${RAPHAEL_RELEASE_ZSTD_LEVEL:-19}"
 mkdir -p "$REL"
 rm -f "$REL"/*
 
-confirm_stage "99 打包发布文件 ($TAG)"
+confirm_stage "99 打包发布文件 ($TAG, zstd -$ZSTD_LEVEL)"
 
 # ---------------------------------------------------------------------------
 # 1. 收集产物
@@ -46,7 +49,7 @@ for f in "${FILES[@]}"; do
   base="$(basename "$f")"
   log "  $base ($(du -h "$f" | cut -f1))"
   if [[ "$base" == *.img ]] && [ "$(stat -c %s "$f")" -gt 100000000 ]; then
-    zstd -19 -T0 -q -f -o "$REL/$base.zst" "$f"
+    zstd -"$ZSTD_LEVEL" -T0 -q -f -o "$REL/$base.zst" "$f"
     if [ "$(stat -c %s "$REL/$base.zst")" -gt $((1900*1024*1024)) ]; then
       split -b "$PART_SIZE" -d -a 2 "$REL/$base.zst" "$REL/$base.zst.part"
       rm -f "$REL/$base.zst"
