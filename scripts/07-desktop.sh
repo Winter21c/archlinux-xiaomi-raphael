@@ -600,16 +600,27 @@ fi
 #      注意 QSettings 的 INI **等号两边不能有空格**, 否则整个键被忽略
 #      (踩过: 写成 "activeLocales = en_US,zh_CN" 结果只剩系统默认的 zh_CN)
 install -d "$H/.config/qtvirtualkeyboard"
+# ★ 顺序很重要: 第一个就是键盘启动时的语言。中文放前面 (用户要的是中文界面 +
+#   中文键盘默认, 英文用来切), 放反了会变成"只能用英文"。
 cat > "$H/.config/qtvirtualkeyboard/settings.conf" <<'EOF'
 [VirtualKeyboard]
-activeLocales=en_US, zh_CN
+activeLocales=zh_CN, en_US
 locale=zh_CN
 EOF
 cat > "$H/.config/plasma-keyboardrc" <<'EOF'
 [General]
-enabledLocales=en_US, zh_CN
+enabledLocales=zh_CN, en_US
 EOF
-log "  Qt 虚拟键盘语言: en_US + zh_CN (拼音)" 
+# KDE 界面语言: 只写 [Formats] 不够, [Translations] 的 LANGUAGE 才决定界面语言
+# (zh_CN 优先, 没中文翻译的界面回落到英文, 这是正常的)
+cat > "$H/.config/plasma-localerc" <<'EOF'
+[Formats]
+LANG=zh_CN.UTF-8
+
+[Translations]
+LANGUAGE=zh_CN:en_US
+EOF
+log "  语言: 界面 zh_CN 优先 (英文兜底); 触屏键盘 zh_CN 默认 + 可切 en_US" 
 # fcitx5 随会话自启 (虚拟键盘 + 拼音都需要它在跑)
 install -d "$H/.config/autostart"
 cat > "$H/.config/autostart/fcitx5.desktop" <<'EOF'
