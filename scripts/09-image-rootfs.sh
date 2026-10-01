@@ -56,6 +56,13 @@ done
 for d in proc sys dev dev/pts dev/shm run tmp; do mkdir -p "$ROOT/$d"; done
 chmod 1777 "$ROOT/tmp" "$ROOT/var/tmp" 2>/dev/null || true
 
+# ---- 属主归一化 -----------------------------------------------------------
+# cp -a 会原样搬走"树里是什么属主"; 如果树是 userns 构建留下的 (uid 1000),
+# 镜像里 /usr/bin/mount 就变成 setuid-1000 -> root 跑它 euid=1000 ->
+# 开机后所有 mount 失败 (remount-fs/boot.mount/tmp.mount/configfs/usb-ncm/sshd)。
+# 所以必须在灌数据之前把树修回 root:root。真 root 才做得成, 否则报错。
+normalize_ownership || warn "跳过属主归一化 (非真 root): 这份镜像的 setuid 程序会失效!"
+
 LAYOUT="$(rootfs_layout)"
 log "根文件系统布局: $LAYOUT (ROOTFS_TYPE=$ROOTFS_TYPE)"
 

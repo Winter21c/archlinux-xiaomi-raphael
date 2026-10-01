@@ -193,6 +193,73 @@ mask_unit() {
   log "  mask (手工软链): $u"
 }
 
+# ------------------------------------------- 构建树属主归一化 ----------------
+# 为什么必须做 (2026-10 事故复盘):
+#   构建时如果在 userns 里以"假 root"跑, 生成/改动的文件在宿主上属主是 uid 1000。
+#   镜像一旦带着 uid 1000 的文件, setuid 程序 (mount/umount/sudo/su/passwd/
+#   unix_chkpwd/dbus-daemon-launch-helper) 就变成 setuid-1000: root 执行它们时
+#   euid 会被内核改成 1000 -> "must be superuser to use mount"。
+#   后果: systemd-remount-fs / boot.mount / tmp.mount / sys-kernel-config.mount /
+#   usb-ncm (脚本里 mount -t configfs) / sshd 全部失败, 桌面进不去、网络也没了。
+# 只有真 root (uid_map 首行 0 0) 才修得回来; userns 里 chown 到 0 是空操作。
+user_uid_gid() {
+  local line
+  line="$(grep "^$USERNAME:" "$ROOT/etc/passwd" 2>/dev/null | head -1)"
+  echo "${line:-::1000:1000}" | awk -F: '{print $3":"$4}'
+}
+gid_of() { grep "^$1:" "$ROOT/etc/group" 2>/dev/null | head -1 | cut -d: -f3; }
+
+is_real_root() {
+  [ "$(id -u)" = 0 ] || return 1
+  awk 'NR==1{exit !($1==0 && $2==0)}' /proc/self/uid_map 2>/dev/null
+}
+
+normalize_ownership() {
+  local ug setid_list="$WORK/setid.list" g p grp mm bad=0
+  ug="$(user_uid_gid)"
+  if ! is_real_root; then
+    warn "════════════════════════════════════════════════════════════════"
+    warn " 非真 root 构建 (userns): 无法把属主修回 root:root。"
+    warn " 这样产出的镜像里 setuid 程序会失效, 刷机后 mount/sudo/sshd 全挂,"
+    warn " 进不了桌面也没有网络。请用:  sudo ./build.sh  重新构建。"
+    warn "════════════════════════════════════════════════════════════════"
+    return 1
+  fi
+  log "属主归一化: 整树 -> root:root, /home/$USERNAME -> $ug"
+  # 1) 记下 setuid/setgid 文件及其完整模式 (chown 可能清掉 s 位)
+  find "$ROOT" -xdev -type f \( -perm -4000 -o -perm -2000 \) -printf '%m %p\n' \
+    > "$setid_list" 2>/dev/null || : > "$setid_list"
+  log "  setuid/setgid 文件: $(wc -l < "$setid_list") 个"
+  # 2) 整树 chown (不跨文件系统, 不跟符号链接)
+  find "$ROOT" -xdev -print0 2>/dev/null | xargs -0 -r -n 200 chown -h 0:0 2>/dev/null || true
+  chown 0:0 "$ROOT" 2>/dev/null || true
+  chmod 755 "$ROOT" 2>/dev/null || true
+  # 3) 家目录还给用户
+  chown -hR "$ug" "$ROOT/home/$USERNAME" 2>/dev/null || true
+  # 4) 恢复 setuid/setgid 位
+  while read -r m p; do [ -n "$p" ] && chmod "$m" "$p" 2>/dev/null || true; done < "$setid_list"
+  # 5) 恢复少数几个"组属主"文件 (pacman 不认, 但功能上需要)
+  for pair in "/usr/bin/wall:tty" "/usr/bin/write:tty" \
+              "/usr/lib/utempter/utempter:utmp" \
+              "/usr/lib/dbus-daemon-launch-helper:dbus" \
+              "/var/log/journal:systemd-journal" \
+              "/srv/ftp:ftp" "/var/games:games" "/etc/polkit-1/rules.d:polkitd"; do
+    p="${pair%:*}"; grp="${pair#*:}"
+    [ -e "$ROOT$p" ] || continue
+    g="$(gid_of "$grp")"
+    [ -n "$g" ] && chown "0:$g" "$ROOT$p" 2>/dev/null && log "  组属主: $p -> 0:$g ($grp)"
+  done
+  # 6) 断言: 关键 setuid 程序必须是 root:root 且带 s 位
+  for p in usr/bin/mount usr/bin/umount usr/bin/sudo usr/bin/su usr/bin/passwd; do
+    [ -e "$ROOT/$p" ] || continue
+    mm="$(stat -c '%u:%g %a' "$ROOT/$p")"
+    case "$mm" in 0:0\ 4*|0:0\ 6*) ;; *) warn "  ✗ $p = $mm (应为 0:0 + s 位)"; bad=1 ;; esac
+  done
+  [ "$bad" = 0 ] || die "属主归一化失败: setuid 程序属主不对, 这样的镜像刷进去开不了机"
+  log "  校验通过: $(stat -c '%u:%g %a' "$ROOT/usr/bin/mount") /usr/bin/mount"
+  return 0
+}
+
 confirm_stage() { log "===== 阶段: $* ====="; }
 
 # ------------------------------------------- 根文件系统布局 ------------------

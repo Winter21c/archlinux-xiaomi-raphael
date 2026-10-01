@@ -52,6 +52,9 @@ cat > "$ROOT/etc/sddm.conf.d/10-raphael.conf" <<EOF
 HaltCommand=/usr/bin/systemctl poweroff
 RebootCommand=/usr/bin/systemctl reboot
 Numlock=none
+# 手机没有实体键盘: 登录界面必须自带触摸键盘 (qt6-virtualkeyboard),
+# 否则一旦自动登录失败 (例如 pam_shells 拒绝 zsh) 就彻底进不去系统。
+InputMethod=qtvirtualkeyboard
 
 [Theme]
 Current=breeze
@@ -442,6 +445,13 @@ EOF
 # 13.5 默认 shell 改成 zsh (bash 仍完整可用)
 if [ -x "$ROOT/usr/bin/zsh" ]; then
   gq /usr/bin/chsh -s /usr/bin/zsh winter >/dev/null 2>&1 && log "默认 shell: zsh" || warn "chsh 失败"
+fi
+# ★ 必须把 zsh 写进 /etc/shells: pam_shells (SDDM 自动登录走 sddm-autologin 栈)
+#   会检查登录 shell 是否合法, 不在 /etc/shells 里就直接 "User has an invalid shell"
+#   -> Autologin failed -> 只能停在登录界面 (而手机没有实体键盘, 等于进不去系统)。
+if ! grep -qx '/usr/bin/zsh' "$ROOT/etc/shells" 2>/dev/null; then
+  echo '/usr/bin/zsh' >> "$ROOT/etc/shells"
+  log "  /etc/shells += /usr/bin/zsh (自动登录需要)"
 fi
 
 # 13.6 Konsole 美化 (指南: 隐藏标题栏/工具栏 + Catppuccin Frappe + 20% 透明 + WenKai Mono 15pt)

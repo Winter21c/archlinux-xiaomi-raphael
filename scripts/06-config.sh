@@ -59,18 +59,21 @@ gq /usr/bin/bash /usr/bin/locale-gen >/dev/null 2>&1 && log "  locale-gen 完成
 #   btrfs-subvol : @ 挂 / , @home 挂 /home (参考 Shorin 指南)
 #   btrfs-flat   : 单子卷 btrfs, 数据在顶层 (无 root 构建时的退路)
 #   ext4         : 传统布局
-# 都用 PARTLABEL 定位 (镜像里就是这个分区标签), 首启动 x-systemd.growfs 扩容
+# 都用 UUID 定位根 / PARTLABEL 定位 /boot (镜像里就是这个分区标签), 首启动 x-systemd.growfs 扩容
 # ---------------------------------------------------------------------------
 ROOTFS_LAYOUT="$(rootfs_layout)"
-log "写 /etc/fstab (布局: $ROOTFS_LAYOUT)"
+ROOTFS_UUID="$(rootfs_uuid)"
+log "写 /etc/fstab (布局: $ROOTFS_LAYOUT, root UUID=$ROOTFS_UUID)"
 {
-  printf '# <device>                     <dir>   <type>  <options>                                   <dump> <pass>\n'
+  printf '# <device>                                       <dir>   <type>  <options>                                                                          <dump> <pass>\n'
+  # 根用 **UUID**: 由内核/udev 直接从文件系统读出来, 不依赖 GPT 分区名。
+  # (PARTLABEL 解析不到时 systemd-remount-fs 会失败, 根可能停在只读 -> 一堆服务挂)
   case "$ROOTFS_LAYOUT" in
     btrfs-subvol)
       # 注意: / 这一行**不要**加 nofail —— 加了 systemd 可能跳过"把根重挂成 rw",
 # 结果根一直是只读, sshd(生成主机密钥)、usb-ncm(写 configfs) 等一堆要写文件的服务全失败。
 # 原版 ext4 镜像就是不带 nofail 的, 那是验证过可用的写法。
-      printf 'PARTLABEL=userdata             /       btrfs   rw,%s,x-systemd.growfs       0      1\n' "$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
+      printf 'UUID=%-42s /       btrfs   rw,%s,x-systemd.growfs  0      1\n' "$ROOTFS_UUID" "$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
       # /home **不单独挂载**: 家目录数据本来就在 @/home 里 (@home 只是它的副本)。
       # 实测单独挂 @home 会让 user@1000 会话因 "Dependency failed" 起不来
       # (挂载失败 -> Session N of user 依赖失败 -> SDDM respawn 循环 -> 进不了桌面),
@@ -78,13 +81,14 @@ log "写 /etc/fstab (布局: $ROOTFS_LAYOUT)"
       # 想用独立 home 子卷的话, 手动: mount -o subvol=/@home /dev/disk/by-partlabel/userdata /home
       ;;
     btrfs-flat)
-      printf 'PARTLABEL=userdata             /       btrfs   rw,%s,x-systemd.growfs       0      1\n' "$(btrfs_opts)"
+      printf 'UUID=%-42s /       btrfs   rw,%s,x-systemd.growfs  0      1\n' "$ROOTFS_UUID" "$(btrfs_opts)"
       ;;
     *)
-      printf 'PARTLABEL=userdata             /       ext4    rw,errors=remount-ro,x-systemd.growfs       0      1\n'
+      printf 'UUID=%-42s /       ext4    rw,errors=remount-ro,x-systemd.growfs  0      1\n' "$ROOTFS_UUID"
       ;;
   esac
-  printf 'PARTLABEL=cache                /boot   vfat    umask=0077,nofail,noatime,x-systemd.device-timeout=10       0      0\n'
+  # /boot 带 nofail: 分区名解析不到也只是这一个单元失败, 不会拖垮启动
+  printf 'PARTLABEL=cache                                /boot   vfat    umask=0077,nofail,noatime,x-systemd.device-timeout=10       0      0\n'
 } > "$ROOT/etc/fstab"
 log "  $(grep -c . "$ROOT/etc/fstab") 行:"; sed 's/^/    /' "$ROOT/etc/fstab"
 if [ ! -e "$ROOT/usr/lib/systemd/system/systemd-growfs@.service" ]; then
@@ -239,9 +243,11 @@ EOF
 cat > "$ROOT/usr/local/sbin/setup-usb-ncm.sh" <<'EOF'
 #!/bin/sh
 # USB CDC-NCM 网络共享: 电脑通过 USB 直连设备 (设备 IP 172.16.42.1)
+# ★ dwc3-qcom 的 UDC 比 multi-user 晚很多才出现, 不等它 gadget 就绑不上 ->
+#   表现就是"USB CDCNCM Gadget networking 启动失败" + 电脑完全看不到设备(SSH 也没了)
 set -e
-modprobe libcomposite
-mountpoint -q /sys/kernel/config || mount -t configfs none /sys/kernel/config
+modprobe libcomposite 2>/dev/null || true
+grep -q ' /sys/kernel/config ' /proc/mounts || mount -t configfs none /sys/kernel/config
 G=/sys/kernel/config/usb_gadget/g1
 mkdir -p $G
 echo 0x1d6b > $G/idVendor
@@ -250,28 +256,45 @@ echo 0x0200 > $G/bcdUSB
 mkdir -p $G/strings/0x409
 echo raphael > $G/strings/0x409/manufacturer
 echo "Arch Linux ARM" > $G/strings/0x409/product
-echo "$(cat /etc/machine-id)" > $G/strings/0x409/serialnumber
+echo "$(cat /etc/machine-id 2>/dev/null || echo raphael0001)" > $G/strings/0x409/serialnumber
 mkdir -p $G/configs/c.1/strings/0x409
 echo NCM > $G/configs/c.1/strings/0x409/configuration
 mkdir -p $G/functions/ncm.usb0
 ln -sfn $G/functions/ncm.usb0 $G/configs/c.1/
-UDC=$(ls /sys/class/udc | head -n 1)
+
+# 等 UDC 就绪 (最多 180 秒)
+i=0; UDC=""
+while [ $i -lt 90 ]; do
+  UDC="$(ls /sys/class/udc 2>/dev/null | head -n 1)"
+  [ -n "$UDC" ] && break
+  i=$((i+1)); sleep 2
+done
+[ -n "$UDC" ] || { echo "setup-usb-ncm: UDC 一直没出现, 放弃"; exit 1; }
+echo "setup-usb-ncm: 绑定 UDC $UDC (等待 $((i*2)) 秒)"
 echo "$UDC" > $G/UDC
+
+# 等网卡出现
+i=0
+while [ ! -d /sys/class/net/usb0 ] && [ $i -lt 30 ]; do i=$((i+1)); sleep 1; done
+[ -d /sys/class/net/usb0 ] || { echo "setup-usb-ncm: usb0 没出现"; exit 1; }
 ip link set usb0 up
-ip addr add 172.16.42.1/24 dev usb0 || true
-systemctl restart dnsmasq || true
+ip addr add 172.16.42.1/24 dev usb0 2>/dev/null || true
+systemctl restart dnsmasq 2>/dev/null || true
+echo "setup-usb-ncm: 完成 (usb0 = 172.16.42.1)"
 EOF
 chmod 755 "$ROOT/usr/local/sbin/setup-usb-ncm.sh"
 cat > "$ROOT/etc/systemd/system/usb-ncm.service" <<'EOF'
 [Unit]
 Description=USB CDC-NCM gadget networking
-After=network.target
-DefaultDependencies=no
+After=sysinit.target
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/setup-usb-ncm.sh
 RemainAfterExit=yes
+# UDC 来得太晚 / 绑定时出错就重试, 别让 USB 网络一直不通
+Restart=on-failure
+RestartSec=8
 
 [Install]
 WantedBy=multi-user.target
