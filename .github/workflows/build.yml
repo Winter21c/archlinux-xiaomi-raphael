@@ -97,11 +97,12 @@ jobs:
           # 清单来自对 scripts/*.sh 外部命令的审计:
           #   cpio -> 阶段 08 用 cpio --format=newc 打 initramfs (漏了会必挂)
           #   ar -> 阶段 03/04 解 deb; python3 -> 阶段 01/02 解析 tar 元数据
+          #   btrfs-progs -> 阶段 09 生成 btrfs 镜像, 并在这里建 @ / @home 子卷
           #   mount/chroot/unshare/findfs/... -> base + util-linux
           pacman -S --noconfirm --needed \
             base-devel git curl wget \
             zstd xz 7zip libarchive cpio \
-            e2fsprogs android-tools mtools \
+            e2fsprogs btrfs-progs android-tools mtools \
             clang lld bc kmod util-linux
           # qemu 用户态模拟器: 包名在不同镜像上可能是 qemu-user 或 qemu-emulators-full
           pacman -S --noconfirm --needed qemu-user \
@@ -113,7 +114,7 @@ jobs:
           # 注意: mcopy/mmd/mdir 不在这里检查 —— 阶段 00 的 setup_mtools 会从
           # Arch x86_64 仓库下载一份到 tools/mtools/, 不依赖系统 mtools
           for b in unshare mount chroot ar depmod curl zstd mke2fs img2simg 7z cpio \
-                   qemu-aarch64 python3 make clang; do
+                   qemu-aarch64 python3 make clang mkfs.btrfs btrfs; do
             if command -v "$b" >/dev/null 2>&1; then
               printf '  \033[32m✔\033[0m %s\n' "$b"
             else

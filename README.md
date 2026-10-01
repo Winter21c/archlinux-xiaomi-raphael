@@ -16,8 +16,8 @@
 | 文件 | 大小 | 说明 |
 |:--|:--|:--|
 | `boot-cache.img` | 256 MiB | FAT32，刷入 **cache** 分区：systemd-boot + 内核 `linux.efi` + `initramfs` + dtb + 3 个启动项 |
-| `rootfs.img` | 8 GiB（用 6.1 GB） | ext4，刷入 **userdata** 分区；首启动自动扩容到分区实际大小 |
-| `rootfs.sparse.img` | 6.1 GiB | 上面的 sparse 版本，`fastboot` 刷写更快（推荐） |
+| `rootfs.img` | 8 GiB | **btrfs**（默认，见 §1.1），刷入 **userdata** 分区；首启动自动扩容到分区实际大小 |
+| `rootfs.sparse.img` | ~6 GiB | 上面的 sparse 版本，`fastboot` 刷写更快（推荐） |
 
 引导链：
 
@@ -32,6 +32,38 @@ U-Boot (boot 分区)
 
 三个启动项：`arch.conf`（正常）、`arch-direct.conf`（不用 initramfs，内核直接挂载根分区，
 initramfs 出问题时的救命项）、`arch-debug.conf`（loglevel=7）。
+
+### 1.1 根文件系统：btrfs（透明压缩 + 子卷）
+
+参考 [Shorin 的 ArchLinux 安装指南](https://github.com/SHORiN-KiWATA/Shorin-ArchLinux-Guide)
+手动安装一节的做法：`mkfs.btrfs` → 建 `@` / `@home` 子卷 → `subvol=/@,compress=zstd` 挂载。
+
+```
+/mnt  fstab 形式 (PARTLABEL 定位)
+  PARTLABEL=userdata  /      btrfs  rw,subvol=/@,compress=zstd:3,noatime,ssd,discard=async,space_cache=v2,x-systemd.growfs  0 1
+  PARTLABEL=userdata  /home  btrfs  rw,subvol=/@home,compress=zstd:3,noatime,ssd,discard=async,space_cache=v2               0 2
+  PARTLABEL=cache     /boot  vfat   umask=0077,nofail,noatime                                                              0 2
+```
+
+内核（作者预编译的 7.2 内核）**内建 btrfs**（`modinfo btrfs` → `(builtin)`），
+initramfs 里的 busybox `findfs` 也认得 btrfs，所以启动链路不需要额外模块。
+
+**关于子卷的一个硬约束**：创建子卷必须**挂载**文件系统，而挂载块设备需要 root。
+本项目的构建设计是「不要 root」，所以：
+
+| 构建环境 | 布局 | 说明 |
+|:--|:--|:--|
+| 有 root（GitHub Actions、或本机 `sudo`） | **`@` + `@home`** | 完整 Shorin 布局；`@` 同时被设为默认子卷 |
+| 无 root（本机无 sudo） | **单子卷 btrfs** | 数据在 btrfs 顶层，**透明压缩等特性照旧** |
+
+两种布局都通过 `scripts/lib.sh` 的 `rootfs_layout()` 统一判定，并把结果写进
+`work/rootfs-layout`，**fstab / initramfs / 引导参数一定与镜像实际布局一致** ——
+不会出现"引导参数写 `subvol=/@` 但镜像里没有 `@`"这种起不来的情况。
+强制指定可用 `RAPHAEL_FORCE_LAYOUT=btrfs-subvol|btrfs-flat|ext4`。
+
+透明压缩默认 `zstd:3`（可用 `RAPHAEL_BTRFS_COMPRESS` 调，如 `zstd:1` 省 CPU）；
+`x-systemd.growfs` 首启动把 btrfs 撑满 userdata 分区（systemd 的 growfs 原生支持 btrfs，
+兜底脚本也会按 `blkid` 识别的文件系统类型分别调用 `btrfs filesystem resize` / `resize2fs`）。
 
 ---
 

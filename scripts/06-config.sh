@@ -55,14 +55,48 @@ gq /usr/bin/bash /usr/bin/locale-gen >/dev/null 2>&1 && log "  locale-gen 完成
 # ---------------------------------------------------------------------------
 # 3. fstab (对上上游脚本 11: root 用 PARTLABEL + 首启动自动扩容)
 # ---------------------------------------------------------------------------
-log "写 /etc/fstab"
-cat > "$ROOT/etc/fstab" <<'EOF'
-# <device>                     <dir>   <type>  <options>                                   <dump> <pass>
-PARTLABEL=userdata             /       ext4    rw,errors=remount-ro,x-systemd.growfs       0      1
-PARTLABEL=cache                /boot   vfat    umask=0077,nofail,noatime                   0      2
-EOF
+# fstab: 布局由 lib.sh 的 rootfs_layout() 统一决定 (与 09 镜像 / 10 引导参数一致)
+#   btrfs-subvol : @ 挂 / , @home 挂 /home (参考 Shorin 指南)
+#   btrfs-flat   : 单子卷 btrfs, 数据在顶层 (无 root 构建时的退路)
+#   ext4         : 传统布局
+# 都用 PARTLABEL 定位 (镜像里就是这个分区标签), 首启动 x-systemd.growfs 扩容
+# ---------------------------------------------------------------------------
+ROOTFS_LAYOUT="$(rootfs_layout)"
+log "写 /etc/fstab (布局: $ROOTFS_LAYOUT)"
+{
+  printf '# <device>                     <dir>   <type>  <options>                                   <dump> <pass>\n'
+  case "$ROOTFS_LAYOUT" in
+    btrfs-subvol)
+      printf 'PARTLABEL=userdata             /       btrfs   rw,%s,x-systemd.growfs       0      1\n' "$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
+      printf 'PARTLABEL=userdata             /home   btrfs   rw,%s       0      2\n' "$(btrfs_opts "$BTRFS_SUBVOL_HOME")"
+      ;;
+    btrfs-flat)
+      printf 'PARTLABEL=userdata             /       btrfs   rw,%s,x-systemd.growfs       0      1\n' "$(btrfs_opts)"
+      ;;
+    *)
+      printf 'PARTLABEL=userdata             /       ext4    rw,errors=remount-ro,x-systemd.growfs       0      1\n'
+      ;;
+  esac
+  printf 'PARTLABEL=cache                /boot   vfat    umask=0077,nofail,noatime                   0      2\n'
+} > "$ROOT/etc/fstab"
+log "  $(grep -c . "$ROOT/etc/fstab") 行:"; sed 's/^/    /' "$ROOT/etc/fstab"
 if [ ! -e "$ROOT/usr/lib/systemd/system/systemd-growfs@.service" ]; then
   warn "systemd 未提供 systemd-growfs@, 改用自建扩容服务"
+  # 按布局选扩容工具: btrfs 用 btrfs filesystem resize, ext4 用 resize2fs
+  cat > "$ROOT/usr/local/sbin/raphael-growfs.sh" <<'GROWEOF'
+#!/bin/bash
+# 首启动把根文件系统撑满 userdata 分区 (systemd-growfs@ 不可用时的兜底)
+set -e
+dev=/dev/disk/by-partlabel/userdata
+[ -b "$dev" ] || exit 0
+fstype=$(blkid -s TYPE -o value "$dev" 2>/dev/null || true)
+case "$fstype" in
+  btrfs) command -v btrfs >/dev/null && btrfs filesystem resize max / ;;
+  ext4|ext3|ext2) resize2fs -f "$dev" ;;
+  *) exit 0 ;;
+esac
+GROWEOF
+  chmod 755 "$ROOT/usr/local/sbin/raphael-growfs.sh"
   cat > "$ROOT/etc/systemd/system/raphael-growfs.service" <<'EOF'
 [Unit]
 Description=Grow root filesystem to fill userdata partition
@@ -73,7 +107,7 @@ Before=sysinit.target shutdown.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/resize2fs -f /dev/disk/by-partlabel/userdata
+ExecStart=/usr/local/sbin/raphael-growfs.sh
 RemainAfterExit=yes
 
 [Install]

@@ -186,3 +186,50 @@ mask_unit() {
 }
 
 confirm_stage() { log "===== 阶段: $* ====="; }
+
+# ------------------------------------------- 根文件系统布局 ------------------
+# 统一在这里决定 rootfs 的布局, 各阶段 (06 fstab / 08 initramfs / 09 镜像 /
+# 10 引导参数) 都读同一份结果, 保证永远自洽。返回值:
+#   ext4          传统 ext4 镜像
+#   btrfs-subvol  btrfs + @ / @home 子卷 (参考 Shorin 指南; 需要 root 才能建子卷)
+#   btrfs-flat    btrfs 单子卷 (数据在顶层; 无 root 时的退路, 依然有透明压缩)
+# 结果缓存在 $WORK/rootfs-layout, 可用 RAPHAEL_FORCE_LAYOUT 覆盖调试。
+rootfs_layout() {
+  if [ -s "$WORK/rootfs-layout" ] && [ -z "${RAPHAEL_FORCE_LAYOUT:-}" ]; then
+    cat "$WORK/rootfs-layout"; return 0
+  fi
+  local layout
+  if [ -n "${RAPHAEL_FORCE_LAYOUT:-}" ]; then
+    layout="$RAPHAEL_FORCE_LAYOUT"
+  elif [ "${ROOTFS_TYPE:-btrfs}" != "btrfs" ]; then
+    layout="ext4"
+  elif [ "$(id -u)" != "0" ]; then
+    layout="btrfs-flat"           # 无 root: 挂不上, 建不了子卷
+  elif ! command -v mkfs.btrfs >/dev/null 2>&1; then
+    layout="ext4"
+  else
+    # 探测能否 loop 挂载 (CI 容器里可能没有 /dev/loop*)
+    local t="$WORK/.loop-probe" m="$WORK/.loop-mnt"
+    layout="btrfs-flat"
+    if truncate -s 64M "$t" 2>/dev/null && mkfs.btrfs -q -f "$t" >/dev/null 2>&1; then
+      mkdir -p "$m"
+      if mount -o loop "$t" "$m" 2>/dev/null; then
+        layout="btrfs-subvol"
+        umount "$m" 2>/dev/null || true
+      fi
+      rmdir "$m" 2>/dev/null || true
+    fi
+    rm -f "$t"
+  fi
+  mkdir -p "$WORK"
+  echo "$layout" > "$WORK/rootfs-layout"
+  echo "$layout"
+}
+
+# btrfs 挂载参数 (含透明压缩); 子卷布局时额外给出 subvol= 前缀
+btrfs_opts() {   # btrfs_opts [subvol]
+  local sv="${1:-}"
+  local o="compress=${BTRFS_COMPRESS:-zstd:3},noatime,ssd,discard=async,space_cache=v2"
+  [ -n "$sv" ] && o="subvol=/$sv,$o"
+  echo "$o"
+}

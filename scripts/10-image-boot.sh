@@ -60,6 +60,28 @@ else
   warn "rootfs 内找不到 systemd-bootaa64.efi, 保留模板自带的引导器"
 fi
 
+# ---- root 挂载参数 (必须与 09 生成的镜像布局一致) --------------------------
+ROOTFS_LAYOUT="$(rootfs_layout)"
+case "$ROOTFS_LAYOUT" in
+  btrfs-subvol)
+    ROOTFSTYPE=btrfs
+    ROOTFLAGS="$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
+    ;;
+  btrfs-flat)
+    ROOTFSTYPE=btrfs
+    ROOTFLAGS="$(btrfs_opts)"
+    ;;
+  *)
+    ROOTFSTYPE=ext4
+    ROOTFLAGS=""
+    ;;
+esac
+ROOTOPTS="root=UUID=$UUID rootfstype=$ROOTFSTYPE"
+[ -n "$ROOTFLAGS" ] && ROOTOPTS="$ROOTOPTS rootflags=$ROOTFLAGS"
+ROOTOPTS="$ROOTOPTS rw rootwait console=tty0"
+log "root 参数: $ROOTOPTS"
+log "  (布局 $ROOTFS_LAYOUT; initramfs 里 btrfs 无需模块, 内核内建)"
+
 # ---- loader 配置 ----------------------------------------------------------
 cat > "$STAGE/loader/loader.conf" <<'EOF'
 default  arch.conf
@@ -73,15 +95,15 @@ title   Arch Linux ARM (raphael) - Plasma Mobile
 linux   /linux.efi
 initrd  /initramfs
 $DT_LINE
-options root=UUID=$UUID rootfstype=ext4 rw rootwait console=tty0 loglevel=4
+options $ROOTOPTS loglevel=4
 EOF
 
-# 兜底条目: 不加载 initramfs, 由内核直接挂载根分区 (UFS/ext4 均已内建)
+# 兜底条目: 不加载 initramfs, 由内核直接挂载根分区 (UFS/btrfs/ext4 均已内建)
 cat > "$STAGE/loader/entries/arch-direct.conf" <<EOF
 title   Arch Linux ARM (raphael) - no initramfs (recovery)
 linux   /linux.efi
 $DT_LINE
-options root=UUID=$UUID rootfstype=ext4 rw rootwait console=tty0 loglevel=7
+options $ROOTOPTS loglevel=7
 EOF
 
 # 调试条目: 详细日志 + 单用户救援
@@ -90,7 +112,7 @@ title   Arch Linux ARM (raphael) - debug shell
 linux   /linux.efi
 initrd  /initramfs
 $DT_LINE
-options root=UUID=$UUID rootfstype=ext4 rw rootwait console=tty0 loglevel=7 systemd.log_level=debug
+options $ROOTOPTS loglevel=7 systemd.log_level=debug
 EOF
 
 # 保留上游 Debian 条目会让菜单里出现一个必然失败的选项, 删掉
