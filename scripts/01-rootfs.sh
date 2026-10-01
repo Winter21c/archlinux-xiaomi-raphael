@@ -95,4 +95,7 @@ chmod 1777 "$ROOT/tmp" "$ROOT/var/tmp" 2>/dev/null || true
 chmod 700 "$ROOT/root"
 
 log "rootfs 就绪: $(du -sh "$ROOT" | cut -f1)"
+# qemu 垫片必须在**解包之后**安装: 解包前的清理会把 $ROOT 里的东西全删掉,
+# 而 setup_qemu_shim 有"已存在就跳过"的守卫, 不会自动重建 (干净环境下踩过)。
+setup_qemu_shim
 verify_qemu

@@ -102,6 +102,10 @@ setup_qemu_shim() {
 
 # 在 chroot 内执行一个 aarch64 程序: gq /usr/bin/ldconfig [-args]
 gq() {
+  # 垫片可能被阶段 01 的 rootfs 清理删掉, 这里按需重建
+  # (setup_qemu_shim 自带存在性检查, 正常路径下只是一次 [ -x ] 判断)
+  # 注意重定向到 stderr: gq 常被 $(...) 捕获输出, 安装日志不能混进返回值
+  setup_qemu_shim >&2
   chroot "$ROOT" "$QDIR_IN_ROOT/ld-linux-x86-64.so.2" \
     --library-path "$QDIR_IN_ROOT/lib" "$QDIR_IN_ROOT/qemu-aarch64" "$@"
 }
