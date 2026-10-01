@@ -707,3 +707,158 @@ KExecWatchdogSec=off
 EOF
 
 log "系统基础配置完成"
+
+# ---------------------------------------------------------------------------
+# 13. Shorin 指南对齐 (准备篇 + 快照篇)
+# ---------------------------------------------------------------------------
+# 13.1 默认编辑器: 只要 neovim / vim, 不要 nano (指南用 EDITOR 环境变量)
+[ -f "$ROOT/etc/environment" ] && sed -i '/^EDITOR=/d;/^VISUAL=/d' "$ROOT/etc/environment"
+printf 'EDITOR=nvim\nVISUAL=nvim\n' >> "$ROOT/etc/environment"
+log "EDITOR/VISUAL = nvim"
+
+# 13.2 faillock: 指南是 deny=0 (完全不锁), 手机上折中为 5 次
+sed -i 's/^deny *= *[0-9]*/deny = 5/' "$ROOT/etc/security/faillock.conf" 2>/dev/null || true
+grep -q '^deny' "$ROOT/etc/security/faillock.conf" 2>/dev/null && \
+  log "faillock: $(grep '^deny' "$ROOT/etc/security/faillock.conf")"
+
+# 13.3 霞鹜文楷 (用户指定: github.com/lxgw/LxgwWenkai) — 终端用 Mono 变体
+LXGW_VER="${LXGW_WENKAI_VERSION:-v1.522}"
+install -d "$ROOT/usr/share/fonts/TTF"
+for f in LXGWWenKai-Regular.ttf LXGWWenKaiMono-Regular.ttf; do
+  [ -s "$DL/$f" ] || fetch "https://github.com/lxgw/LxgwWenkai/releases/download/$LXGW_VER/$f" "$DL/$f"
+  cp -f "$DL/$f" "$ROOT/usr/share/fonts/TTF/$f"
+done
+log "字体: 霞鹜文楷 Regular + Mono ($LXGW_VER)"
+
+# 13.4 性能模式: power-profiles-daemon (无 cpufreq 的设备自动跳过)
+if [ -d "$ROOT/sys/devices/system/cpu/cpufreq" ] || [ -d "/sys/devices/system/cpu/cpufreq" ]; then
+  enable_unit power-profiles-daemon.service 2>/dev/null || \
+    mask_unit power-profiles-daemon.service 2>/dev/null || true
+  log "性能模式: power-profiles-daemon 已 enable (内核有 cpufreq)"
+else
+  log "性能模式: 无 cpufreq, 跳过 power-profiles-daemon"
+fi
+
+# 13.5 Flatpak + flathub (指南可选; 国内用上交大镜像)
+if [ -x "$ROOT/usr/bin/flatpak" ]; then
+  gq /usr/bin/flatpak remote-add --if-not-exists --system flathub \
+     https://mirror.sjtu.edu.cn/flathub/flathub.flatpakrepo >/dev/null 2>&1 || \
+  gq /usr/bin/flatpak remote-add --if-not-exists --system flathub \
+     https://flathub.org/repo/flathub.flatpakrepo >/dev/null 2>&1 || true
+  log "flatpak: flathub remote 已配置"
+fi
+
+# 13.6 允许 wheel 免密使用 pacman (指南可选步骤; AUR 自动安装也需要它)
+install -d -m 755 "$ROOT/etc/sudoers.d"
+printf '%%wheel ALL=(ALL:ALL) NOPASSWD: /usr/bin/pacman\n' > "$ROOT/etc/sudoers.d/10-pacman-nopasswd"
+chmod 440 "$ROOT/etc/sudoers.d/10-pacman-nopasswd"
+log "sudoers: wheel 免密 pacman (供 paru/AUR 使用)"
+
+# 13.7 snapper (指南: 快照和系统维护) — 首启动自动配置, 幂等
+cat > "$ROOT/usr/local/sbin/raphael-snapper-setup.sh" <<'EOF'
+#!/bin/bash
+# 按 Shorin 指南配置 snapper; 非 btrfs 或单子卷布局会自动跳过并说明原因
+set -u
+if [ "$(findmnt -no FSTYPE / 2>/dev/null)" != "btrfs" ]; then
+  echo "根文件系统不是 btrfs, 跳过 snapper"; exit 0
+fi
+if ! btrfs subvolume show / >/dev/null 2>&1; then
+  echo "根不是 btrfs 子卷 (单子卷布局) -> snapper 需要 @ 子卷, 已跳过。"
+  echo "要用快照请刷 CI 构建的镜像 (有 @/@home 子卷)。"
+  exit 0
+fi
+command -v snapper >/dev/null 2>&1 || { echo "未安装 snapper"; exit 0; }
+snapper -c root get-config >/dev/null 2>&1 || snapper -c root create-config /
+if findmnt -no FSTYPE /home 2>/dev/null | grep -q btrfs; then
+  snapper -c home get-config >/dev/null 2>&1 || snapper -c home create-config /home
+fi
+for c in root home; do
+  f="/etc/snapper/configs/$c"; [ -f "$f" ] || continue
+  sed -i 's/^ALLOW_GROUPS=.*/ALLOW_GROUPS="wheel"/'   "$f"
+  sed -i 's/^NUMBER_LIMIT=.*/NUMBER_LIMIT="10"/'      "$f"
+  sed -i 's/^TIMELINE_LIMIT_HOURLY=.*/TIMELINE_LIMIT_HOURLY="3"/' "$f"
+  sed -i 's/^TIMELINE_LIMIT_DAILY=.*/TIMELINE_LIMIT_DAILY="1"/'   "$f"
+  for k in WEEKLY MONTHLY YEARLY; do
+    sed -i "s/^TIMELINE_LIMIT_$k=.*/TIMELINE_LIMIT_$k=\"0\"/" "$f"
+  done
+done
+systemctl enable --now snapper-timeline.timer snapper-cleanup.timer >/dev/null 2>&1 || true
+snapper -c root create -d "initial" >/dev/null 2>&1 || true
+echo "snapper 配置完成: root(+home) 保留 10 个, 每小时 3 个 / 每天 1 个; 定时器已启用"
+echo "回档请看 README 的「系统维护」一节 (btrfs-assistant / snapper list)"
+EOF
+chmod 755 "$ROOT/usr/local/sbin/raphael-snapper-setup.sh"
+cat > "$ROOT/etc/systemd/system/raphael-snapper-setup.service" <<'EOF'
+[Unit]
+Description=Configure snapper snapshots (Shorin guide layout)
+After=local-fs.target
+ConditionPathExists=/usr/bin/snapper
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/raphael-snapper-setup.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+enable_unit raphael-snapper-setup.service
+
+# 13.8 AUR 包首启动自动安装 (失败会提示用户手动重跑)
+cat > "$ROOT/usr/local/sbin/raphael-aur-setup.sh" <<'EOF'
+#!/bin/bash
+# 用 paru 安装指南里那些 AUR 包。失败只提示, 不影响系统; 可随时手动重跑本脚本。
+set -u
+MARK=/var/lib/raphael/aur-setup.done
+LOG=/var/log/raphael-aur-setup.log
+[ -e "$MARK" ] && { echo "AUR 安装已完成过 ($MARK), 跳过"; exit 0; }
+[ "$(id -u)" = 0 ] || { echo "请用 root 运行"; exit 1; }
+command -v paru >/dev/null 2>&1 || { echo "未安装 paru"; exit 1; }
+# 等网络, 最多 90 秒
+for _ in $(seq 1 45); do ping -c1 -W1 1.1.1.1 >/dev/null 2>&1 && break; sleep 2; done
+PKGS="btrfs-assistant snap-pac downgrade plasma6-applets-wallpaper-effects \
+kwin-effects-geometry-change kwin-effect-rounded-corners-git rime-ice-git \
+rime-wanxiang-gram-zh-hans"
+ok=0; fail=""
+install -d -o winter -g winter /home/winter/.cache
+for p in $PKGS; do
+  if runuser -u winter -- env HOME=/home/winter \
+       paru -S --noconfirm --needed "$p" >>"$LOG" 2>&1; then
+    ok=$((ok+1)); echo "  ok: $p"
+  else
+    fail="$fail $p"; echo "  fail: $p"
+  fi
+done
+if [ -n "$fail" ]; then
+  sed -i '/^raphael: AUR/d' /etc/motd 2>/dev/null || true
+  printf 'raphael: 以下 AUR 包没装上:%s\n 联网后手动重跑: sudo /usr/local/sbin/raphael-aur-setup.sh\n 或逐个: paru -S <包名>   (日志: %s)\n' "$fail" "$LOG" >> /etc/motd
+  printf 'raphael: AUR 安装未全部完成:%s\n手动重跑: sudo /usr/local/sbin/raphael-aur-setup.sh\n日志: %s\n' "$fail" "$LOG" > /home/winter/AUR-安装失败-请看这里.txt
+  chown winter:winter /home/winter/AUR-安装失败-请看这里.txt 2>/dev/null || true
+  echo "AUR: 失败 $fail"
+  exit 0   # 不写 MARK, 下次开机再试
+fi
+install -d "$(dirname "$MARK")"; date > "$MARK"
+rm -f /home/winter/AUR-安装失败-请看这里.txt 2>/dev/null || true
+echo "AUR: 全部安装完成 ($ok 个)"
+EOF
+chmod 755 "$ROOT/usr/local/sbin/raphael-aur-setup.sh"
+cat > "$ROOT/etc/systemd/system/raphael-aur-setup.service" <<'EOF'
+[Unit]
+Description=Install AUR packages (Shorin guide list) on first boot
+After=network-online.target raphael-snapper-setup.service
+Wants=network-online.target
+ConditionPathExists=/usr/bin/paru
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+TimeoutStartSec=1800
+Nice=10
+CPUSchedulingPolicy=batch
+ExecStart=/usr/local/sbin/raphael-aur-setup.sh
+
+[Install]
+WantedBy=multi-user.target
+EOF
+enable_unit raphael-aur-setup.service
+log "Shorin 对齐 (准备篇/快照篇) 完成"

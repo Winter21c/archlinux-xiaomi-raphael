@@ -357,3 +357,245 @@ EOF
 log "已安装电源键守护 (默认未启用): raphael-power-key.service"
 
 log "KDE 配置完成"
+
+# ---------------------------------------------------------------------------
+# 13. Shorin 指南对齐 (终端美化 + 中文输入法 + KDE 自定义)
+# ---------------------------------------------------------------------------
+H="$ROOT/home/winter"
+install -d "$H/.config" "$H/.local/share" "$H/.local/state"
+
+# 13.1 32 位源 multilib (准备篇: 玩 Windows 软件/Steam 需要)
+if [ -f "$ROOT/etc/pacman.conf" ] && ! grep -q '^\[multilib\]' "$ROOT/etc/pacman.conf"; then
+  sed -i 's/^#\[multilib\]/[multilib]/; s/^#Include = \/etc\/pacman.d\/mirrorlist/Include = \/etc\/pacman.d\/mirrorlist/' "$ROOT/etc/pacman.conf"
+  log "pacman: 已开启 multilib (32 位源)"
+fi
+
+# 13.2 oh-my-zsh / oh-my-bash (构建期 clone, 离线可用)
+for pair in "ohmyzsh/ohmyzsh:/usr/share/oh-my-zsh" "ohmybash/oh-my-bash:/usr/share/oh-my-bash"; do
+  repo="${pair%%:*}"; dest="$ROOT${pair##*:}"
+  if [ ! -d "$dest" ]; then
+    log "克隆 $repo -> ${pair##*:}"
+    git clone --depth=1 "https://github.com/$repo.git" "$dest" >/dev/null 2>&1 \
+      || warn "克隆 $repo 失败 (网络?), 跳过"
+  fi
+done
+
+# 13.3 ~/.zshrc (~/.bashrc): 历史记录 + 插件 + oh-my-* + starship
+cat > "$H/.zshrc" <<'EOF'
+# ---- Shorin 指南: zsh 历史记录与补全 ----
+HISTFILE=~/.zsh_history
+HISTSIZE=100000
+SAVEHIST=100000
+setopt HIST_IGNORE_DUPS HIST_IGNORE_SPACE SHARE_HISTORY APPEND_HISTORY EXTENDED_HISTORY
+zstyle ':completion:*' menu select
+
+# ---- oh-my-zsh (本地克隆, 不联网) ----
+export ZSH=/usr/share/oh-my-zsh
+ZSH_THEME=""                      # 提示符交给 starship, 避免与主题打架
+plugins=(git z sudo extract)
+[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
+
+# ---- 插件: 语法高亮 + 自动建议 (指南) ----
+[ -f /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh ] && \
+  source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+[ -f /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ] && \
+  source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+# ---- starship 提示符 ----
+command -v starship >/dev/null && eval "$(starship init zsh)"
+
+# ---- 常用别名 ----
+alias ls='ls --color=auto' ll='ls -lah' grep='grep --color=auto'
+alias 更新='sudo pacman -Syu' 快照='sudo snapper -c root create -d "手动快照"'
+alias 回档='btrfs-assistant-launcher' 电池='upower -i $(upower -e | grep BAT)'
+EOF
+cat > "$H/.bashrc" <<'EOF'
+# ---- oh-my-bash (本地克隆, 不联网) ----
+export OSH=/usr/share/oh-my-bash
+[ -f "$OSH/oh-my-bash.sh" ] && source "$OSH/oh-my-bash.sh"
+command -v starship >/dev/null && eval "$(starship init bash)"
+alias ls='ls --color=auto' ll='ls -lah'
+alias 更新='sudo pacman -Syu' 快照='sudo snapper -c root create -d "手动快照"'
+EOF
+
+# 13.4 starship 预设 (Nerd 图标风格)
+cat > "$H/.config/starship.toml" <<'EOF'
+# 简洁 + Nerd 图标; 预设参考 https://starship.rs/presets/
+add_newline = true
+[character]
+success_symbol = "[\$](bold green)"
+error_symbol = "[\$](bold red)"
+[directory]
+truncation_length = 3
+truncate_to_repo = true
+style = "bold cyan"
+[git_branch]
+symbol = " "
+[cmd_duration]
+min_time = 500
+format = "took [$duration]($style) "
+[os]
+disabled = true
+EOF
+
+# 13.5 默认 shell 改成 zsh (bash 仍完整可用)
+if [ -x "$ROOT/usr/bin/zsh" ]; then
+  gq /usr/bin/chsh -s /usr/bin/zsh winter >/dev/null 2>&1 && log "默认 shell: zsh" || warn "chsh 失败"
+fi
+
+# 13.6 Konsole 美化 (指南: 隐藏标题栏/工具栏 + Catppuccin Frappe + 20% 透明 + WenKai Mono 15pt)
+KS="$H/.local/share/konsole"; install -d "$KS"
+CS="$KS/CatppuccinFrappe.colorscheme"
+if [ ! -s "$CS" ]; then
+  for u in "https://raw.githubusercontent.com/catppuccin/konsole/main/themes/catppuccin-frappe.colorscheme" \
+           "https://raw.githubusercontent.com/catppuccin/konsole/main/catppuccin-frappe.colorscheme"; do
+    fetch "$u" "$DL/catppuccin-frappe.colorscheme" 2>/dev/null && break
+  done
+  [ -s "$DL/catppuccin-frappe.colorscheme" ] && cp -f "$DL/catppuccin-frappe.colorscheme" "$CS"
+fi
+cat > "$KS/Shorin.profile" <<'EOF'
+[Appearance]
+ColorScheme=CatppuccinFrappe
+Font=LXGW WenKai Mono,15,-1,5,50,0,0,0,0,0
+[General]
+Name=Shorin
+Parent=Default.profile
+TerminalColumns=100
+TerminalRows=30
+[Interaction Options]
+AutoCopySelectedText=true
+[Scrolling]
+ScrollBarPosition=2
+HighlightScrolledLines=false
+[Terminal Features]
+BlinkingCursorEnabled=true
+EOF
+cat > "$H/.config/konsolerc" <<'EOF'
+[Desktop Entry]
+DefaultProfile=Shorin.profile
+[TabBar]
+NewTabButtonVisibility=2
+[MainWindow]
+MenuBar=Disabled
+ToolBarsMovable=Disabled
+EOF
+
+# 13.7 KDE 自定义 (指南: 我的 KDE 自定义设置) — 能落文件的都预置
+cat > "$H/.config/kdeglobals" <<'EOF'
+[General]
+Font=LXGW WenKai,11,-1,5,50,0,0,0,0,0
+FixedFont=JetBrainsMono Nerd Font,10,-1,5,50,0,0,0,0,0
+ToolbarFont=LXGW WenKai,10,-1,5,50,0,0,0,0,0
+MenuFont=LXGW WenKai,11,-1,5,50,0,0,0,0,0
+[KDE]
+SingleClick=false
+[Icons]
+Theme=breeze-dark
+EOF
+cat > "$H/.config/kcminputrc" <<'EOF'
+[Mouse]
+cursorSize=30
+cursorTheme=breeze_cursors
+EOF
+cat > "$H/.config/kwinrc" <<'EOF'
+[Plugins]
+wobblywindowsEnabled=true
+translucencyEnabled=true
+kwin4_effect_geometry_changeEnabled=true
+[Effect-wobblywindows]
+Stiffness=25
+Drag=70
+MoveFactor=15
+[Compositing]
+AnimationSpeed=3
+[Wayland]
+InputMethod=fcitx
+EOF
+cat > "$H/.config/kglobalshortcutsrc" <<'EOF'
+[krunner.desktop]
+_run=Meta+Z,none,KRunner
+[org.kde.konsole.desktop]
+_newWindow=Meta+T,none,Konsole
+[systemsettings.desktop]
+_launch=Ctrl+Alt+S,none,系统设置
+[kwin]
+Window Close=Meta+Q,none,关闭窗口
+Window Kill=Meta+Ctrl+Q,none,强制终止窗口
+Window Maximize=Meta+F,none,最大化窗口
+Window Minimize=Meta+H,none,最小化窗口
+Window Fullscreen=Meta+Alt+F,none,全屏显示窗口
+Window Quick Tile Left=Meta+A,none,快速铺放: 左
+Window Quick Tile Right=Meta+D,none,快速铺放: 右
+Window Quick Tile Top=Meta+W,none,快速铺放: 上
+Window Quick Tile Bottom=Meta+S,none,快速铺放: 下
+Window Move Center=Meta+C,none,移动窗口到中央
+Show Desktop=Meta+M,none,暂时显示桌面
+Overview=Meta,none,显示桌面总览
+EOF
+cat > "$H/.config/spectaclerc" <<'EOF'
+[General]
+autoSaveImage=true
+clipboardGroup=PostScreenshotCopyImage
+launchOnStartup=false
+EOF
+
+# 13.8 中文输入法 (指南: Fcitx5 + 中州韵 + 雾凇拼音)
+#  环境变量按指南写进 ~/.config/environment.d/ (不设 GTK_IM_MODULE, 避免 Wayland 闪烁)
+install -d "$H/.config/environment.d"
+cat > "$H/.config/environment.d/ime.conf" <<'EOF'
+XMODIFIERS=@im=fcitx
+QT_IM_MODULES="wayland;fcitx"
+QT_IM_MODULE=fcitx
+SDL_IM_MODULE=fcitx
+EOF
+# GTK 走配置文件 (优先级最低, Wayland 下不生效, 避免异常)
+printf 'gtk-im-module="fcitx"\n' > "$H/.gtkrc-2.0"
+for v in 3.0 4.0; do
+  install -d "$H/.config/gtk-$v"
+  printf '[Settings]\ngtk-im-module=fcitx\n' > "$H/.config/gtk-$v/settings.ini"
+done
+# fcitx5: 左右 Shift 都交给 Rime 处理 (指南: 右 Shift 切不回中文的修法)
+install -d "$H/.config/fcitx5"
+cat > "$H/.config/fcitx5/config" <<'EOF'
+[Hotkey/AltTriggerKeys]
+0=Shift_L
+1=Shift_R
+EOF
+# Rime: 默认方案 = 雾凇拼音; F4 可切换多方案
+install -d "$H/.local/share/fcitx5/rime"
+cat > "$H/.local/share/fcitx5/rime/default.custom.yaml" <<'EOF'
+patch:
+  # rime_ice_suggestion 是雾凇方案的默认预设 (指南写法)
+  __include: rime_ice_suggestion:/
+  schema_list:
+    - schema: rime_ice
+    - schema: luna_pinyin_simp
+    - schema: double_pinyin_flypy
+    - schema: wubi86
+EOF
+cat > "$H/.local/share/fcitx5/rime/rime_ice.custom.yaml" <<'EOF'
+patch:
+  # 默认英文标点 (指南可选): switches/@1/reset=1 -> 第二个开关「中英标点」默认英文
+  "switches/@1/reset": 1
+EOF
+cat > "$H/.local/share/fcitx5/rime/custom_phrase.txt" <<'EOF'
+# encoding: utf-8
+# 自定义词库: 词语<TAB>拼音<TAB>可选权重(越大越靠前)
+# 示例: 异环	yihuan	100
+EOF
+# 输入法自启 (KDE 虚拟键盘在系统设置里选 fcitx5, 这里保证进程一定起来)
+install -d "$H/.config/autostart"
+cat > "$H/.config/autostart/fcitx5.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Fcitx 5
+Exec=fcitx5 -d
+Icon=fcitx
+X-GNOME-Autostart-Phase=Applications
+X-KDE-autostart-after=panel
+EOF
+
+# 13.9 修复 home 属主 (07 阶段新建的文件)
+chown -R 1000:1000 "$H" 2>/dev/null || true
+log "Shorin 对齐 (终端/输入法/KDE) 完成"
