@@ -516,7 +516,7 @@ sleep 4
 as_user pactl set-card-profile alsa_card.platform-sound pro-audio >/dev/null 2>&1
 sleep 2
 
-for n in $(seq 1 12); do apply; sleep 5; done
+apply   # 后续由 raphael-audio-routing.timer 每 20 秒兜底
 echo "raphael-audio: $(amixer -c 0 cget "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 2>/dev/null | tail -1)"
 exit 0
 AEOF
@@ -532,11 +532,23 @@ Type=oneshot
 ExecStart=/usr/local/sbin/raphael-audio-init.sh
 RemainAfterExit=yes
 TimeoutStartSec=300
+AEOF
+# ★ 不能挂在 multi-user.target 上: 它要等声卡 (ADSP/codec 就绪) 再等会话的
+#   PipeWire, 实测占 1 分 46 秒, 会把开头拖到 2 分钟。
+#   改成开机 12 秒后由 timer 拉起, 桌面立刻可用, 音频随后就位。
+cat > "$ROOT/etc/systemd/system/raphael-audio-init.timer" <<'AEOF'
+[Unit]
+Description=Run Raphael audio init 12s after boot (off the boot critical path)
+
+[Timer]
+OnBootSec=12s
+AccuracySec=2s
+Persistent=false
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=timers.target
 AEOF
-enable_unit raphael-audio-init.service
+enable_unit raphael-audio-init.timer
 
 # ---------------------------------------------------------------------------
 # 11b-3. 路由 keep-alive: PipeWire/ACP 激活 profile 时会把上面这些 switch 复位成 off,
