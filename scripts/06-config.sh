@@ -68,8 +68,11 @@ log "写 /etc/fstab (布局: $ROOTFS_LAYOUT)"
   case "$ROOTFS_LAYOUT" in
     btrfs-subvol)
       printf 'PARTLABEL=userdata             /       btrfs   rw,%s,nofail,x-systemd.growfs       0      1\n' "$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
-      # /home 用 nofail + automount: 挂不上也绝不影响启动 (@/home 里留了同一份数据兜底)
-      printf 'PARTLABEL=userdata             /home   btrfs   rw,%s,nofail,x-systemd.device-timeout=10,x-systemd.automount       0      0\n' "$(btrfs_opts "$BTRFS_SUBVOL_HOME")"
+      # /home **不单独挂载**: 家目录数据本来就在 @/home 里 (@home 只是它的副本)。
+      # 实测单独挂 @home 会让 user@1000 会话因 "Dependency failed" 起不来
+      # (挂载失败 -> Session N of user 依赖失败 -> SDDM respawn 循环 -> 进不了桌面),
+      # 而 @/home 的数据一直都在, 所以直接不挂最稳, 也少一个开机失败点。
+      # 想用独立 home 子卷的话, 手动: mount -o subvol=/@home /dev/disk/by-partlabel/userdata /home
       ;;
     btrfs-flat)
       printf 'PARTLABEL=userdata             /       btrfs   rw,%s,x-systemd.growfs       0      1\n' "$(btrfs_opts)"
