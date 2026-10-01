@@ -22,7 +22,7 @@ STAGE_DIR="$WORK/bootfat"              # cache 分区 FAT 内容暂存
 QDIR_IN_ROOT="/.raphael-build"         # rootfs 内的 qemu 宿主垫片目录 (相对路径)
 QDIR="$ROOT$QDIR_IN_ROOT"
 
-mkdir -p "$WORK" "$DL" "$OUT" "$LOGS" "$TOOLS"
+mkdir -p "$WORK" "$DL" "$OUT" "$LOGS" "$TOOLS" "$WORK/logs" "$WORK/empty-hooks"
 
 # ---------------------------------------------------------------- 日志 ------
 log()  { printf '\033[1;32m[%s]\033[0m %s\n' "$(date +%H:%M:%S)" "$*"; }

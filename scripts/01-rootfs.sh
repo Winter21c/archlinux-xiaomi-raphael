@@ -20,11 +20,25 @@ if [ -x "$ROOT/usr/bin/bash" ] && [ -x "$ROOT/usr/bin/pacman" ]; then
   log "rootfs 已存在, 跳过解包 ($(du -sh "$ROOT" | cut -f1))"
 else
   log "解包中 (约 2.5GB, 需要几分钟)..."
-  rm -rf "$ROOT"
+  mkdir -p "$WORK/logs"
+  # 注意: require_ns 用 unshare --mount-proc 把 /proc 挂在 $ROOT/proc,
+  # ns_mount 又把 /dev/* 逐个 bind 进 $ROOT/dev。所以这里**不能**整体
+  # rm -rf "$ROOT" —— 挂载点会报 "Device or resource busy" 而失败
+  # (干净环境 / CI 上必现; 本地因为走了"已存在"分支才没暴露)。
+  # 只清理挂载点之外的内容, 保留 proc / sys / dev 本身。
+  if mountpoint -q "$ROOT" || mountpoint -q "$ROOT/proc" || mountpoint -q "$ROOT/dev"; then
+    log "检测到 $ROOT 内已有挂载点, 只清理非挂载内容"
+    find "$ROOT" -mindepth 1 -maxdepth 1 \
+      ! -name proc ! -name sys ! -name dev \
+      -exec rm -rf {} + 2>/dev/null || true
+  else
+    rm -rf "$ROOT"
+  fi
   mkdir -p "$ROOT"
-  # tar 遇到无法映射的属主 (uid 1000 alarm) 会返回非 0, 属正常现象
+  # tar 遇到无法映射的属主 (uid 1000 alarm) 或已存在的挂载点会返回非 0, 属正常现象
   tar --numeric-owner -xzf "$TARBALL" -C "$ROOT" 2> "$WORK/logs/tar-warnings.txt" || true
-  log "解包完成: $(du -sh "$ROOT" | cut -f1) ($(find "$ROOT" | wc -l) 个条目)"
+  log "解包完成: $(du -sh "$ROOT" | cut -f1), 顶层 $(find "$ROOT" -maxdepth 1 -mindepth 1 | wc -l) 个条目"
+  [ -x "$ROOT/usr/bin/bash" ] || die "解包后仍找不到 $ROOT/usr/bin/bash, 解包可能失败 (见 work/logs/tar-warnings.txt)"
 fi
 
 # ---------------------------------------------------------------------------
