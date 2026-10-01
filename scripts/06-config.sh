@@ -324,38 +324,44 @@ enable_unit raphael-firstboot.service
 #      (实测: 官方内核 sm8150_raphael, 自建同源码内核 sm8150)。
 #      alsa-ucm2 按 conf.d/<driver>/<cardname|longname>.conf 查找, 名字都补上。
 #      用真实目录副本而不是符号链接 (符号链接实测不一定被跟随)。
-#      同时补一个 Mic 采集设备 (采集链路的 cset 顺序见 README §8.10)。
 # ---------------------------------------------------------------------------
 UCM="$ROOT/usr/share/alsa/ucm2/conf.d"
+
+# 复制时跳过"源就是目标"的情况: cp 对同一文件会报
+# "are the same file" 并被 set -e 当成失败 (CI 上踩过)
+ucm_copy() {  # ucm_copy <src> <dst>
+  local src="$1" dst="$2"
+  [ -f "$src" ] || return 0
+  [ "$(readlink -f "$src")" = "$(readlink -f "$dst" 2>/dev/null)" ] && return 0
+  cp -f "$src" "$dst"
+}
+
 if [ -d "$UCM/sm8150_raphael" ]; then
+  UCM_SRC="$UCM/sm8150_raphael"
+  HIFI="$UCM_SRC/HiFi.conf"
+
+  # Q6 路由必须在 verb 级常开 (见 HiFi.conf 文件头注释)
+  if [ -f "$HIFI" ] && ! grep -q "MultiMedia1 Mixer SLIMBUS_0_TX" "$HIFI"; then
+    sed -i "s|^\t\tcset \"name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1\"|\t\tcset \"name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1\"\n\t\tcset \"name='MultiMedia1 Mixer SLIMBUS_0_TX' 1\"|" "$HIFI"
+    log "UCM: 已在 verb 级补上采集侧 Q6 路由"
+  fi
+
+  # ⚠️ 千万不要在这里加 SectionDevice."Mic" / CapturePCM！
+  # 实测: UCM 里一旦有打不开的 CapturePCM (采集链路没通时 hw:0,0 capture open 返回
+  # EINVAL), PipeWire 的 ACP 会**放弃整个 UCM**, 卡片只剩 off / pro-audio 两个
+  # profile -> 连 Speaker/Headphone 一起消失, 并且 pro-audio 会暴露打不开的
+  # hw:0,0 导致设备反复"识别到/识别不到"抖动。
+  # 等采集链路真的能录到数据之后, 再考虑加 Mic 设备 (见 README §8.10)。
+
   for name in sm8150 sm8150_raphael; do
     mkdir -p "$UCM/$name"
     for f in HiFi.conf sm8150_raphael.conf; do
-      [ -f "$UCM/sm8150_raphael/$f" ] && cp -f "$UCM/sm8150_raphael/$f" "$UCM/$name/$f"
+      ucm_copy "$UCM_SRC/$f" "$UCM/$name/$f"
     done
     # alsa-ucm2 也会按 card name / longname 找同名 .conf
     for alias in Raphael xiaomi-XiaomiRedmiK20Pro; do
-      [ -f "$UCM/sm8150_raphael/sm8150_raphael.conf" ] \
-        && cp -f "$UCM/sm8150_raphael/sm8150_raphael.conf" "$UCM/$name/$alias.conf"
+      ucm_copy "$UCM_SRC/sm8150_raphael.conf" "$UCM/$name/$alias.conf"
     done
-  done
-
-  HIFI="$UCM/sm8150_raphael/HiFi.conf"
-  if [ -f "$HIFI" ]; then
-    # Q6 路由必须在 verb 级常开 (见文件头注释)
-    if ! grep -q "MultiMedia1 Mixer SLIMBUS_0_TX" "$HIFI"; then
-      sed -i "s|^\t\tcset \"name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1\"|\t\tcset \"name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1\"\n\t\tcset \"name='MultiMedia1 Mixer SLIMBUS_0_TX' 1\"|" "$HIFI"
-      log "UCM: 已在 verb 级补上采集侧 Q6 路由"
-    fi
-    # ⚠️ 千万不要在这里加 SectionDevice."Mic" / CapturePCM！
-    # 实测: UCM 里一旦有打不开的 CapturePCM (采集链路没通时 hw:0,0 capture open 返回
-    # EINVAL), PipeWire 的 ACP 会**放弃整个 UCM**, 卡片只剩 off / pro-audio 两个
-    # profile -> 连 Speaker/Headphone 一起消失, 并且 pro-audio 会暴露打不开的
-    # hw:0,0 导致设备反复"识别到/识别不到"抖动。
-    # 等采集链路真的能录到数据之后, 再考虑加 Mic 设备 (见 README §8.10)。
-  fi
-  for name in sm8150 sm8150_raphael; do
-    [ -f "$HIFI" ] && cp -f "$HIFI" "$UCM/$name/HiFi.conf"
   done
   log "UCM: conf.d 下已备好 sm8150 / sm8150_raphael 两套名字"
 fi
