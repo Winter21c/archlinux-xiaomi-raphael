@@ -451,61 +451,87 @@ if [ -d "$UCM/sm8150_raphael" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 11b-2. Q6 路由 mixer 直接落盘 (2026-10-01: UCM 在新 alsa-lib 下已经不可用)
-#   alsa-lib/alsa-ucm-conf 升到 1.2.16 之后, 这套 Android 风格的 UCM 解析失败:
-#     alsaucm -c hw:0 list verbs -> "No such file or directory"
-#     PipeWire/ACP 于是只给 off / pro-audio 两个 profile, UCM 的 Speaker/Headphone
-#     全都不出现 -> 没声音。
-#   而 UCM SectionVerb 里那两条 Q6 路由 mixer 本来就是"必须常开"的
-#   (Q6 后端 DAI 不使能就会 "no backend DAIs enabled for MultiMedia-N"),
-#   所以直接用一个开机服务写死, 不依赖 UCM。
-#   注: 声卡本身能不能出现取决于 pd-mapper (见 6b) —— 那个是硬前提。
+# 11b-2. 音频初始化服务 (2026-10-01 真机排了一整轮才理清)
+#   三个坑, 少一个就没声音 (PipeWire 只剩"虚拟输出", 一直静音):
+#   (1) pd-mapper 启动时扫 /sys/class/remoteproc/*/firmware 来枚举 servreg 的
+#       .jsn 映射; 它若抢在 remoteproc 注册之前起来, 就 "no pd maps available"
+#       而且永不重扫 -> ADSP 的 SLIMBUS 服务查不到 -> slim-ngd QMI 握手超时。
+#       所以这里先重启一次 pd-mapper。
+#   (2) slim-ngd 被 blacklist 挡住自动加载 (见 /etc/modprobe.d/raphael-audio.conf),
+#       由本服务在 pd-mapper 就绪后手动 modprobe, 内核会顺带重跑 deferred probe。
+#   (3) 声卡 DAI 链接 "SLIM Capture 1" 的 codec 永远不出现, 会把整块声卡卡在
+#       EPROBE_DEFER。仓库里的 dtb/raphael-redmi-k20pro.dtb 已经把这个链接删掉
+#       (fdtget -l /sound 应只有 mm1/mm2/speaker/slim-playback)。
+#   另外 UCM 在 alsa-lib 1.2.16 下解析失败, 所以 Q6 路由 mixer 直接由本服务写,
+#   并且在 60 秒内反复确认 (ACP 激活 profile 时可能把它们复位)。
 # ---------------------------------------------------------------------------
+cat > "$ROOT/etc/modprobe.d/raphael-audio.conf" <<'MEOF'
+# slim-ngd 要和 ADSP 做 QMI 握手, 握手窗口 ~1 秒; 抢跑就永久失败。
+# 禁止自动加载, 改由 raphael-audio-init.service 在 pd-mapper 就绪后手动加载。
+blacklist slim_qcom_ngd_ctrl
+MEOF
 cat > "$ROOT/usr/local/sbin/raphael-audio-init.sh" <<'AEOF'
 #!/bin/bash
-# Raphael 音频初始化: 设置 Q6 DSP 路由 (替代失效的 UCM)
-# 不要 unbind/bind slim-ngd: 内核 qcom_slim_ngd_remove 会 WARN 打栈回溯,
-# 声卡起不来是 ADSP/SLIMbus 握手时序问题, 重绑解决不了。
-set +e
+# Raphael 音频初始化
+#  1) 等 remoteproc 就绪 -> 重启 pd-mapper (重新枚举 .jsn) -> 手动加载 slim-ngd
+#  2) 等声卡 -> 以用户身份重启 PipeWire、选 pro-audio profile
+#  3) 写 Q6 路由 mixer, 并在 60 秒内反复确认
+# 不要 unbind/bind slim-ngd: 内核 qcom_slim_ngd_remove 会 WARN 打栈回溯。
+set +u
 have_card() { aplay -l 2>/dev/null | grep -q '^card 0'; }
+as_user() { sudo -u winter env XDG_RUNTIME_DIR=/run/user/1000 "$@"; }
 
-# 等声卡 (ADSP/codec 就绪后才注册), 最多 90 秒
-i=0
-while [ $i -lt 45 ] && ! have_card; do i=$((i+1)); sleep 2; done
-if ! have_card; then
-  echo "raphael-audio-init: 本次开机没有声卡 (检查 pd-mapper 是否在跑)"
-  exit 0
-fi
+for i in $(seq 1 60); do
+  [ -r /sys/class/remoteproc/remoteproc2/firmware ] && break; sleep 0.5
+done
+systemctl restart pd-mapper 2>/dev/null
+sleep 1
+lsmod | grep -q '^slim_qcom_ngd_ctrl' || modprobe slim_qcom_ngd_ctrl 2>/dev/null
+modprobe snd_soc_sm8150 2>/dev/null
 
-cset() { amixer -c 0 cset "$1" "$2" >/dev/null 2>&1 || true; }
-# Q6 路由: 必须常开, 清掉会报 "Routing not setup for MultiMedia-N Session"
-cset "name='SLIMBUS_0_RX Audio Mixer MultiMedia1'" 1
-cset "name='QUAT_MI2S_RX Audio Mixer MultiMedia2'" 1
-# 耳机 (WCD9340) 路径
-cset "name='SLIM RX0 MUX'" AIF1_PB
-cset "name='SLIM RX1 MUX'" AIF1_PB
-cset "name='RX INT1_1 MIX1 INP0'" RX0
-cset "name='RX INT2_1 MIX1 INP0'" RX1
-cset "name='COMP1 Switch'" 1
-cset "name='COMP2 Switch'" 1
-cset "name='RX INT1 DEM MUX'" CLSH_DSM_OUT
-cset "name='RX INT2 DEM MUX'" CLSH_DSM_OUT
-cset "name='RX1 Digital Volume'" 68
-cset "name='RX2 Digital Volume'" 68
-echo "raphael-audio-init: Q6 路由已设置"
+i=0; while [ $i -lt 40 ] && ! have_card; do i=$((i+1)); sleep 0.5; done
+have_card || { echo "raphael-audio: 无声卡"; exit 0; }
+echo "raphael-audio: 声卡就绪"
+
+apply() {
+  amixer -c 0 cset "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
+  amixer -c 0 cset "name=QUAT_MI2S_RX Audio Mixer MultiMedia2" 1 >/dev/null 2>&1
+  amixer -c 0 cset "name=SLIM RX0 MUX" AIF1_PB >/dev/null 2>&1
+  amixer -c 0 cset "name=SLIM RX1 MUX" AIF1_PB >/dev/null 2>&1
+  amixer -c 0 cset "name=RX INT1_1 MIX1 INP0" RX0 >/dev/null 2>&1
+  amixer -c 0 cset "name=RX INT2_1 MIX1 INP0" RX1 >/dev/null 2>&1
+  amixer -c 0 cset "name=COMP1 Switch" 1 >/dev/null 2>&1
+  amixer -c 0 cset "name=COMP2 Switch" 1 >/dev/null 2>&1
+  amixer -c 0 cset "name=RX INT1 DEM MUX" CLSH_DSM_OUT >/dev/null 2>&1
+  amixer -c 0 cset "name=RX INT2 DEM MUX" CLSH_DSM_OUT >/dev/null 2>&1
+  amixer -c 0 cset "name=RX1 Digital Volume" 68 >/dev/null 2>&1
+  amixer -c 0 cset "name=RX2 Digital Volume" 68 >/dev/null 2>&1
+}
+
+for i in $(seq 1 60); do
+  [ -S /run/user/1000/pipewire-0 ] && break; sleep 0.5
+done
+as_user systemctl --user restart wireplumber >/dev/null 2>&1
+sleep 4
+as_user pactl set-card-profile alsa_card.platform-sound pro-audio >/dev/null 2>&1
+sleep 2
+
+for n in $(seq 1 12); do apply; sleep 5; done
+echo "raphael-audio: $(amixer -c 0 cget "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 2>/dev/null | tail -1)"
 exit 0
 AEOF
 chmod 755 "$ROOT/usr/local/sbin/raphael-audio-init.sh"
 cat > "$ROOT/etc/systemd/system/raphael-audio-init.service" <<'AEOF'
 [Unit]
-Description=Raphael audio routing init (Q6 mixers; UCM 失效后的替代)
-After=sound.target pd-mapper.service
-Before=display-manager.service
+Description=Raphael audio init (slim-ngd late load + PipeWire profile + Q6 mixers)
+After=pd-mapper.service
+Wants=pd-mapper.service
 
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/raphael-audio-init.sh
 RemainAfterExit=yes
+TimeoutStartSec=300
 
 [Install]
 WantedBy=multi-user.target
@@ -957,23 +983,67 @@ rm -f /home/winter/AUR-安装失败-请看这里.txt 2>/dev/null || true
 echo "AUR: 全部安装完成 ($ok 个)"
 EOF
 chmod 755 "$ROOT/usr/local/sbin/raphael-aur-setup.sh"
+# ★ AUR 安装放定时器里跑, 不要挂在 multi-user.target 上:
+#   实测它会把开机拖到 1 分 40 秒 (而 graphical.target 依赖 multi-user.target,
+#   等于每次开机都要等它把 AUR 包编译完)。改成开机 90 秒后后台跑。
 cat > "$ROOT/etc/systemd/system/raphael-aur-setup.service" <<'EOF'
 [Unit]
-Description=Install AUR packages (Shorin guide list) on first boot
-After=network-online.target raphael-snapper-setup.service
+Description=Install AUR packages (background, until done)
+After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/usr/bin/paru
+ConditionPathExists=!/var/lib/raphael/aur-setup.done
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 TimeoutStartSec=1800
-Nice=10
+Nice=15
 CPUSchedulingPolicy=batch
 ExecStart=/usr/local/sbin/raphael-aur-setup.sh
+EOF
+cat > "$ROOT/etc/systemd/system/raphael-aur-setup.timer" <<'EOF'
+[Unit]
+Description=Run AUR setup 90s after boot (off the boot critical path)
+
+[Timer]
+OnBootSec=90s
+AccuracySec=30s
+Persistent=false
+
+[Install]
+WantedBy=timers.target
+EOF
+enable_unit raphael-aur-setup.timer
+
+# ---------------------------------------------------------------------------
+# 14b. 花屏缓解: 不让 msm 显示控制器/DSI 进 runtime suspend
+#   现象: 息屏/亮屏、以及自动变暗那一下会花屏一闪。内核是预编译的 vendor 内核,
+#   先从 PM 侧缓解 (让显示控制器保持 resume)。
+# ---------------------------------------------------------------------------
+cat > "$ROOT/usr/local/sbin/raphael-display-nopm.sh" <<'DEOF'
+#!/bin/bash
+set +u
+for d in /sys/bus/platform/devices/ae01000.display-controller \
+         /sys/bus/platform/devices/ae94000.dsi \
+         /sys/bus/platform/devices/ae00000.display-subsystem; do
+  [ -e "$d/power/control" ] && echo on > "$d/power/control" 2>/dev/null
+done
+exit 0
+DEOF
+chmod 755 "$ROOT/usr/local/sbin/raphael-display-nopm.sh"
+cat > "$ROOT/etc/systemd/system/raphael-display-nopm.service" <<'DEOF'
+[Unit]
+Description=Raphael: keep display controller runtime-resumed (花屏缓解)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/raphael-display-nopm.sh
+RemainAfterExit=yes
 
 [Install]
 WantedBy=multi-user.target
-EOF
-enable_unit raphael-aur-setup.service
+DEOF
+enable_unit raphael-display-nopm.service
 log "Shorin 对齐 (准备篇/快照篇) 完成"

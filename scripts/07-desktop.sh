@@ -609,3 +609,52 @@ EOF
 # 13.9 修复 home 属主 (07 阶段新建的文件)
 chown -R 1000:1000 "$H" 2>/dev/null || true
 log "Shorin 对齐 (终端/输入法/KDE) 完成"
+
+# ---------------------------------------------------------------------------
+# 13.10 ★ 去掉 Shorin 指南带来的"个性化"覆盖 (2026-10-01 用户要求)
+#   用户反馈: 加了这套个性化之后开机变慢、而且和触屏键盘打架。
+#   这里只做"把个性化配置撤掉、回到 KDE/系统默认", **不卸载任何包**
+#   (字体 / zsh / fcitx5 / konsole 都还在, 想用随时手动开)。
+#   要恢复个性化: 删掉本段即可 (上面的生成逻辑仍然完整保留)。
+# ---------------------------------------------------------------------------
+log "撤销 Shorin 个性化覆盖 (保留包本身)"
+# 1) 字体/光标/快捷键/截图/星舰提示符/Konsole 覆盖 -> 回默认
+for f in kdeglobals kcminputrc kglobalshortcutsrc spectaclerc starship.toml konsolerc; do
+  rm -f "$H/.config/$f"
+done
+rm -rf "$H/.local/share/konsole"
+# 2) kwin 特效 (wobbly / geometry change) + InputMethod=fcitx
+#    触屏键盘靠 KCM 写的 [Wayland] InputMethod[$e]=...plasma.keyboard.desktop,
+#    不要同时写 VirtualKeyboard= (两个都在会抢输入: 键盘弹得出来但字进不了输入框)
+rm -f "$H/.config/kwinrc"
+mkdir -p "$H/.config"
+cat > "$H/.config/kwinrc" <<'KEOF'
+[Wayland]
+InputMethod[$e]=/usr/share/applications/org.kde.plasma.keyboard.desktop
+KEOF
+# 3) oh-my-zsh / oh-my-bash 主题: 换朴素 rc (先备份成 .shorin-bak 便于用户自己找回来)
+for rc in .zshrc .bashrc; do
+  [ -e "$H/$rc" ] && mv "$H/$rc" "$H/$rc.shorin-bak" 2>/dev/null
+done
+cat > "$H/.zshrc" <<'ZEOF'
+# 朴素配置 (Shorin 的 oh-my-zsh 主题已移除; 旧文件见 .zshrc.shorin-bak)
+export EDITOR=nvim
+export VISUAL=nvim
+alias ls='ls --color=auto'
+alias ll='ls -lh'
+ZEOF
+cat > "$H/.bashrc" <<'BEOF'
+# 朴素配置 (Shorin 的 oh-my-bash 主题已移除; 旧文件见 .bashrc.shorin-bak)
+export EDITOR=nvim
+export VISUAL=nvim
+alias ls='ls --color=auto'
+alias ll='ls -lh'
+BEOF
+# 4) fcitx5 自启: 关掉 (它会抢 Wayland 输入法, 也让触屏键盘输不进字)
+if [ -e "$H/.config/autostart/fcitx5.desktop" ]; then
+  mv "$H/.config/autostart/fcitx5.desktop" "$H/.config/autostart/fcitx5.desktop.disabled"
+fi
+# 5) 息屏自动变暗也关掉 (花屏最容易复现的路径), 见 raphael-display-nopm.service
+kwriteconfig6 --file powerdevilrc --group AC --group DimDisplay --key idleTime --delete 2>/dev/null || true
+chown -R 1000:1000 "$H/.config" "$H/.local" 2>/dev/null || true
+log "Shorin 个性化已撤销 (包未卸载)"
