@@ -61,6 +61,25 @@ for f in "$ROOT/usr/lib/firmware/qcom/sm8150/Xiaomi/raphael/a640_zap.mbn" \
   cp -f "$f" "$IR/usr/lib/firmware/qcom/sm8150/Xiaomi/raphael/"
 done
 
+# ---- ★ GPU (Adreno 640) 固件: 必须在 initramfs 里 ---------------------------
+#   msm_dpu/adreno 是内建驱动, 在 0.9 秒就 probe 并 request_firmware();
+#   那时只有 initramfs 可读, rootfs 还没挂 -> 找不到 a630_sqe.fw / a640_gmu.bin
+#   -> GPU 3D 起不来 -> 之后每次合成器初始化都会 "06040001: hangcheck recover"
+#   伴随一次花屏 (锁屏/开机时尤其明显)。真机验证: 放进 initramfs 后两条固件都
+#   能加载成功 ("loaded qcom/a630_sqe.fw from new location")。
+for f in a630_sqe.fw a640_gmu.bin a630_gmu.bin; do
+  src="$ROOT/usr/lib/firmware/qcom/$f"
+  [ -f "$src" ] || continue
+  mkdir -p "$IR/usr/lib/firmware/qcom"
+  cp -f "$src" "$IR/usr/lib/firmware/qcom/"
+  log "  早期 GPU 固件: qcom/$f"
+done
+# cfg80211 也是内建, 早期就要 regulatory.db (wireless-regdb 包)
+for f in regulatory.db regulatory.db.p7s; do
+  [ -f "$ROOT/usr/lib/firmware/$f" ] || continue
+  cp -f "$ROOT/usr/lib/firmware/$f" "$IR/usr/lib/firmware/"
+done
+
 # ---- /init ----------------------------------------------------------------
 cat > "$IR/init" <<'INIT'
 #!/bin/busybox sh

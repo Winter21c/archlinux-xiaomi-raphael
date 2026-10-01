@@ -33,7 +33,17 @@ cp -f "$WORK/initramfs.img" "$STAGE/initramfs" || die "缺少 initramfs (先跑 
 cp -f "$ROOT/usr/lib/modules/$KV/dtbs/qcom/sm8150-xiaomi-raphael.dtb" "$STAGE/dtbs/qcom/" 2>/dev/null || true
 
 # 修补过的设备树: 内核树自带的 DTB 是残缺的 (sound 节点为空, 无相机节点),
-# 实际生效的是 U-Boot 下发的 DT, 但它缺两项关键配置:
+# 实际生效的是 U-Boot 下发的 DT。dtb/raphael-redmi-k20pro.dtb 在它基础上做了:
+#   1) 蓝牙节点补 local-bd-address (否则控制器上报全零 BD_ADDR, 蓝牙完全不可用)
+#   2) 删掉 slimcap-dai-link 和 slim-playback-dai-link —— 它们引用的 WCD9340
+#      codec DAI 常常枚举不出来 (SLIMbus/ADSP 的 QMI 握手有竞态), 一旦缺了就
+#      让**整块声卡**卡在 EPROBE_DEFER (aplay -l 一个 card 都没有,
+#      PipeWire 只剩"虚拟输出", 完全没声音)。删掉后声卡永远能注册,
+#      底部扬声器 (TFA9874/QUAT_MI2S) 稳定可用。
+#   3) 删掉 audio-routing —— 之前为修麦克风加的那批 MCLK/MIC BIAS 路由,
+#      在这块 codec 上控件不存在, 会让 ASoC 报 "Failed to add route" 并
+#      **导致整块声卡注册失败**。路由改由 userspace (UCM/amixer) 负责。
+# 原始配置:
 #   1) 蓝牙节点缺 local-bd-address -> 控制器上报全零 BD_ADDR ->
 #      内核 hci_power_on() 立刻关闭设备且不发 mgmt Index Added -> 蓝牙完全不可用
 #   2) 采集路径缺 MCLK 依赖 -> WCD9340 数字核无时钟 -> 录音全零

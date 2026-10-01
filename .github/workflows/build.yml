@@ -22,6 +22,22 @@ name: 构建镜像
 on:
   workflow_dispatch:
     inputs:
+      username:
+        description: '镜像里的用户名 (留空 = 用 config/build.conf 里的 winter)'
+        required: false
+        default: ''
+      user_password:
+        description: '该用户密码 (留空 = 1234)。★公开仓库注意: 这里填的值在 Actions 页面对所有人可见, 建议留空或改用 Secrets'
+        required: false
+        default: ''
+      root_password:
+        description: 'root 密码 (留空 = 1234)。同上, 公开仓库建议改用 Secrets'
+        required: false
+        default: ''
+      autologin:
+        description: '开机自动登录 (手机没实体键盘, 建议 true)'
+        type: boolean
+        default: true
       stages:
         description: '只跑指定阶段 (空格分隔, 如 "09 10")。CI 每次都是干净环境, 留空才有意义 —— 填了需要缓存里已有前序产物'
         required: false
@@ -63,6 +79,12 @@ jobs:
       # 发布包压缩级别: 6.9GB 镜像用 -19 在 4 核 runner 上要 30 分钟以上,
       # CI 用 -6 (几分钟); 本地出正式版仍是默认的 -19
       RAPHAEL_RELEASE_ZSTD_LEVEL: "6"
+      # 账号/密码: 优先用仓库 Secrets (私有, 不会出现在日志里),
+      # 没有就用 workflow_dispatch 的输入, 再没有就用 build.conf 的默认值。
+      # 需要设置的 Secrets: IMAGE_USERNAME / IMAGE_USER_PASSWORD / IMAGE_ROOT_PASSWORD
+      SEC_USERNAME: ${{ secrets.IMAGE_USERNAME }}
+      SEC_USER_PASSWORD: ${{ secrets.IMAGE_USER_PASSWORD }}
+      SEC_ROOT_PASSWORD: ${{ secrets.IMAGE_ROOT_PASSWORD }}"
 
     steps:
       # ---------------------------------------------------------------- 环境
@@ -174,6 +196,44 @@ jobs:
             raphael-dl-
 
       # ---------------------------------------------------------------- 构建
+      - name: 应用账号 / 密码设置
+        env:
+          IN_USER: ${{ inputs.username }}
+          IN_UPASS: ${{ inputs.user_password }}
+          IN_RPASS: ${{ inputs.root_password }}
+          IN_AUTOLOGIN: ${{ inputs.autologin }}
+        run: |
+          set -e
+          # 先打掩码, 后面任何输出都不会泄露
+          for v in "$SEC_USER_PASSWORD" "$SEC_ROOT_PASSWORD" "$IN_UPASS" "$IN_RPASS"; do
+            [ -n "$v" ] && echo "::add-mask::$v"
+          done
+          python3 - <<'PY'
+          import os, re
+          f = 'config/build.conf'
+          s = open(f).read()
+          def put(key, val):
+              global s
+              if not val:
+                  return False
+              s = re.sub(rf'^{key}=.*$', lambda m: f'{key}="{val}"', s, count=1, flags=re.M)
+              return True
+          user  = os.environ.get('SEC_USERNAME') or os.environ.get('IN_USER')
+          upass = os.environ.get('SEC_USER_PASSWORD') or os.environ.get('IN_UPASS')
+          rpass = os.environ.get('SEC_ROOT_PASSWORD') or os.environ.get('IN_RPASS')
+          auto  = os.environ.get('IN_AUTOLOGIN') or ''
+          done = []
+          if put('USERNAME', user): done.append(f'用户名 -> {user}')
+          if put('USER_PASSWORD', upass): done.append('用户密码 -> 已设置')
+          if put('ROOT_PASSWORD', rpass): done.append('root 密码 -> 已设置')
+          if auto:
+              if put('AUTOLOGIN', auto): done.append(f'自动登录 -> {auto}')
+          open(f, 'w').write(s)
+          print('>> 账号设置:', ('; '.join(done) if done else '未提供, 用 build.conf 里的默认值'))
+          PY
+          echo ">> 生效的账号相关行:"; grep -E '^USERNAME=|^USER_ID=|^AUTOLOGIN=' config/build.conf | head -5
+          echo ">> 密码不回显 (如需确认请看上面的“已设置”)"
+
       - name: 显示构建配置
         run: grep -vE '^\s*#|^\s*$' config/build.conf | head -40
 
