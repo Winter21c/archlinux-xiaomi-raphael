@@ -108,6 +108,26 @@ jobs:
           pacman -S --noconfirm --needed qemu-user \
             || pacman -S --noconfirm --needed qemu-emulators-full
 
+      - name: 准备 loop 设备 (privileged 容器里默认没有 /dev/loop*)
+        run: |
+          # 阶段 09 需要 loop 挂载 btrfs 镜像才能建 @ / @home 子卷;
+          # 容器里 /dev 是 tmpfs, 内核的 loop 模块在宿主已加载, 但设备节点要自己建。
+          modprobe loop 2>/dev/null || true
+          mknod /dev/loop-control c 10 237 2>/dev/null || true
+          for i in 0 1 2 3 4 5 6 7; do mknod "/dev/loop$i" b 7 "$i" 2>/dev/null || true; done
+          chmod 660 /dev/loop* 2>/dev/null || true
+          echo "losetup -f => $(losetup -f 2>&1)"
+          # 自检: 能不能真的 loop 挂一个 btrfs
+          t=$(mktemp); truncate -s 64M "$t"; mkfs.btrfs -q -f "$t" 2>/dev/null
+          m=$(mktemp -d)
+          if mount -o loop "$t" "$m" 2>/dev/null; then
+            echo "✅ loop 挂载可用 -> 阶段 09 会产出 @ / @home 子卷布局"
+            umount "$m"
+          else
+            echo "::warning::loop 挂载仍不可用 -> 阶段 09 会退化为单子卷 btrfs (snapper 会自动跳过)"
+          fi
+          rm -rf "$m" "$t"
+
       - name: 校验关键工具齐全
         run: |
           missing=0
