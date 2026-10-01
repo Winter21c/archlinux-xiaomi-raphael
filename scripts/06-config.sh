@@ -731,15 +731,9 @@ for f in LXGWWenKai-Regular.ttf LXGWWenKaiMono-Regular.ttf; do
 done
 log "字体: 霞鹜文楷 Regular + Mono ($LXGW_VER)"
 
-# 13.3b 厂商内核多半没编这些文件系统 (binfmt_misc/posix-mqueue/hugetlbfs/fusectl),
-#       系统按标准单元去挂会一路报红; mask 掉无可无不可的几个 (configfs/debugfs 保留:
-#       USB gadget 需要 configfs, 调试需要 debugfs)
-for u in proc-sys-fs-binfmt_misc.mount dev-hugepages.mount dev-mqueue.mount \
-         sys-fs-fuse-connections.mount; do
-  mask_unit "$u" 2>/dev/null || true
-done
-log "已 mask 内核可能不提供的 api 文件系统挂载单元"
-
+# 13.3b 这几个挂载单元**不 mask**: 内核其实都支持
+#   (configfs=y debugfs=y posix_mqueue=y hugetlbfs=y; binfmt_misc=m fuse=m 需加载模块),
+#   挂不上应当查模块是否加载/启动是否正常, 而不是屏蔽掉标准单元。
 # 13.4 性能模式: power-profiles-daemon (无 cpufreq 的设备自动跳过)
 if [ -d "$ROOT/sys/devices/system/cpu/cpufreq" ] || [ -d "/sys/devices/system/cpu/cpufreq" ]; then
   enable_unit power-profiles-daemon.service 2>/dev/null || \
