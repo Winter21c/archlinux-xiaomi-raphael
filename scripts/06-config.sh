@@ -539,6 +539,56 @@ AEOF
 enable_unit raphael-audio-init.service
 
 # ---------------------------------------------------------------------------
+# 11b-3. 路由 keep-alive: PipeWire/ACP 激活 profile 时会把上面这些 switch 复位成 off,
+#   而 sink 能不能出声完全取决于对应路由:
+#     MultiMedia1 (SLIMBUS_0_RX) -> hw:0,0 -> WCD9340 -> 耳机口 ("内置音频 Pro")
+#     MultiMedia2 (QUAT_MI2S_RX) -> hw:0,1 -> TFA9874 -> 底部扬声器 ("内置音频 Pro 1")
+#   实测 ACP 之后 MultiMedia1 会变回 off (症状: 扬声器有声音, 耳机那个 sink 全哑)。
+#   用一个 20 秒周期的 timer 兜住, 谁被复位就立刻纠正。
+# ---------------------------------------------------------------------------
+cat > "$ROOT/usr/local/sbin/raphael-audio-routing.sh" <<'REOF'
+#!/bin/bash
+set +u
+aplay -l 2>/dev/null | grep -q '^card 0' || exit 0
+amixer -c 0 cset "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
+amixer -c 0 cset "name=QUAT_MI2S_RX Audio Mixer MultiMedia2" 1 >/dev/null 2>&1
+amixer -c 0 cset "name=SLIM RX0 MUX" AIF1_PB >/dev/null 2>&1
+amixer -c 0 cset "name=SLIM RX1 MUX" AIF1_PB >/dev/null 2>&1
+amixer -c 0 cset "name=RX INT1_1 MIX1 INP0" RX0 >/dev/null 2>&1
+amixer -c 0 cset "name=RX INT2_1 MIX1 INP0" RX1 >/dev/null 2>&1
+amixer -c 0 cset "name=COMP1 Switch" 1 >/dev/null 2>&1
+amixer -c 0 cset "name=COMP2 Switch" 1 >/dev/null 2>&1
+amixer -c 0 cset "name=RX INT1 DEM MUX" CLSH_DSM_OUT >/dev/null 2>&1
+amixer -c 0 cset "name=RX INT2 DEM MUX" CLSH_DSM_OUT >/dev/null 2>&1
+amixer -c 0 cset "name=RX1 Digital Volume" 68 >/dev/null 2>&1
+amixer -c 0 cset "name=RX2 Digital Volume" 68 >/dev/null 2>&1
+exit 0
+REOF
+chmod 755 "$ROOT/usr/local/sbin/raphael-audio-routing.sh"
+cat > "$ROOT/etc/systemd/system/raphael-audio-routing.service" <<'REOF'
+[Unit]
+Description=Re-assert Raphael Q6 audio routing (ACP 会把它复位)
+After=raphael-audio-init.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/raphael-audio-routing.sh
+REOF
+cat > "$ROOT/etc/systemd/system/raphael-audio-routing.timer" <<'REOF'
+[Unit]
+Description=Keep Raphael audio routing asserted every 20s
+
+[Timer]
+OnBootSec=25s
+OnUnitActiveSec=20s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target
+REOF
+enable_unit raphael-audio-routing.timer
+
+# ---------------------------------------------------------------------------
 # 11c. 蓝牙原厂固件/NVM: linux-firmware 里的 qca/crnv21.bin 与 raphael 的板级
 #      校准不匹配 -> 控制器上报全零 BD_ADDR -> 内核 hci_power_on() 立即关闭设备,
 #      不发 mgmt Index Added, 表现为 btmgmt "Invalid Index"。
