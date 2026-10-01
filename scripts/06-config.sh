@@ -320,13 +320,64 @@ EOF
 enable_unit raphael-firstboot.service
 
 # ---------------------------------------------------------------------------
-# 11b. UCM: 声卡 driver 名在不同内核构建下可能是 sm8150 / sm8150_raphael,
-#      alsa-ucm2 按 conf.d/<driver>/<longname>.conf 查找, 两套名字都要能命中
+# 11b. UCM: 声卡 driver 名在不同内核构建下可能是 sm8150 / sm8150_raphael
+#      (实测: 官方内核 sm8150_raphael, 自建同源码内核 sm8150)。
+#      alsa-ucm2 按 conf.d/<driver>/<cardname|longname>.conf 查找, 名字都补上。
+#      用真实目录副本而不是符号链接 (符号链接实测不一定被跟随)。
+#      同时补一个 Mic 采集设备 (采集链路的 cset 顺序见 README §8.10)。
 # ---------------------------------------------------------------------------
-if [ -d "$ROOT/usr/share/alsa/ucm2/conf.d/sm8150_raphael" ] \
-   && [ ! -e "$ROOT/usr/share/alsa/ucm2/conf.d/sm8150" ]; then
-  ln -s sm8150_raphael "$ROOT/usr/share/alsa/ucm2/conf.d/sm8150"
-  log "UCM: 增加 sm8150 -> sm8150_raphael 兼容链接"
+UCM="$ROOT/usr/share/alsa/ucm2/conf.d"
+if [ -d "$UCM/sm8150_raphael" ]; then
+  for name in sm8150 sm8150_raphael; do
+    mkdir -p "$UCM/$name"
+    for f in HiFi.conf sm8150_raphael.conf; do
+      [ -f "$UCM/sm8150_raphael/$f" ] && cp -f "$UCM/sm8150_raphael/$f" "$UCM/$name/$f"
+    done
+    # alsa-ucm2 也会按 card name / longname 找同名 .conf
+    for alias in Raphael xiaomi-XiaomiRedmiK20Pro; do
+      [ -f "$UCM/sm8150_raphael/sm8150_raphael.conf" ] \
+        && cp -f "$UCM/sm8150_raphael/sm8150_raphael.conf" "$UCM/$name/$alias.conf"
+    done
+  done
+
+  HIFI="$UCM/sm8150_raphael/HiFi.conf"
+  if [ -f "$HIFI" ] && ! grep -q 'SectionDevice."Mic"' "$HIFI"; then
+    # Q6 路由必须在 verb 级常开 (见文件头注释), 采集侧同理
+    if ! grep -q "MultiMedia1 Mixer SLIMBUS_0_TX" "$HIFI"; then
+      sed -i "s|^\t\tcset \"name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1\"|\t\tcset \"name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1\"\n\t\tcset \"name='MultiMedia1 Mixer SLIMBUS_0_TX' 1\"|" "$HIFI"
+    fi
+    cat >> "$HIFI" <<'EOF'
+
+# ---------- 内置麦克风 (WCD9340, AMIC1 -> ADC1 -> DEC0 -> SLIM TX0) ----------
+# 注意: 采集链路已能全部上电, 但录到的样本仍为全零, 还差 DSP/ADM 或模拟前端
+# 最后一层, 详见 README §8.10 与 notes/microphone-and-kernel-plan.md
+SectionDevice."Mic" {
+	Comment "内置麦克风"
+
+	EnableSequence [
+		cset "name='AMIC MUX0' ADC1"
+		cset "name='ADC MUX0' AMIC"
+		cset "name='CDC_IF TX0 MUX' DEC0"
+		cset "name='AIF1_CAP Mixer SLIM TX0' on"
+		cset "name='ADC1 Volume' 20"
+		cset "name='DEC0 Volume' 84"
+	]
+
+	DisableSequence [
+	]
+
+	Value {
+		CapturePriority 100
+		CapturePCM "hw:0,0"
+	}
+}
+EOF
+    for name in sm8150 sm8150_raphael; do
+      cp -f "$HIFI" "$UCM/$name/HiFi.conf"
+    done
+    log "UCM: 已补 Mic 采集设备与 Q6 采集路由"
+  fi
+  log "UCM: conf.d 下已备好 sm8150 / sm8150_raphael 两套名字"
 fi
 
 # ---------------------------------------------------------------------------
@@ -334,6 +385,8 @@ fi
 #      校准不匹配 -> 控制器上报全零 BD_ADDR -> 内核 hci_power_on() 立即关闭设备,
 #      不发 mgmt Index Added, 表现为 btmgmt "Invalid Index"。
 #      设备自带的 bluetooth 分区 (FAT16, image/ 目录) 里是原厂 NVM+固件, 用它替换。
+#      注意: 不做 unbind/bind 重新探测 (实测有概率把设备卡在关机流程),
+#      首次装入后重启一次即可生效。
 # ---------------------------------------------------------------------------
 cat > "$ROOT/usr/local/sbin/raphael-bt-firmware.sh" <<'EOF'
 #!/bin/bash
@@ -351,12 +404,11 @@ if mount -o ro "$part" "$mnt" 2>/dev/null; then
   done
   umount "$mnt"
   rmdir "$mnt" 2>/dev/null || true
-  # 固件换了以后必须重新探测 serdev 才会重新下载 NVM
-  if [ "$changed" = 1 ] && [ -d /sys/bus/serial/drivers/hci_uart_qca ]; then
-    if [ "$(btmgmt info 2>/dev/null | head -1)" = "Index list with 0 items" ]; then
-      echo serial0-0 > /sys/bus/serial/drivers/hci_uart_qca/unbind 2>/dev/null || true
-      sleep 2
-      echo serial0-0 > /sys/bus/serial/drivers/hci_uart_qca/bind 2>/dev/null || true
+  if [ "$changed" = 1 ]; then
+    echo "raphael: 蓝牙固件已更新, 需要重启一次才会重新下载 NVM"
+    # 只在明显没有控制器时提示 (hci0 存在但没有 address 属性 = 内核把设备关掉了)
+    if [ -d /sys/class/bluetooth/hci0 ] && [ ! -e /sys/class/bluetooth/hci0/address ]; then
+      echo "raphael: 当前蓝牙不可用 -> systemctl reboot 后恢复"
     fi
   fi
 fi
