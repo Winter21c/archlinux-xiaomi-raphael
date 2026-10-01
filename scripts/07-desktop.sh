@@ -555,10 +555,27 @@ EOF
 #    QT_IM_MODULES=qtvirtualkeyboard (见 06 阶段的 /etc/environment 与注释),
 #    而不是给应用设单数 QT_IM_MODULE —— plasma-keyboard 明确说客户端侧不支持。
 #    fcitx5 仍然装着, 想要物理键盘 + 中州韵时手动开即可。
-# 输入法环境统一放 /etc/environment (06 阶段写), 这里不要另写一份,
-# 否则两份 environment 会互相覆盖 (踩过: environment.d 里残留 fcitx 导致键盘失效)
+# 输入法环境: 不要把 QT_IM_MODULES 写进全局 (06 阶段的 /etc/environment 里没有它),
+# 否则每个 Qt 程序都去加载虚拟键盘上下文 -> plasma-keyboard 弹出来就闪退。
+# 正确做法是只给合成器:
+#   1) kwin_wayland 用 systemd user drop-in 单独带上 QT_IM_MODULES
+#   2) plasma-keyboard 是 kwin 的子进程会继承该变量, 启动时用 env -u 清掉
+#      (带着它会走 "client-side" 那条 plasma-keyboard 自己声明不支持的路径)
 rm -f "$H/.config/environment.d/ime.conf"
 rmdir "$H/.config/environment.d" 2>/dev/null || true
+install -d "$H/.config/systemd/user/plasma-kwin_wayland.service.d"
+cat > "$H/.config/systemd/user/plasma-kwin_wayland.service.d/im.conf" <<'EOF'
+# plasma-keyboard: "use QT_IM_MODULES=qtvirtualkeyboard at compositor-side"
+# 只作用于 kwin_wayland 自己
+[Service]
+Environment=QT_IM_MODULES=qtvirtualkeyboard
+EOF
+KBD_DESKTOP="$ROOT/usr/share/applications/org.kde.plasma.keyboard.desktop"
+if [ -f "$KBD_DESKTOP" ]; then
+  [ -f "$KBD_DESKTOP.orig" ] || cp -n "$KBD_DESKTOP" "$KBD_DESKTOP.orig"
+  sed -i 's|^Exec=plasma-keyboard$|Exec=env -u QT_IM_MODULES plasma-keyboard|' "$KBD_DESKTOP"
+  grep -q 'env -u QT_IM_MODULES' "$KBD_DESKTOP" && log "  plasma-keyboard: Exec 已改为 env -u QT_IM_MODULES"
+fi
 rm -f "$H/.gtkrc-2.0"
 for v in 3.0 4.0; do
   rm -f "$H/.config/gtk-$v/settings.ini"

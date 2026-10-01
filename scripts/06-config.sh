@@ -740,12 +740,16 @@ fi
 #    2) QT_IM_MODULE=qtvirtualkeyboard (单数) -> 还是不行; plasma-keyboard 自己
 #       在日志里说: "qtvirtualkeyboard currently is not supported at client-side,
 #       use QT_IM_MODULES=qtvirtualkeyboard at compositor-side."
-#    3) QT_IM_MODULES=qtvirtualkeyboard (复数, 给合成器 kwin_wayland 用) -> 正确,
-#       plasma-keyboard 的 "input method is not set" 日志消失, 键盘真正接管输入。
+#    3) QT_IM_MODULES=qtvirtualkeyboard (复数) -> 这才是对的方向, 但**只能给
+#       合成器** (kwin_wayland) 用: 放全局会让键盘自己闪退。做法见 07 阶段
+#       (kwin 的 systemd user drop-in + 键盘 desktop 文件 Exec 里 env -u)。
 #    中文/英文都靠 Plasma 键盘自带的 Pinyin 插件, 不需要 fcitx5。
 # ---------------------------------------------------------------------------
+#  注意: QT_IM_MODULES 千万不要写进 /etc/environment!
+#  那会让每个 Qt 程序 (包括 plasma-keyboard 自己) 都去加载虚拟键盘输入上下文
+#  -> 键盘窗口弹出来就闪退/不显示。它只应该给合成器 kwin_wayland 用,
+#  见 07 阶段的 plasma-kwin_wayland.service.d/im.conf。
 cat > "$ROOT/etc/environment" <<'EOF'
-QT_IM_MODULES=qtvirtualkeyboard
 EDITOR=nvim
 VISUAL=nvim
 EOF
