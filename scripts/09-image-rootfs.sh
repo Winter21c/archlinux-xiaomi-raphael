@@ -75,11 +75,12 @@ case "$LAYOUT" in
         log "  复制 rootfs -> /$BTRFS_SUBVOL_ROOT (压缩写入, 需要几分钟)"
         cp -a "$ROOT/." "$MNT/$BTRFS_SUBVOL_ROOT/"
         mkdir -p "$MNT/$BTRFS_SUBVOL_HOME"
+        # /home 的数据在 @ 和 @home 里各留一份:
+        # 挂上 @home 时用 @home; 万一挂载失败, @/home 里的同一份数据照样能用 (不会出现空家目录)
         if [ -d "$MNT/$BTRFS_SUBVOL_ROOT/home" ]; then
           cp -a "$MNT/$BTRFS_SUBVOL_ROOT/home/." "$MNT/$BTRFS_SUBVOL_HOME/" 2>/dev/null || true
-          rm -rf "$MNT/$BTRFS_SUBVOL_ROOT/home"
         fi
-        mkdir -p "$MNT/$BTRFS_SUBVOL_ROOT/home"
+        mkdir -p "$MNT/$BTRFS_SUBVOL_ROOT/home" "$MNT/$BTRFS_SUBVOL_HOME"
         sync
         # 默认子卷设为 @: 即使引导参数丢了也能起来
         SVID="$(btrfs subvolume list "$MNT" 2>/dev/null | awk -v n="$BTRFS_SUBVOL_ROOT" '$NF==n{print $2}')"

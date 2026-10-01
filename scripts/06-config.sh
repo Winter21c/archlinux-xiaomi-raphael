@@ -67,8 +67,9 @@ log "写 /etc/fstab (布局: $ROOTFS_LAYOUT)"
   printf '# <device>                     <dir>   <type>  <options>                                   <dump> <pass>\n'
   case "$ROOTFS_LAYOUT" in
     btrfs-subvol)
-      printf 'PARTLABEL=userdata             /       btrfs   rw,%s,x-systemd.growfs       0      1\n' "$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
-      printf 'PARTLABEL=userdata             /home   btrfs   rw,%s       0      2\n' "$(btrfs_opts "$BTRFS_SUBVOL_HOME")"
+      printf 'PARTLABEL=userdata             /       btrfs   rw,%s,nofail,x-systemd.growfs       0      1\n' "$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
+      # /home 用 nofail + automount: 挂不上也绝不影响启动 (@/home 里留了同一份数据兜底)
+      printf 'PARTLABEL=userdata             /home   btrfs   rw,%s,nofail,x-systemd.device-timeout=10,x-systemd.automount       0      0\n' "$(btrfs_opts "$BTRFS_SUBVOL_HOME")"
       ;;
     btrfs-flat)
       printf 'PARTLABEL=userdata             /       btrfs   rw,%s,x-systemd.growfs       0      1\n' "$(btrfs_opts)"
@@ -77,7 +78,7 @@ log "写 /etc/fstab (布局: $ROOTFS_LAYOUT)"
       printf 'PARTLABEL=userdata             /       ext4    rw,errors=remount-ro,x-systemd.growfs       0      1\n'
       ;;
   esac
-  printf 'PARTLABEL=cache                /boot   vfat    umask=0077,nofail,noatime                   0      2\n'
+  printf 'PARTLABEL=cache                /boot   vfat    umask=0077,nofail,noatime,x-systemd.device-timeout=10       0      0\n'
 } > "$ROOT/etc/fstab"
 log "  $(grep -c . "$ROOT/etc/fstab") 行:"; sed 's/^/    /' "$ROOT/etc/fstab"
 if [ ! -e "$ROOT/usr/lib/systemd/system/systemd-growfs@.service" ]; then
@@ -729,6 +730,15 @@ for f in LXGWWenKai-Regular.ttf LXGWWenKaiMono-Regular.ttf; do
   cp -f "$DL/$f" "$ROOT/usr/share/fonts/TTF/$f"
 done
 log "字体: 霞鹜文楷 Regular + Mono ($LXGW_VER)"
+
+# 13.3b 厂商内核多半没编这些文件系统 (binfmt_misc/posix-mqueue/hugetlbfs/fusectl),
+#       系统按标准单元去挂会一路报红; mask 掉无可无不可的几个 (configfs/debugfs 保留:
+#       USB gadget 需要 configfs, 调试需要 debugfs)
+for u in proc-sys-fs-binfmt_misc.mount dev-hugepages.mount dev-mqueue.mount \
+         sys-fs-fuse-connections.mount; do
+  mask_unit "$u" 2>/dev/null || true
+done
+log "已 mask 内核可能不提供的 api 文件系统挂载单元"
 
 # 13.4 性能模式: power-profiles-daemon (无 cpufreq 的设备自动跳过)
 if [ -d "$ROOT/sys/devices/system/cpu/cpufreq" ] || [ -d "/sys/devices/system/cpu/cpufreq" ]; then
