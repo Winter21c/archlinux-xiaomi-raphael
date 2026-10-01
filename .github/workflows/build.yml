@@ -118,7 +118,7 @@ jobs:
           chmod 660 /dev/loop* 2>/dev/null || true
           echo "losetup -f => $(losetup -f 2>&1)"
           # 自检: 能不能真的 loop 挂一个 btrfs
-          t=$(mktemp); truncate -s 64M "$t"; mkfs.btrfs -q -f "$t" 2>/dev/null
+          t=$(mktemp); truncate -s 256M "$t"; mkfs.btrfs -q -f "$t" 2>/dev/null   # btrfs 最小 ~114MB
           m=$(mktemp -d)
           if mount -o loop "$t" "$m" 2>/dev/null; then
             echo "✅ loop 挂载可用 -> 阶段 09 会产出 @ / @home 子卷布局"

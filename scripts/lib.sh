@@ -43,8 +43,16 @@ fetch() {  # fetch <url> <dest>
 # 用法: 在每个阶段脚本开头 require_ns
 require_ns() {
   if [ "${RAPHAEL_NS:-0}" != "1" ]; then
-    log "进入 user namespace (无 root 构建模式)"
     mkdir -p "$ROOT/proc"
+    if [ "$(id -u)" = "0" ]; then
+      # 已经是真 root (sudo ./build.sh): 不要再套 user namespace ——
+      # userns 内挂载 procfs 会受限制, 实测 unshare -r 会报
+      # "挂载 .../work/root/proc 失败: 权限不够"。这里只建 mount/pid namespace。
+      log "真 root 构建模式 (mount+pid namespace)"
+      exec unshare -m -p -f --mount-proc="$ROOT/proc" --propagation private \
+        env RAPHAEL_NS=1 PROJ="$PROJ" bash "$0" "$@"
+    fi
+    log "进入 user namespace (无 root 构建模式)"
     exec unshare -r -m -p -f --mount-proc="$ROOT/proc" --propagation private \
       env RAPHAEL_NS=1 PROJ="$PROJ" bash "$0" "$@"
   fi
@@ -208,10 +216,17 @@ rootfs_layout() {
   elif ! command -v mkfs.btrfs >/dev/null 2>&1; then
     layout="ext4"
   else
-    # 探测能否 loop 挂载 (CI 容器里可能没有 /dev/loop*)
+    # 探测能否 loop 挂载 (精简系统/容器里常常没有 /dev/loop*, 有 root 就自己补)
+    if [ "$(id -u)" = "0" ] && [ ! -e /dev/loop-control ]; then
+      modprobe loop 2>/dev/null || true
+      mknod /dev/loop-control c 10 237 2>/dev/null || true
+      for _i in 0 1 2 3 4 5 6 7; do mknod "/dev/loop$_i" b 7 "$_i" 2>/dev/null || true; done
+      log "已补 /dev/loop* 设备节点 (原系统缺失)"
+    fi
     local t="$WORK/.loop-probe" m="$WORK/.loop-mnt"
     layout="btrfs-flat"
-    if truncate -s 64M "$t" 2>/dev/null && mkfs.btrfs -q -f "$t" >/dev/null 2>&1; then
+    # 注意: btrfs 最小设备尺寸 ~114MB, 探测文件必须够大 (给 64M 会 mkfs 失败 -> 误判 flat)
+    if truncate -s 256M "$t" 2>/dev/null && mkfs.btrfs -q -f "$t" >/dev/null 2>&1; then
       mkdir -p "$m"
       if mount -o loop "$t" "$m" 2>/dev/null; then
         layout="btrfs-subvol"
