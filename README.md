@@ -1,10 +1,13 @@
 # Arch Linux ARM for 红米 K20 Pro (raphael / SM8150) + KDE Plasma Mobile
 
+[![构建镜像](https://github.com/Winter21c/archlinux-xiaomi-raphael/actions/workflows/build.yml/badge.svg)](https://github.com/Winter21c/archlinux-xiaomi-raphael/actions/workflows/build.yml)
+
 给 **Xiaomi Redmi K20 Pro / K20 Pro 尊享版 / Mi 9T Pro** 的 Arch Linux ARM (aarch64) 系统镜像，
 使用 [GengWei1997/linux-xiaomi-raphael-uboot](https://github.com/GengWei1997/linux-xiaomi-raphael-uboot)
 的 U-Boot + 定制内核，桌面为 **KDE Plasma 6 + Plasma Mobile**（两个会话可切换）。
 
 上游项目只做 Debian/Ubuntu，本仓库把它移植到 Arch，并把桌面换成 KDE。
+**不想本地搭环境？** 仓库自带 GitHub Actions 工作流，云端直接出镜像 —— 见 [§7.1](#71-线上编译github-actions)。
 
 ---
 
