@@ -341,42 +341,22 @@ if [ -d "$UCM/sm8150_raphael" ]; then
   done
 
   HIFI="$UCM/sm8150_raphael/HiFi.conf"
-  if [ -f "$HIFI" ] && ! grep -q 'SectionDevice."Mic"' "$HIFI"; then
-    # Q6 路由必须在 verb 级常开 (见文件头注释), 采集侧同理
+  if [ -f "$HIFI" ]; then
+    # Q6 路由必须在 verb 级常开 (见文件头注释)
     if ! grep -q "MultiMedia1 Mixer SLIMBUS_0_TX" "$HIFI"; then
       sed -i "s|^\t\tcset \"name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1\"|\t\tcset \"name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1\"\n\t\tcset \"name='MultiMedia1 Mixer SLIMBUS_0_TX' 1\"|" "$HIFI"
+      log "UCM: 已在 verb 级补上采集侧 Q6 路由"
     fi
-    cat >> "$HIFI" <<'EOF'
-
-# ---------- 内置麦克风 (WCD9340, AMIC1 -> ADC1 -> DEC0 -> SLIM TX0) ----------
-# 注意: 采集链路已能全部上电, 但录到的样本仍为全零, 还差 DSP/ADM 或模拟前端
-# 最后一层, 详见 README §8.10 与 notes/microphone-and-kernel-plan.md
-SectionDevice."Mic" {
-	Comment "内置麦克风"
-
-	EnableSequence [
-		cset "name='AMIC MUX0' ADC1"
-		cset "name='ADC MUX0' AMIC"
-		cset "name='CDC_IF TX0 MUX' DEC0"
-		cset "name='AIF1_CAP Mixer SLIM TX0' on"
-		cset "name='ADC1 Volume' 20"
-		cset "name='DEC0 Volume' 84"
-	]
-
-	DisableSequence [
-	]
-
-	Value {
-		CapturePriority 100
-		CapturePCM "hw:0,0"
-	}
-}
-EOF
-    for name in sm8150 sm8150_raphael; do
-      cp -f "$HIFI" "$UCM/$name/HiFi.conf"
-    done
-    log "UCM: 已补 Mic 采集设备与 Q6 采集路由"
+    # ⚠️ 千万不要在这里加 SectionDevice."Mic" / CapturePCM！
+    # 实测: UCM 里一旦有打不开的 CapturePCM (采集链路没通时 hw:0,0 capture open 返回
+    # EINVAL), PipeWire 的 ACP 会**放弃整个 UCM**, 卡片只剩 off / pro-audio 两个
+    # profile -> 连 Speaker/Headphone 一起消失, 并且 pro-audio 会暴露打不开的
+    # hw:0,0 导致设备反复"识别到/识别不到"抖动。
+    # 等采集链路真的能录到数据之后, 再考虑加 Mic 设备 (见 README §8.10)。
   fi
+  for name in sm8150 sm8150_raphael; do
+    [ -f "$HIFI" ] && cp -f "$HIFI" "$UCM/$name/HiFi.conf"
+  done
   log "UCM: conf.d 下已备好 sm8150 / sm8150_raphael 两套名字"
 fi
 

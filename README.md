@@ -429,6 +429,15 @@ q6afe 的 `SLIMBUS_0_TX`、q6asm 的 `MM_UL1` 全部 `On`，`TX port` 不再溢�
 但录到的样本**仍是全零** —— 说明还差 DSP/ADM 侧或模拟前端的最后一步，
 排查过程与后续计划见 [microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md)。
 
+> ⚠️ **千万不要提前往 UCM 里加 `SectionDevice."Mic"` / `CapturePCM`！**
+> 本机反复复现：只要 UCM 里存在一个**打不开的** `CapturePCM`
+> （采集链路没通时 `hw:0,0` 的 capture open 返回 `EINVAL`），PipeWire 的 ACP 会
+> **放弃整个 UCM** —— 卡片只剩 `off` / `pro-audio` 两个 profile，连
+> Speaker / Headphone 一起消失；而 `pro-audio` 又会暴露那个打不开的 `hw:0,0`，
+> 于是设备在"识别到 / 识别不到"之间反复抖动（音量面板里的内置音频反复启用停用）。
+> 必须等采集链路真能录到数据之后，再加 Mic 设备。
+> 另外：显式把内置音频切成 `专业音频 (pro-audio)` 也会触发同样的抖动。
+
 ### 8.11 其它已知限制
 
 | 项 | 说明 |
