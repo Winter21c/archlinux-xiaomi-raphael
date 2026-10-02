@@ -379,7 +379,7 @@ RememberLastSession=true
 
 ```ini
 [Autologin]
-User=winter
+User=user
 # Value = basename of the .desktop file in wayland-sessions/, WITHOUT the .desktop suffix
 Session=plasma-mobile
 Relogin=false
@@ -394,7 +394,7 @@ Upstream [VERIFIED from the plasma-login-manager README]: "/etc/plasmalogin.conf
 ```ini
 # /etc/plasmalogin.conf
 [Autologin]
-User=winter
+User=user
 Session=plasma-mobile
 Relogin=false
 

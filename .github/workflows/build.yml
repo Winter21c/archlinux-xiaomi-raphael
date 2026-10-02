@@ -23,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       username:
-        description: '镜像里的用户名 (留空 = 用 config/build.conf 里的 winter)'
+        description: '镜像里的用户名 (留空 = 用 config/build.conf 里的 user)'
         required: false
         default: ''
       user_password:
@@ -233,7 +233,7 @@ jobs:
               if put('AUTOLOGIN', auto): done.append(f'自动登录 -> {auto}')
           open(f, 'w').write(s)
           # 明确告诉用户最终生效的是什么 (密码不回显真实值)
-          eff_user = user or 'winter (默认)'
+          eff_user = user or 'user (默认)'
           eff_upass = '自定义 (来自 Secrets/输入)' if upass else '默认 1234'
           eff_rpass = '自定义 (来自 Secrets/输入)' if rpass else '默认 1234'
           print('>> 账号设置:', ('; '.join(done) if done else '本次没有填任何值, 全部用默认'))

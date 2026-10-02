@@ -479,7 +479,7 @@ cat > "$ROOT/usr/local/sbin/raphael-audio-init.sh" <<'AEOF'
 # 不要 unbind/bind slim-ngd: 内核 qcom_slim_ngd_remove 会 WARN 打栈回溯。
 set +u
 have_card() { aplay -l 2>/dev/null | grep -q '^card 0'; }
-as_user() { sudo -u winter env XDG_RUNTIME_DIR=/run/user/1000 "$@"; }
+as_user() { sudo -u @USER@ env XDG_RUNTIME_DIR=/run/user/1000 "$@"; }
 
 for i in $(seq 1 60); do
   [ -r /sys/class/remoteproc/remoteproc2/firmware ] && break; sleep 0.5
@@ -520,6 +520,7 @@ apply   # 后续由 raphael-audio-routing.timer 每 20 秒兜底
 echo "raphael-audio: $(amixer -c 0 cget "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 2>/dev/null | tail -1)"
 exit 0
 AEOF
+sed -i "s/@USER@/$USERNAME/g" "$ROOT/usr/local/sbin/raphael-audio-init.sh"
 chmod 755 "$ROOT/usr/local/sbin/raphael-audio-init.sh"
 cat > "$ROOT/etc/systemd/system/raphael-audio-init.service" <<'AEOF'
 [Unit]
@@ -1033,9 +1034,9 @@ PKGS="btrfs-assistant snap-pac downgrade plasma6-applets-wallpaper-effects \
 kwin-effects-geometry-change kwin-effect-rounded-corners-git rime-ice-git \
 rime-wanxiang-gram-zh-hans"
 ok=0; fail=""
-install -d -o winter -g winter /home/winter/.cache
+install -d -o @USER@ -g @USER@ /home/@USER@/.cache
 for p in $PKGS; do
-  if runuser -u winter -- env HOME=/home/winter \
+  if runuser -u @USER@ -- env HOME=/home/@USER@ \
        paru -S --noconfirm --needed "$p" >>"$LOG" 2>&1; then
     ok=$((ok+1)); echo "  ok: $p"
   else
@@ -1045,15 +1046,16 @@ done
 if [ -n "$fail" ]; then
   sed -i '/^raphael: AUR/d' /etc/motd 2>/dev/null || true
   printf 'raphael: 以下 AUR 包没装上:%s\n 联网后手动重跑: sudo /usr/local/sbin/raphael-aur-setup.sh\n 或逐个: paru -S <包名>   (日志: %s)\n' "$fail" "$LOG" >> /etc/motd
-  printf 'raphael: AUR 安装未全部完成:%s\n手动重跑: sudo /usr/local/sbin/raphael-aur-setup.sh\n日志: %s\n' "$fail" "$LOG" > /home/winter/AUR-安装失败-请看这里.txt
-  chown winter:winter /home/winter/AUR-安装失败-请看这里.txt 2>/dev/null || true
+  printf 'raphael: AUR 安装未全部完成:%s\n手动重跑: sudo /usr/local/sbin/raphael-aur-setup.sh\n日志: %s\n' "$fail" "$LOG" > /home/@USER@/AUR-安装失败-请看这里.txt
+  chown @USER@:@USER@ /home/@USER@/AUR-安装失败-请看这里.txt 2>/dev/null || true
   echo "AUR: 失败 $fail"
   exit 0   # 不写 MARK, 下次开机再试
 fi
 install -d "$(dirname "$MARK")"; date > "$MARK"
-rm -f /home/winter/AUR-安装失败-请看这里.txt 2>/dev/null || true
+rm -f /home/@USER@/AUR-安装失败-请看这里.txt 2>/dev/null || true
 echo "AUR: 全部安装完成 ($ok 个)"
 EOF
+sed -i "s/@USER@/$USERNAME/g" "$ROOT/usr/local/sbin/raphael-aur-setup.sh"
 chmod 755 "$ROOT/usr/local/sbin/raphael-aur-setup.sh"
 # ★ AUR 安装放定时器里跑, 不要挂在 multi-user.target 上:
 #   实测它会把开机拖到 1 分 40 秒 (而 graphical.target 依赖 multi-user.target,

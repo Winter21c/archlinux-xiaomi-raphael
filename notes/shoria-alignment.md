@@ -38,7 +38,7 @@
 | 指南条目 | 本项目动作 | 位置 |
 |:--|:--|:--|
 | `EDITOR` 环境变量 | 设为 **`nvim`**（`VISUAL=nvim` 一起设） | `06-config.sh` `/etc/environment` |
-| 普通用户 + wheel sudo | ✅ 已有（`winter`，密码 1234，密码每月重建） | 已有 |
+| 普通用户 + wheel sudo | ✅ 已有（`user`，密码 1234，密码每月重建） | 已有 |
 | faillock `deny = 0` | 由现在的 `deny=10` 改成 **`deny=0`**（按指南，牺牲安全性换日用体验） | `06-config.sh` |
 | **开启 32 位源 multilib** | 新增：pacman.conf 里放开 `[multilib]` + `-Sy` | `02-pacman.sh` |
 | archlinuxcn 源 + keyring | ✅ 已有（ustc/tuna/官方三源 + `archlinuxcn-keyring`） | 已有 |

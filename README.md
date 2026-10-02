@@ -107,7 +107,9 @@ fastboot reboot
 
 1. 屏幕亮起 → U-Boot 菜单（3 秒倒计时，默认第一项）→ systemd-boot → 内核
 2. 首启动会自动：扩容根分区到 userdata 全尺寸 / 初始化 pacman 密钥环 / 修正家目录属主
-3. 自动登录到 **Plasma Mobile**（用户 `winter`，密码 `1234`；`root` 密码 `1234`）
+3. 自动登录到 **Plasma Mobile**（默认用户 `user`、密码 `1234`；`root` 密码 `1234`）
+   —— 用户名/密码可在构建时指定：本地改 `config/build.conf` 的 `USERNAME`/`USER_PASSWORD`/`ROOT_PASSWORD`，
+   GitHub Actions 则在 *Run workflow* 表单里直接填（见 [§7.1](#71-线上编译github-actions)）
 
 **改密码**：`passwd` / `sudo passwd root`（默认 1234 是为了锁屏能用数字键盘解开）。
 
@@ -125,7 +127,7 @@ fastboot reboot
 | 音频输出 (ADSP + UCM) | ✅ | 声卡 `card 0: Raphael`；UCM 提供 `Speaker (TFA9874)` 与 `Headphone (WCD9340)` 两个输出；已实测 440Hz 播放正常。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
 | 麦克风 | ⚠️ | 采集链路已修到**全部上电**（`AMIC MUX0` 默认断开 + 设备树缺 MCLK 路由，两处已修），但样本仍为全零，还差最后一层（DSP/ADM 或模拟前端）。详见 §8.10 与 [notes/microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md) |
 | 电池 / 充电 / RTC | ✅ | 内核内建 |
-| USB (dwc3, OTG) | ✅ | 含 **USB NCM 网络共享**：插电脑后设备是 `172.16.42.1`，可 `ssh winter@172.16.42.1` |
+| USB (dwc3, OTG) | ✅ | 含 **USB NCM 网络共享**：插电脑后设备是 `172.16.42.1`，可 `ssh user@172.16.42.1` |
 | 手电筒 / 振动 | ⚠️ | 未验证 |
 | 传感器 (SLPI) | ⚠️ | DTS 里没有加速度计节点 → **没有自动旋转**；传感器需要 `hexagonrpcd`（本次未内置） |
 | 调制解调器（通话/流量） | ⚠️ | 上游状态：联通/电信可用，移动在修；旧内核有"插 SIM 卡开机卡死"的报告（7.1+ 已改善，7.2 待你实测） |
@@ -237,6 +239,9 @@ GitHub Release 单个文件上限 2 GB，而 rootfs 有 6 GB 左右，脚本会�
 仓库自带 [`.github/workflows/build.yml`](.github/workflows/build.yml)，不用本地环境也能出镜像：
 
 - **手动触发**：Actions → 「构建镜像」→ *Run workflow*
+  - `username` / `user_password` / `root_password` 留空 = 用仓库默认（`user` / `1234` / `1234`）；
+    填了就以你填的为准（也可改用仓库 Secrets `IMAGE_USERNAME` / `IMAGE_USER_PASSWORD` / `IMAGE_ROOT_PASSWORD`，
+    Secrets 优先级高于手动输入；密码在日志里会被 `::add-mask::` 打码，只回显"已设置"）
   - `stages` 留空 = 完整 `00 → 10`；填 `09 10` 就只重打包镜像
   - `upload_rootfs` 勾上才会额外上传 rootfs 发布包（zstd 分卷，约 2-3 GB）
 - **自动触发**：改动 `scripts/` `config/` `dtb/` `build.sh` 后 push 到 `main` 会自动跑一次
@@ -325,12 +330,12 @@ systemd 的可预测命名把它命名为 **`wld0`**（`nmcli device` 里显示�
 **症状**：每次登录都出现 Plasma Mobile 的初始设置向导；在里面改的语言/时区等不会生效；
 同时还报"无法保存证书文件/私钥文件"。
 
-**根因**：`/home/winter` 属主是 `root:root`（镜像构建时 user namespace 只映射了 uid 0，
-无法 chown 到 1000），用户**写不了自己的家目录** → KDE 存不了任何配置 →
+**根因**：`/home/<用户名>`（默认 `/home/user`，由 `config/build.conf` 的 `USERNAME` 决定）属主是 `root:root`
+（镜像构建时 user namespace 只映射了 uid 0，无法 chown 到 1000），用户**写不了自己的家目录** → KDE 存不了任何配置 →
 向导每次都认为"还没配置过"、证书/私钥无处可写。
 
 **修复**：
-1. `/etc/tmpfiles.d/raphael-home.conf` 里 `Z /home/winter - 1000 1000 -`
+1. `/etc/tmpfiles.d/raphael-home.conf` 里 `Z /home/user - 1000 1000 -`
    （这条以前被写在"创建用户"分支里，用户已存在时被跳过 —— 现在无条件写）；
 2. `raphael-firstboot.service` 首次开机再 `chown -R` 一次兜底；
 3. 预置 `~/.config/plasmamobilerc` 的 `[InitialStart] wizardRun=true` 关掉向导
@@ -520,7 +525,7 @@ q6afe 的 `SLIMBUS_0_TX`、q6asm 的 `MM_UL1` 全部 `On`，`TX port` 不再溢�
 | 网卡名不是 wlan0 | 正常，systemd 把它叫 `wld0`（§8.3） |
 | 没有声音 | `aplay -l` 看有没有 `card 0: Raphael`；再查 `systemctl status rmtfs tqftpserv` |
 | 无法重启 | 见 §8.2（关机卡在 watchdog 设置），新镜像已修复 |
-| 桌面起不来 | 用 USB NCM 网络 SSH 进去：`ssh winter@172.16.42.1`，然后 `journalctl -b -u sddm`；必要时 `KWIN_COMPOSE=Q startplasma-wayland` 用软件渲染验证 |
+| 桌面起不来 | 用 USB NCM 网络 SSH 进去：`ssh user@172.16.42.1`，然后 `journalctl -b -u sddm`；必要时 `KWIN_COMPOSE=Q startplasma-wayland` 用软件渲染验证 |
 | 想回 Android | `fastboot flash boot <备份>`，再刷小米线刷包 |
 
 深度资料：`notes/camera.md`（相机适配结论与路线图）、`notes/bluetooth.md`（蓝牙排查记录）、`notes/porting-checklist.md`（Debian→Arch 逐条移植对照）、
@@ -577,5 +582,5 @@ SPDX-License-Identifier: GPL-2.0-only
 ## 12. 免责声明
 
 刷机有风险：可能变砖、丢数据、失去保修。请先备份（至少 `boot`/`dtbo` 分区和 Android 数据）。
-本项目按"现状"提供，不对任何损失负责。默认密码（`winter`/`winter`、`root`/`root`）
+本项目按"现状"提供，不对任何损失负责。默认密码（`user`/`1234`、`root`/`1234`）
 **仅供首次登录使用，刷完请立刻修改**：`passwd && sudo passwd root`。

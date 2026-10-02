@@ -364,7 +364,7 @@ log "KDE 配置完成"
 # ---------------------------------------------------------------------------
 # 13. Shorin 指南对齐 (终端美化 + 中文输入法 + KDE 自定义)
 # ---------------------------------------------------------------------------
-H="$ROOT/home/winter"
+H="$ROOT/home/$USERNAME"
 install -d "$H/.config" "$H/.local/share" "$H/.local/state"
 
 # 13.1 32 位源 multilib (准备篇: 玩 Windows 软件/Steam 需要)
@@ -444,7 +444,7 @@ EOF
 
 # 13.5 默认 shell 改成 zsh (bash 仍完整可用)
 if [ -x "$ROOT/usr/bin/zsh" ]; then
-  gq /usr/bin/chsh -s /usr/bin/zsh winter >/dev/null 2>&1 && log "默认 shell: zsh" || warn "chsh 失败"
+  gq /usr/bin/chsh -s /usr/bin/zsh "$USERNAME" >/dev/null 2>&1 && log "默认 shell: zsh" || warn "chsh 失败"
 fi
 # ★ 必须把 zsh 写进 /etc/shells: pam_shells (SDDM 自动登录走 sddm-autologin 栈)
 #   会检查登录 shell 是否合法, 不在 /etc/shells 里就直接 "User has an invalid shell"

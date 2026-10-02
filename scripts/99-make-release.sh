@@ -97,7 +97,7 @@ Xiaomi Redmi K20 Pro (raphael / SM8150) — Arch Linux ARM + KDE Plasma Mobile
   fastboot reboot
 
 【第 4 步: 首次开机】
-  自动登录 Plasma Mobile, 用户 winter / 密码 winter, root 密码 root
+  自动登录 Plasma Mobile, 用户 $USERNAME / 密码 (构建时设定, 默认 1234), root 密码 (同上)
   首启动会自动扩容根分区、初始化 pacman 密钥环, 请耐心等 1-2 分钟
   ⚠ 请立刻修改默认密码: passwd && sudo passwd root
 
