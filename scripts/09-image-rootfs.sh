@@ -62,7 +62,24 @@ chmod 1777 "$ROOT/tmp" "$ROOT/var/tmp" 2>/dev/null || true
 # 开机后所有 mount 失败 (remount-fs/boot.mount/tmp.mount/configfs/usb-ncm/sshd)。
 # 所以必须在灌数据之前把树修回 root:root。真 root 才做得成, 否则报错。
 normalize_ownership || warn "跳过属主归一化 (非真 root): 这份镜像的 setuid 程序会失效!"
-
+# ---------------------------------------------------------------------------
+# 打包前硬检查: 不该出现的 enable 软链一个都不能有
+#   踩过的坑: CI 上阶段 06 的 disable 明明执行了, 镜像里 systemd-networkd /
+#   systemd-resolved 的 9 个 *.wants 软链却原样还在 (mtime 还是 tarball 的),
+#   结果每次开机多一个 failed 单元 (systemd-networkd-wait-online)。
+#   这里在灌镜像之前直接失败, 不让它蒙混过关。
+#   注意只看 *.wants/ 下的软链 —— 阶段 06 会在这两个位置放指向 /dev/null 的
+#   mask 软链, 那是**故意**的, 不能算残留。
+# ---------------------------------------------------------------------------
+if [ -d "$ROOT/etc/systemd/system" ]; then
+  BAD="$(find "$ROOT/etc/systemd/system" -path '*.wants/*' \( -name 'systemd-networkd*' -o -name 'systemd-resolved*' \) 2>/dev/null || true)"
+  if [ -n "$BAD" ]; then
+    warn "镜像里还有 networkd/resolved 的 enable 软链:"
+    printf '%s\n' "$BAD" | sed 's/^/    /' >&2
+    die "阶段 06 的 disable/mask 没生效, 拒绝产出会多一个失败单元的镜像"
+  fi
+  log "检查通过: 没有残留的 networkd/resolved enable 软链"
+fi
 LAYOUT="$(rootfs_layout)"
 log "根文件系统布局: $LAYOUT (ROOTFS_TYPE=$ROOTFS_TYPE)"
 

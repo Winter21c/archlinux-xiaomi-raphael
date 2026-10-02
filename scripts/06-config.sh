@@ -222,9 +222,21 @@ for u in systemd-networkd.service systemd-networkd.socket \
   if [ -e "$ROOT/usr/lib/systemd/system/$u" ]; then
     gq /usr/bin/systemctl --root=/ disable "$u" >/dev/null 2>&1 || true
     rm -f "$ROOT/etc/systemd/system"/*.wants/"$u"
-    log "  disable: $u (改用 NetworkManager)"
+    # ★ 光 disable 不够稳: tarball 里这些单元是"已 enable"状态, 而 enable 只是一堆
+    #   *.wants 软链 —— 一旦有别的步骤重新应用 preset, 它们就会回来 (2026-10-02 CI 上
+    #   就出现过: 日志明明打了 disable, 镜像里 9 个软链却还在, mtime 还是 tarball 的)。
+    #   mask 是"软链到 /dev/null", 优先级高于任何 enable/preset, 用它兜底。
+    mask_unit "$u"
+    log "  disable + mask: $u (改用 NetworkManager)"
   fi
 done
+# 兜底复查: 把任何残留的 networkd/resolved wants 软链找出来 (并删掉), 让问题在日志里可见
+LEFTOVER="$(find "$ROOT/etc/systemd/system" -path '*.wants/*' \( -name 'systemd-networkd*' -o -name 'systemd-resolved*' \) 2>/dev/null || true)"
+if [ -n "$LEFTOVER" ]; then
+  warn "  仍有 networkd/resolved 的 enable 软链, 已删除:"
+  printf '%s\n' "$LEFTOVER" | sed 's/^/    /' | while read -r l; do echo "$l"; done
+  printf '%s\n' "$LEFTOVER" | while read -r f; do rm -f "$f"; done
+fi
 enable_unit NetworkManager.service
 
 # ---------------------------------------------------------------------------
