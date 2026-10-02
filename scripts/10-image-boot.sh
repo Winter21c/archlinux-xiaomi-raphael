@@ -62,8 +62,9 @@ if [ -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" ]; then
   # "f0 04 e0 78 00 02" 四种写法, 统一成 fdtput 要的 "f0 04 e0 78 00 02"。
   # (CI 上踩过: Secret 里写成带冒号的, fdtput 直接报参数错 -> 镜像没蓝牙)
   BT_MAC_NORM=""
-  BT_MAC_IN="$(printf '%s' "$BT_MAC" | tr -d ' \t')"
-  BT_MAC_HEX="$(printf '%s' "$BT_MAC_IN" | tr -d ':-' | tr 'A-F' 'a-f')"
+  # 只保留十六进制字符: 冒号 / 连字符 / 空格 / 换行 / 引号 一律丢掉, 于是
+  # Secret 里粘成 "f0:04:e0:78:00:02"、'f004e0780002'、末尾带换行 都能用。
+  BT_MAC_HEX="$(printf '%s' "$BT_MAC" | tr -cd '0-9a-fA-F' | tr 'A-F' 'a-f')"
   if printf '%s' "$BT_MAC_HEX" | grep -qE '^[0-9a-f]{12}$'; then
     BT_MAC_NORM="$(printf '%s' "$BT_MAC_HEX" | sed 's/../& /g; s/ $//')"
   fi
