@@ -84,7 +84,10 @@ jobs:
       # 需要设置的 Secrets: IMAGE_USERNAME / IMAGE_USER_PASSWORD / IMAGE_ROOT_PASSWORD
       SEC_USERNAME: ${{ secrets.IMAGE_USERNAME }}
       SEC_USER_PASSWORD: ${{ secrets.IMAGE_USER_PASSWORD }}
-      SEC_ROOT_PASSWORD: ${{ secrets.IMAGE_ROOT_PASSWORD }}"
+      SEC_ROOT_PASSWORD: ${{ secrets.IMAGE_ROOT_PASSWORD }}
+      # 设备蓝牙地址 (唯一标识, 不放仓库) —— 在 Secrets 里设 IMAGE_BT_MAC,
+      # 格式 "f0 04 e0 78 00 02"; 没设的话镜像蓝牙不可用 (构建日志会提示)
+      RAPHAEL_BT_MAC: ${{ secrets.IMAGE_BT_MAC }}"
 
     steps:
       # ---------------------------------------------------------------- 环境
@@ -125,7 +128,7 @@ jobs:
             base-devel git curl wget \
             zstd xz 7zip libarchive cpio \
             e2fsprogs btrfs-progs android-tools mtools \
-            clang lld bc kmod util-linux
+            clang lld bc kmod util-linux dtc
           # qemu 用户态模拟器: 包名在不同镜像上可能是 qemu-user 或 qemu-emulators-full
           pacman -S --noconfirm --needed qemu-user \
             || pacman -S --noconfirm --needed qemu-emulators-full
@@ -229,7 +232,12 @@ jobs:
           if auto:
               if put('AUTOLOGIN', auto): done.append(f'自动登录 -> {auto}')
           open(f, 'w').write(s)
-          print('>> 账号设置:', ('; '.join(done) if done else '未提供, 用 build.conf 里的默认值'))
+          # 明确告诉用户最终生效的是什么 (密码不回显真实值)
+          eff_user = user or 'winter (默认)'
+          eff_upass = '自定义 (来自 Secrets/输入)' if upass else '默认 1234'
+          eff_rpass = '自定义 (来自 Secrets/输入)' if rpass else '默认 1234'
+          print('>> 账号设置:', ('; '.join(done) if done else '本次没有填任何值, 全部用默认'))
+          print(f'>> 最终生效: 用户名 = {eff_user}; 用户密码 = {eff_upass}; root 密码 = {eff_rpass}')
           PY
           echo ">> 生效的账号相关行:"; grep -E '^USERNAME=|^USER_ID=|^AUTOLOGIN=' config/build.conf | head -5
           echo ">> 密码不回显 (如需确认请看上面的“已设置”)"

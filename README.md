@@ -433,7 +433,7 @@ wireplumber.service`，已写进 `07-desktop.sh`）：
    bluetooth {
        compatible = "qcom,wcn3998-bt";
        ...
-       local-bd-address = [f0 04 e0 78 00 02];   /* 02:00:78:E0:04:F0（本机地址，小端序）*/
+       local-bd-address = [<你的设备蓝牙地址>];   /* 02:00:78:E0:04:F0（本机地址，小端序）*/
    };
    ```
 

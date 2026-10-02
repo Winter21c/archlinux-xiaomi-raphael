@@ -52,7 +52,23 @@ DT_LINE=""
 if [ -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" ]; then
   cp -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb"
   DT_LINE="devicetree /dtbs/qcom/raphael-redmi-k20pro.dtb"
-  log "设备树: 使用修补版 (蓝牙 BD_ADDR + 麦克风 MCLK 路由)"
+  # 蓝牙地址属于设备唯一标识, 不写进公开仓库 —— 构建时注入:
+  #   优先 config/local.conf (已 gitignore), 其次环境变量 RAPHAEL_BT_MAC
+  BT_MAC="${RAPHAEL_BT_MAC:-}"
+  if [ -z "$BT_MAC" ] && [ -f "$PROJ/config/local.conf" ]; then
+    BT_MAC="$(sed -n 's/^BT_MAC="\(.*\)".*/\1/p' "$PROJ/config/local.conf" | head -1)"
+  fi
+  if [ -n "$BT_MAC" ] && command -v fdtput >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
+    if fdtput -t bx "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb" \
+         /soc@0/geniqup@cc0000/serial@c8c000/bluetooth local-bd-address $BT_MAC 2>/dev/null; then
+      log "设备树: 使用修补版, 并已注入本机蓝牙地址"
+    else
+      warn "蓝牙地址注入失败 (格式应为 'aa bb cc dd ee ff')"
+    fi
+  else
+    warn "未提供蓝牙地址 -> 该镜像蓝牙不可用 (在 config/local.conf 里设 BT_MAC, 或用 RAPHAEL_BT_MAC)"
+  fi
 else
   warn "缺少 dtb/raphael-redmi-k20pro.dtb -> 蓝牙与麦克风不可用"
 fi

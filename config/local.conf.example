@@ -1,0 +1,10 @@
+# 本地私有配置 (这个文件本身可以提交, 但里面的真实值不要提交)
+# 真正生效的文件是 config/local.conf —— 它已被 .gitignore 忽略。
+#
+# 设备蓝牙地址: 从设备的 bluetooth 分区里读 (你自己机器的唯一地址,
+# 不要写进公开仓库)。格式: 6 组十六进制, 空格分隔。
+# 获取方法 (在设备上, root):
+#   hexdump -C /dev/disk/by-partlabel/bluetooth | grep -m1 -A1 "BD_ADDR\|bd_addr"
+# 或者直接看系统里已经生效的:
+#   hcitool dev    /    bluetoothctl list
+BT_MAC="aa bb cc dd ee ff"   # <- 换成你自己设备的地址

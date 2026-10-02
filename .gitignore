@@ -20,3 +20,6 @@ _recon/
 *.swp
 *~
 .DS_Store
+
+# 本地私有配置 (设备蓝牙地址等, 不要提交)
+config/local.conf

@@ -74,7 +74,7 @@ bluetooth {
         compatible = "qcom,wcn3998-bt";
         vddio-supply = <&vreg_l17a_1p3>;
         ...
-        local-bd-address = [f0 04 e0 78 00 02];   /* 02:00:78:E0:04:F0，小端序 */
+        local-bd-address = [<你的设备蓝牙地址>];   /* 02:00:78:E0:04:F0，小端序 */
 };
 ```
 
