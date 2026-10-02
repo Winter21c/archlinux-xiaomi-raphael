@@ -12,10 +12,13 @@
 #      runner 的大磁盘 (≈74 GB) 挂在宿主的 /mnt 上, 容器默认看不到, 必须 -v 进去。
 #      脚本按相对路径读写 dl/ work/ out/, 所以把它们软链到大磁盘即可。
 #
-#  产物:
-#    ※ 始终上传 boot-cache.img (引导镜像, ~256 MB) 与校验和/说明
-#    ※ rootfs 发布包 (zstd 分卷, ~2-3 GB) 需勾选 upload_rootfs 才上传
-#      —— 依作者要求, 镜像不自动发到 Release
+#  产物 (两种去处, 别搞混):
+#    A. Actions 产物 (在本次运行的页面下方, 有保留期, 不是 Release):
+#       - boot-cache.img 恒有; rootfs 分卷需勾 upload_rootfs
+#    B. GitHub Release (永久, 别人能直接下载):
+#       - 勾 publish_release 才会发, 内容是 u-boot.img + boot-cache.img + rootfs 分卷
+#         (+ SHA256SUMS / 刷机说明.txt), 标签用 release_tag (默认 v1.0.0)
+#    ※ 不勾 publish_release 时不会碰 Release, 保持"只做产物"的行为
 # ============================================================================
 name: 构建镜像
 
@@ -43,9 +46,17 @@ on:
         required: false
         default: ''
       upload_rootfs:
-        description: '同时上传 rootfs 发布包 (约 2-3 GB, 上传较慢)'
+        description: '把 rootfs 也打进 Actions 产物 (约 2-3 GB, 上传较慢)。★ 这是"工作流产物", 不是 GitHub Release'
         type: boolean
         default: false
+      publish_release:
+        description: '★ 发布到 GitHub Release (默认关闭)。勾上后会把 u-boot.img + boot-cache.img + rootfs 分卷发成 Release'
+        type: boolean
+        default: false
+      release_tag:
+        description: 'Release 标签 (留空 = v1.0.0)。同一标签重复发布会失败, 建议写日期, 如 v1.0.0-20261002'
+        required: false
+        default: ''
   push:
     branches: [main]
     paths:
@@ -60,7 +71,9 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  # 创建 Release 需要 write (仅当 publish_release=true 时才真的用到);
+  # GitHub 的权限是工作流级的, 没法按输入条件切换, 所以这里直接给 write。
+  contents: write
 
 jobs:
   build:
@@ -128,7 +141,7 @@ jobs:
             base-devel git curl wget \
             zstd xz 7zip libarchive cpio \
             e2fsprogs btrfs-progs android-tools mtools \
-            clang lld bc kmod util-linux dtc
+            clang lld bc kmod util-linux dtc unzip github-cli
           # qemu 用户态模拟器: 包名在不同镜像上可能是 qemu-user 或 qemu-emulators-full
           pacman -S --noconfirm --needed qemu-user \
             || pacman -S --noconfirm --needed qemu-emulators-full
@@ -258,8 +271,23 @@ jobs:
             ./build.sh 2>&1 | tee logs/ci-build.log
           fi
 
-      - name: 打包发布文件 (zstd + 分卷)
-        run: ./scripts/99-make-release.sh 2>&1 | tee -a logs/ci-build.log
+      - name: 打包发布文件 (zstd + 分卷) 并按需发布到 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          # ★ 打包和发布是同一次操作: 脚本带 --upload 时会走 release/upload.sh
+          #   里的 `gh release create`, 把 u-boot.img + boot-cache.img + rootfs 分卷
+          #   一起发出去。分成两步会白白多压一遍 7 GB (zstd -19 很慢)。
+          if [ "${{ inputs.publish_release }}" = "true" ]; then
+            TAG="${{ inputs.release_tag }}"; [ -n "$TAG" ] || TAG="v1.0.0"
+            echo ">> 打包并发布到 Release: $TAG"
+            ./scripts/99-make-release.sh "$TAG" --upload 2>&1 | tee -a logs/ci-build.log
+            echo ">> Release 地址:"; gh release view "$TAG" --json url -q .url || true
+          else
+            echo ">> 只打包 (不发 Release; 想要 Release 请勾 publish_release)"
+            ./scripts/99-make-release.sh 2>&1 | tee -a logs/ci-build.log
+          fi
 
       - name: 校验产物
         run: |

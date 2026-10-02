@@ -269,11 +269,16 @@ GitHub Release 单个文件上限 2 GB，而 rootfs 有 6 GB 左右，脚本会�
     填了就以你填的为准（也可改用仓库 Secrets `IMAGE_USERNAME` / `IMAGE_USER_PASSWORD` / `IMAGE_ROOT_PASSWORD`，
     Secrets 优先级高于手动输入；密码在日志里会被 `::add-mask::` 打码，只回显"已设置"）
   - `stages` 留空 = 完整 `00 → 10`；填 `09 10` 就只重打包镜像
-  - `upload_rootfs` 勾上才会额外上传 rootfs 发布包（zstd 分卷，约 2-3 GB）
+  - `upload_rootfs` 勾上才会额外上传 rootfs 的 **Actions 产物**（zstd 分卷，约 2-3 GB）
+  - `publish_release` 勾上才会发到 **GitHub Releases**（见下方「产物」说明）
 - **自动触发**：改动 `scripts/` `config/` `dtb/` `build.sh` 后 push 到 `main` 会自动跑一次
 - **产物**：`boot-cache-image`（引导镜像 + 校验和 + 刷机说明，约 256 MB，保留 30 天）；
-  勾选后另有 `rootfs-release`（保留 14 天）。**不会**自动发到 Releases
-- 构建约 30-60 分钟；`dl/` 与 pacman 包缓存有缓存，第二次会快很多
+  勾选 `upload_rootfs` 后另有 `rootfs-release` 产物（保留 14 天）。
+  > ⚠️ **Actions 产物 ≠ Release**：这些东西在「本次运行」的页面里，会过期，也不是 Release。
+  > 想发到 **Releases**（永久、别人能直接下载）就勾 **`publish_release`**，
+  > 标签用 `release_tag`（默认 `v1.0.0`）；发出去的内容是
+  > `u-boot.img` + `boot-cache.img` + `rootfs` 分卷 + `SHA256SUMS` + 刷机说明。
+- 完整构建在有缓存时约 **7 分钟**（首次会久一些：要下载 rootfs tarball 等）
 
 几个关键的 CI 设计点（照抄时注意）：
 

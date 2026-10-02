@@ -40,6 +40,9 @@ declare -a FILES=()
 [ -s "$OUT/boot-cache.img" ] && FILES+=("$OUT/boot-cache.img")
 [ -s "$WORK/uboot/u-boot.img" ] && FILES+=("$WORK/uboot/u-boot.img")
 [ ${#FILES[@]} -gt 0 ] || die "out/ 里没有产物, 先跑 build.sh"
+# 刷机说明里让用户 `fastboot flash boot u-boot.img`, 少了它用户就没法刷 ——
+# 所以这里必须硬失败, 而不是"有几个打几个" (CI 上就是这样少过一个文件)。
+[ -s "$WORK/uboot/u-boot.img" ] || die "缺 work/uboot/u-boot.img (先跑阶段 00; 它是从 U-Boot zip 里解出来的)"
 
 # ---------------------------------------------------------------------------
 # 2. 压缩 + 分卷
