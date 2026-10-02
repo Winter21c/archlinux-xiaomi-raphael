@@ -135,7 +135,7 @@ fastboot reboot
   | 配置里写（设备树） | `bluetoothctl` 显示 |
   |:--|:--|
   | `11 22 33 44 55 66` | `66:55:44:33:22:11` |
-  | `f0:04:e0:78:00:02` 等价写法 | 同上（冒号/连字符/大小写都随意） |
+  | `11:22:33:44:55:66`（冒号写法） | 同上，写法随意 |
 
   原因：`net/bluetooth/hci_sync.c` 的 `hci_dev_get_bd_addr_from_property()` 把 DT 数组
   **原样**拷进 `bdaddr_t`，而 `%pMR` 打印时反序。
