@@ -212,9 +212,12 @@ for u in pd-mapper.service rmtfs.service tqftpserv.service; do
 done
 # ALARM 基础镜像默认启用 systemd-networkd + systemd-resolved, 会和
 # NetworkManager 抢网卡/DNS, 必须关掉
+#   wait-online 也要一起关: 它只是"等 networkd 上线", networkd 都禁掉了它必然
+#   超时失败 —— 真机上表现为每次开机一个 failed 单元 (systemd-networkd-wait-online)。
 for u in systemd-networkd.service systemd-networkd.socket \
          systemd-networkd-resolve-hook.socket systemd-networkd-varlink.socket \
-         systemd-networkd-varlink-metrics.socket systemd-resolved.service \
+         systemd-networkd-varlink-metrics.socket systemd-networkd-wait-online.service \
+         systemd-resolved.service \
          systemd-resolved-monitor.socket systemd-resolved-varlink.socket; do
   if [ -e "$ROOT/usr/lib/systemd/system/$u" ]; then
     gq /usr/bin/systemctl --root=/ disable "$u" >/dev/null 2>&1 || true
