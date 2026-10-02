@@ -316,11 +316,11 @@ rootfs_layout() {
 #      或 CI 里用仓库 Secret IMAGE_BT_MAC (见 10-image-boot.sh)
 #   2) 刷机时注入: scripts/11-flash.sh --bt-mac <地址> (把公开镜像临时改成自己的)
 # 写法 = **设备树里的字节序**(小端), 与本项目历史 DTB 一致, 例如
-#   f0 04 e0 78 00 02   ->  系统里 bluetoothctl 显示为 02:00:78:E0:04:F0
+#   11 22 33 44 55 66   ->  系统里 bluetoothctl 显示为 66:55:44:33:22:11
 # (如果你手上只有屏幕上显示的地址, 把它反过来写即可。)
 BT_DT_NODE="/soc@0/geniqup@cc0000/serial@c8c000/bluetooth"
 
-# 归一化成 fdtput 需要的 "f0 04 e0 78 00 02"; 失败返回 1
+# 归一化成 fdtput 需要的 "11 22 33 44 55 66"; 失败返回 1
 normalize_bt_mac() {   # normalize_bt_mac <任意写法>
   local raw="$1" hex
   hex="$(printf '%s' "$raw" | tr -cd '0-9a-fA-F' | tr 'A-F' 'a-f')"

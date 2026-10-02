@@ -58,8 +58,8 @@ if [ -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" ]; then
   if [ -z "$BT_MAC" ] && [ -f "$PROJ/config/local.conf" ]; then
     BT_MAC="$(sed -n 's/^BT_MAC="\(.*\)".*/\1/p' "$PROJ/config/local.conf" | head -1)"
   fi
-  # 蓝牙地址归一化: 允许 f0:04:e0:78:00:02 / f0-04-e0-78-00-02 / f004e0780002 /
-  # "f0 04 e0 78 00 02" 四种写法, 统一成 fdtput 要的 "f0 04 e0 78 00 02"。
+  # 蓝牙地址归一化: 允许 11:22:33:44:55:66 / 11-22-33-44-55-66 / 112233445566 /
+  # "11 22 33 44 55 66" 四种写法, 统一成 fdtput 要的 "11 22 33 44 55 66"。
   # (CI 上踩过: Secret 里写成带冒号的, fdtput 直接报参数错 -> 镜像没蓝牙)
   BT_MAC_NORM="$(normalize_bt_mac "$BT_MAC" 2>/dev/null || true)"
   if [ -n "$BT_MAC_NORM" ] && command -v fdtput >/dev/null 2>&1; then
@@ -72,7 +72,7 @@ if [ -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" ]; then
     fi
   elif [ -n "$BT_MAC" ]; then
     # 只报长度不报内容 (Secret 可能是敏感值, 也已经被 CI 打码)
-    warn "蓝牙地址格式不对: 去掉分隔符后是 ${#BT_MAC_HEX} 位十六进制, 需要正好 12 位 (如 f0:04:e0:78:00:02 或 f004e0780002)$([ ${#BT_MAC_HEX} -gt 12 ] && echo ' —— 值里混进了多余字符' || echo ' —— 位数不够, 可能没填全') -> 该镜像蓝牙不可用"
+    warn "蓝牙地址格式不对: 去掉分隔符后是 ${#BT_MAC_HEX} 位十六进制, 需要正好 12 位 (如 11:22:33:44:55:66 或 112233445566)$([ ${#BT_MAC_HEX} -gt 12 ] && echo ' —— 值里混进了多余字符' || echo ' —— 位数不够, 可能没填全') -> 该镜像蓝牙不可用"
   else
     warn "未提供蓝牙地址 -> 该镜像蓝牙不可用 (在 config/local.conf 里设 BT_MAC, 或用 RAPHAEL_BT_MAC)"
   fi

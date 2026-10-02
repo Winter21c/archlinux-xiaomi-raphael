@@ -9,6 +9,10 @@
 上游项目只做 Debian/Ubuntu，本仓库把它移植到 Arch，并把桌面换成 KDE。
 **不想本地搭环境？** 仓库自带 GitHub Actions 工作流，云端直接出镜像 —— 见 [§7.1](#71-线上编译github-actions)。
 
+> 🔧 **要改这个仓库？先读 [HANDOVER.md](HANDOVER.md)** —— 接手必读：项目全貌、
+> 十个构建阶段在干什么、每个设计决策**为什么**这么做、已经踩过的坑（症状→根因→验证）、
+> 还没解决的方向、常见改动手册和"一碰就炸"的雷区。
+
 ---
 
 ## 1. 产物（`out/`）
@@ -112,10 +116,10 @@ BD_ADDR"直接把蓝牙关掉（详见 §8.9）。两种补法：
 ```bash
 # A. 用在 GitHub 下载来的引导镜像上（原地写入，自动留 .bak 备份）
 ./scripts/bt-mac.sh show boot-cache.img          # 先看现在是什么
-./scripts/bt-mac.sh set  boot-cache.img "f0 04 e0 78 00 02"
+./scripts/bt-mac.sh set  boot-cache.img "11 22 33 44 55 66"
 
 # B. 本地构建的镜像：刷机时顺手写进去
-./scripts/11-flash.sh --flash --bt-mac "f0 04 e0 78 00 02"
+./scripts/11-flash.sh --flash --bt-mac "11 22 33 44 55 66"
 ```
 
 也可以一次到位：自己的地址填进 `config/local.conf` 的 `BT_MAC`（本机构建），或在
@@ -470,7 +474,7 @@ amixer -c 0 cget "name=QUAT_MI2S_RX Audio Mixer MultiMedia2"   # 应为 values=o
    bluetooth {
        compatible = "qcom,wcn3998-bt";
        ...
-       local-bd-address = [<你的设备蓝牙地址>];   /* 02:00:78:E0:04:F0（本机地址，小端序）*/
+       local-bd-address = [<你的设备蓝牙地址>];   /* 66:55:44:33:22:11（本机地址，小端序）*/
    };
    ```
 
@@ -493,7 +497,7 @@ amixer -c 0 cget "name=QUAT_MI2S_RX Audio Mixer MultiMedia2"   # 应为 values=o
 $ btmgmt info
 Index list with 1 item
 hci0:  Primary controller
-       addr 02:00:78:E0:04:F0  version 9  manufacturer 29
+       addr 66:55:44:33:22:11  version 9  manufacturer 29
        current settings: powered bondable ssp br/edr le secure-conn ...
 $ bluetoothctl --timeout 15 scan on     # 实测扫到 9 个真实设备
 ```
@@ -507,7 +511,7 @@ $ bluetoothctl --timeout 15 scan on     # 实测扫到 9 个真实设备
 
   | 设备树里写 | 系统里显示 |
   |:--|:--|
-  | `f0 04 e0 78 00 02` | `02:00:78:E0:04:F0` |
+  | `11 22 33 44 55 66` | `66:55:44:33:22:11` |
 
   内核代码（`net/bluetooth/hci_sync.c` 的 `hci_dev_get_bd_addr_from_property()`）
   是把 DT 数组**原样**拷进 `bdaddr_t`，而 `%pMR` 打印时是反序的 —— 所以两边正好相反。
@@ -515,9 +519,9 @@ $ bluetoothctl --timeout 15 scan on     # 实测扫到 9 个真实设备
 
   | 场景 | 做法 |
   |:--|:--|
-  | 本机构建 | `config/local.conf` 的 `BT_MAC="f0 04 e0 78 00 02"`（该文件已 gitignore，不会进仓库） |
+  | 本机构建 | `config/local.conf` 的 `BT_MAC="11 22 33 44 55 66"`（该文件已 gitignore，不会进仓库） |
   | 云端构建 | GitHub 仓库 Secret `IMAGE_BT_MAC`（同上写法） |
-  | 直接刷公开镜像 | `./scripts/bt-mac.sh set boot-cache.img "f0 04 e0 78 00 02"`，或 `./scripts/11-flash.sh --flash --bt-mac "..."` |
+  | 直接刷公开镜像 | `./scripts/bt-mac.sh set boot-cache.img "11 22 33 44 55 66"`，或 `./scripts/11-flash.sh --flash --bt-mac "..."` |
 
 - **怎么查自己设备的地址**：最稳的是刷机前先在 Android 里看
   （设置 → 关于手机 → 状态信息 → 蓝牙地址），按上表反着写进配置。

@@ -74,7 +74,7 @@ bluetooth {
         compatible = "qcom,wcn3998-bt";
         vddio-supply = <&vreg_l17a_1p3>;
         ...
-        local-bd-address = [<你的设备蓝牙地址>];   /* 02:00:78:E0:04:F0，小端序 */
+        local-bd-address = [<你的设备蓝牙地址>];   /* 66:55:44:33:22:11，小端序 */
 };
 ```
 
@@ -105,7 +105,7 @@ umount /mnt/bt
 $ btmgmt info
 Index list with 1 item
 hci0:  Primary controller
-       addr 02:00:78:E0:04:F0  version 9  manufacturer 29  class 0x6c0110
+       addr 66:55:44:33:22:11  version 9  manufacturer 29  class 0x6c0110
        supported settings: powered connectable fast-connectable discoverable
                            bondable link-security ssp br/edr le advertising ...
        current settings: powered bondable ssp br/edr le secure-conn ll-privacy

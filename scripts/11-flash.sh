@@ -7,7 +7,7 @@
 #  用法:
 #     ./scripts/11-flash.sh --backup   # 可选: 用 TWRP 备份 boot/dtbo 分区
 #     ./scripts/11-flash.sh --flash    # 刷入 U-Boot + 引导 + Arch rootfs
-#     ./scripts/11-flash.sh --flash --bt-mac "f0 04 e0 78 00 02"
+#     ./scripts/11-flash.sh --flash --bt-mac "11 22 33 44 55 66"
 #                                      # 刷机时把蓝牙地址写进引导镜像的设备树
 #                                      # (公开镜像不带地址, 每台设备不同, 见 lib.sh)
 #     ./scripts/11-flash.sh --dry-run  # 只打印命令, 不动手机
@@ -24,7 +24,7 @@ while [ $# -gt 0 ]; do
     --backup) MODE=backup ;;
     --flash)  MODE=flash ;;
     --dry-run) DRY=1 ;;
-    --bt-mac) [ $# -gt 0 ] || die "--bt-mac 后面要跟地址, 例如 --bt-mac 'f0 04 e0 78 00 02'"; BT_MAC_ARG="$1"; shift ;;
+    --bt-mac) [ $# -gt 0 ] || die "--bt-mac 后面要跟地址, 例如 --bt-mac '11 22 33 44 55 66'"; BT_MAC_ARG="$1"; shift ;;
     --bt-mac=*) BT_MAC_ARG="${a#--bt-mac=}" ;;
     -h|--help)
       sed -n '2,15p' "$0"; exit 0 ;;
@@ -90,7 +90,7 @@ done
 # ---------------------------------------------------------------------------
 if [ -n "$BT_MAC_ARG" ]; then
   if ! MAC_NORM="$(normalize_bt_mac "$BT_MAC_ARG")"; then
-    die "蓝牙地址格式不对: '$BT_MAC_ARG' (需要 12 位十六进制, 如 f0 04 e0 78 00 02)"
+    die "蓝牙地址格式不对: '$BT_MAC_ARG' (需要 12 位十六进制, 如 11 22 33 44 55 66)"
   fi
   FLASH_BOOT_IMG="$WORK/boot-cache-$(printf '%s' "$MAC_NORM" | tr -d ' ').img"
   echo ">>> 注入蓝牙地址: 设备树 [${MAC_NORM}]  ->  系统里显示为 $(printf '%s' "$MAC_NORM" | tr -d ' ' | sed 's/../&:/g; s/:$//' | awk -F: '{for(i=NF;i>0;i--) printf "%s%s", $i, (i>1?":":"\n")}')"

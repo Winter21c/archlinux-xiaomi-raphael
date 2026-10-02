@@ -98,9 +98,9 @@ Xiaomi Redmi K20 Pro (raphael / SM8150) — Arch Linux ARM + KDE Plasma Mobile
 
 【关于蓝牙地址 (每台设备不同, 公开镜像不带)】
   没有地址时内核会直接关掉蓝牙控制器。补法:
-    ./scripts/bt-mac.sh set boot-cache.img "f0 04 e0 78 00 02"
+    ./scripts/bt-mac.sh set boot-cache.img "11 22 33 44 55 66"
   注意写的是"设备树字节序"(小端), 和系统里 bluetoothctl 显示的是反的:
-    设备树 f0 04 e0 78 00 02  <->  显示 02:00:78:E0:04:F0
+    设备树 11 22 33 44 55 66  <->  显示 66:55:44:33:22:11
   详细说明见 README 第 2 节与 8.9。
 
 【第 4 步: 首次开机】
