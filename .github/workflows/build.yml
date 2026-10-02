@@ -274,6 +274,8 @@ jobs:
       - name: 打包发布文件 (zstd + 分卷) 并按需发布到 Release
         env:
           GH_TOKEN: ${{ github.token }}
+          # gh 在 CI 里跑在非 git 目录 (大磁盘挂载点) 中, 必须显式告诉它仓库名
+          GH_REPO: ${{ github.repository }}
         run: |
           set -o pipefail
           # ★ 打包和发布是同一次操作: 脚本带 --upload 时会走 release/upload.sh

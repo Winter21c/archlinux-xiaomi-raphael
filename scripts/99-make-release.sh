@@ -117,12 +117,31 @@ Xiaomi Redmi K20 Pro (raphael / SM8150) — Arch Linux ARM + KDE Plasma Mobile
   * 完整文档与自行构建方法见仓库 README.md
 EOF
 
+# ★ 必须显式给 gh 一个仓库: 脚本 cd 进 release/ 之后, 如果那里不在 git 仓库里
+#   (CI 把 release/ 软链到大磁盘 /mnt/raphael-build/release, 物理路径不在 checkout 里),
+#   gh 会报 "failed to run git: fatal: not a git repository" 而发布失败。
+#   顺位: 环境变量 GH_REPO -> 本项目的 git remote。
+UPLOAD_REPO="${GH_REPO:-}"
+if [ -z "$UPLOAD_REPO" ]; then
+  UPLOAD_REPO="${GITHUB_REPOSITORY:-}"
+fi
+if [ -z "$UPLOAD_REPO" ]; then
+  UPLOAD_REPO="$(git -C "$PROJ" config --get remote.origin.url 2>/dev/null || true)"
+  UPLOAD_REPO="${UPLOAD_REPO%.git}"
+  UPLOAD_REPO="${UPLOAD_REPO#https://github.com/}"
+  UPLOAD_REPO="${UPLOAD_REPO#http://github.com/}"
+  UPLOAD_REPO="${UPLOAD_REPO#git@github.com:}"
+fi
+[ -n "$UPLOAD_REPO" ] || warn "推断不出仓库名 (发布时请先 export GH_REPO=owner/repo)"
 cat > "$REL/upload.sh" <<EOF
 #!/bin/bash
 # 发布到 GitHub Release (需要已登录的 gh CLI)
 set -e
 cd "\$(dirname "\$0")"
-gh release create "$TAG" \\
+REPO="${UPLOAD_REPO}"
+ARGS=()
+[ -n "\$REPO" ] && ARGS=(--repo "\$REPO")
+gh release create "$TAG" "\${ARGS[@]}" \\
   --title "Arch Linux ARM for Redmi K20 Pro $TAG" \\
   --notes-file 刷机说明.txt \\
   \$(ls | grep -vE '^(upload.sh|刷机说明.txt)\$')
@@ -135,7 +154,7 @@ ls -lh "$REL" | tail -n +2 | sed 's/^/    /'
 if [ "$DO_UPLOAD" = 1 ]; then
   log "上传到 Release $TAG ..."
   ( cd "$REL" && ./upload.sh )
-  log "已发布: $(gh repo view --json url -q .url)/releases/tag/$TAG"
+  log "已发布: https://github.com/${UPLOAD_REPO:-<owner/repo>}/releases/tag/$TAG"
 else
-  log "如需上传: cd release && ./upload.sh"
+  log "如需上传: cd release && ./upload.sh   (不在 git 仓库里执行时先 export GH_REPO=owner/repo)"
 fi
