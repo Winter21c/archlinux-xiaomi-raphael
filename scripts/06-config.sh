@@ -494,7 +494,14 @@ have_card || { echo "raphael-audio: 无声卡"; exit 0; }
 echo "raphael-audio: 声卡就绪"
 
 apply() {
+  # MultiMedia1 就是 ALSA 的 hw:0,0, 也是裸 aplay 的默认设备; 不给它接后端就会报
+  # "ASoC: no backend DAIs enabled for MultiMedia1" 而且一点声音都没有。
+  # 下面 SLIMBUS_0_RX 那条是历史遗留 (slim-*-dai-link 已从 DTB 删掉, 控件不存在),
+  # 真正干活的是两条 QUAT_MI2S_RX (底部扬声器 TFA9874):
+  #   MultiMedia1 -> QUAT_MI2S_RX  (aplay / 原生 ALSA, 即 hw:0,0)
+  #   MultiMedia2 -> QUAT_MI2S_RX  (PipeWire 的 pro-output-1, KDE 走这条)
   amixer -c 0 cset "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
+  amixer -c 0 cset "name=QUAT_MI2S_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
   amixer -c 0 cset "name=QUAT_MI2S_RX Audio Mixer MultiMedia2" 1 >/dev/null 2>&1
   amixer -c 0 cset "name=SLIM RX0 MUX" AIF1_PB >/dev/null 2>&1
   amixer -c 0 cset "name=SLIM RX1 MUX" AIF1_PB >/dev/null 2>&1
@@ -563,7 +570,14 @@ cat > "$ROOT/usr/local/sbin/raphael-audio-routing.sh" <<'REOF'
 #!/bin/bash
 set +u
 aplay -l 2>/dev/null | grep -q '^card 0' || exit 0
+# MultiMedia1 就是 ALSA 的 hw:0,0, 也是裸 aplay 的默认设备; 不给它接后端就会报
+# "ASoC: no backend DAIs enabled for MultiMedia1" 而且一点声音都没有。
+# 下面 SLIMBUS_0_RX 那条是历史遗留 (slim-*-dai-link 已从 DTB 删掉, 控件不存在),
+# 真正干活的是两条 QUAT_MI2S_RX (底部扬声器 TFA9874):
+#   MultiMedia1 -> QUAT_MI2S_RX  (aplay / 原生 ALSA, 即 hw:0,0)
+#   MultiMedia2 -> QUAT_MI2S_RX  (PipeWire 的 pro-output-1, KDE 走这条)
 amixer -c 0 cset "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
+amixer -c 0 cset "name=QUAT_MI2S_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
 amixer -c 0 cset "name=QUAT_MI2S_RX Audio Mixer MultiMedia2" 1 >/dev/null 2>&1
 amixer -c 0 cset "name=SLIM RX0 MUX" AIF1_PB >/dev/null 2>&1
 amixer -c 0 cset "name=SLIM RX1 MUX" AIF1_PB >/dev/null 2>&1

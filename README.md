@@ -124,7 +124,8 @@ fastboot reboot
 | GPU (Adreno 640, freedreno) | ✅ | `qcom/a640_gmu.bin` + `qcom/a630_sqe.fw`（A640 与 A630 共用 SQE） |
 | Wi-Fi (WCN3990, ath10k_snoc) | ✅ | 网卡名是 **`wld0`**（systemd 改名，不是 wlan0）。需要 `skip_otp=y` + **tqftpserv 必须运行**（见 §8.1）；真机已实测扫描到 AP |
 | 蓝牙 (WCN3998, hci_qca) | ✅ | **已修好**：真机实测扫描到 9 个设备、可 `powered`。需要**修补设备树**（补 `local-bd-address`）+ **机器自带的原厂 NVM**（`bluetooth` 分区里的 `crnv21.bin`），两者缺一不可 —— 详见 §8.9 |
-| 音频输出 (ADSP + UCM) | ✅ | 声卡 `card 0: Raphael`；UCM 提供 `Speaker (TFA9874)` 与 `Headphone (WCD9340)` 两个输出；已实测 440Hz 播放正常。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
+| 音频输出 (ADSP + TFA9874) | ✅ | 声卡 `card 0: Raphael`，一个 Sink（`内置音频 Pro 1` → `hw:0,1` → QUAT_MI2S → **底部扬声器 TFA9874**）。镜像用 `pro-audio` profile + Q6 路由 mixer（开机 `raphael-audio-init.sh` 设置、`raphael-audio-routing.timer` 每 20 秒兜底），**不用 UCM**（见 §8.8）。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
+| 耳机输出 (WCD9340) | ❌ | 走的 SLIMBUS 后端链路（`slim-*-dai-link`）会因为 WCD9340 codec DAI 枚举不出来而**让整块声卡卡在 EPROBE_DEFER**，已从设备树删除 → 当前只保留扬声器通路 |
 | 麦克风 | ⚠️ | 采集链路已修到**全部上电**（`AMIC MUX0` 默认断开 + 设备树缺 MCLK 路由，两处已修），但样本仍为全零，还差最后一层（DSP/ADM 或模拟前端）。详见 §8.10 与 [notes/microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md) |
 | 电池 / 充电 / RTC | ✅ | 内核内建 |
 | USB (dwc3, OTG) | ✅ | 含 **USB NCM 网络共享**：插电脑后设备是 `172.16.42.1`，可 `ssh user@172.16.42.1` |
@@ -157,9 +158,11 @@ fastboot reboot
   （Konsole 终端、系统设置、Dolphin 文件管理器、Kate、Okular、Spectacle 等都预装了，共 190+ 个应用）。
   想要传统桌面（底部任务栏 + 开始菜单）就在 SDDM 里选 **Plasma (Wayland)** 会话
   （注销后选择即可，SDDM 会记住上次的选择）。
-- **中文输入法**：已装 `fcitx5 + fcitx5-rime + fcitx5-chinese-addons`（和 Shorin 指南同一套），
-  环境变量写在 `/etc/environment`，Rime 配置在 `~/.local/share/fcitx5/rime/`。
-  外接键盘用 `Ctrl+Space` 切中英；触摸屏用屏幕键盘（plasma-keyboard）。
+- **中文输入法**：默认用 **plasma-keyboard（qtvirtualkeyboard）+ KWin**，不设全局
+  `QT_IM_MODULE`（只有 KWin 拿到 `QT_IM_MODULES=qtvirtualkeyboard`，键盘进程自己用
+  `env -u QT_IM_MODULES` 启动）。语言列表改由 **系统设置 → 键盘 → 屏幕键盘 → 语言**
+  勾选（`kcm_plasmakeyboard`），镜像里预置 `zh_CN` + `en_US` —— 触摸屏上左下角
+  地球图标切换中英。`fcitx5 + fcitx5-rime` 仍然装着，外接键盘想用中州韵时手动开。
 - **锁屏/PIN**：默认**不锁屏**（`~/.config/kscreenlockerrc` 里 `Autolock=false`），
   所以不存在"锁了以后解不开"的问题。密码 `1234` 只用于 `sudo` 和 SSH。
 - **装软件**：已加 archlinuxcn 源（含密钥环）并预装 `paru`，联网后直接
@@ -395,8 +398,18 @@ wireplumber.service`，已写进 `07-desktop.sh`）：
 ~/.config/systemd/user/pipewire-session-manager.service -> wireplumber.service
 ```
 
-**验证**：`wpctl status` 能看到 `内置音频` 设备与 `Speaker (TFA9874)` /
-`Headphone (WCD9340)` 两个 Sink；`speaker-test -c 2 -t sine -f 440 -l 1` 能出声。
+**验证**：`wpctl status` 能看到 `内置音频` 设备 + 一个 Sink `内置音频 Pro 1`
+（`s16le 2ch 48000Hz`）；`pactl list short sinks` 的 `alsa.device` 应该是 `1`
+（= `hw:0,1` = MultiMedia2）。出声前必须有 Q6 路由，检查：
+
+```bash
+amixer -c 0 cget "name=QUAT_MI2S_RX Audio Mixer MultiMedia2"   # 应为 values=on
+```
+
+没有就 `sudo systemctl start raphael-audio-init.service`（或等 20 秒一次的
+`raphael-audio-routing.timer`）。裸 ALSA 播放走 `hw:0,0`（MultiMedia1），
+`QUAT_MI2S_RX Audio Mixer MultiMedia1` 也必须 `on`，否则内核会打
+`ASoC: no backend DAIs enabled for MultiMedia1` 并且完全没声音。
 
 > 提示：`pipewire-pulse` 平时显示 inactive 是正常的 —— 它由 socket 按需拉起。
 
@@ -501,9 +514,72 @@ q6afe 的 `SLIMBUS_0_TX`、q6asm 的 `MM_UL1` 全部 `On`，`TX port` 不再溢�
 > Speaker / Headphone 一起消失；而 `pro-audio` 又会暴露那个打不开的 `hw:0,0`，
 > 于是设备在"识别到 / 识别不到"之间反复抖动（音量面板里的内置音频反复启用停用）。
 > 必须等采集链路真能录到数据之后，再加 Mic 设备。
-> 另外：显式把内置音频切成 `专业音频 (pro-audio)` 也会触发同样的抖动。
+> 另外：在那个时期显式把内置音频切成 `专业音频 (pro-audio)` 也会触发同样的抖动。
+> **现在镜像默认就用 `pro-audio`**（`raphael-audio-init.sh` 里
+> `pactl set-card-profile alsa_card.platform-sound pro-audio`），且已经不再走 UCM，
+> 抖动不再出现 —— 上面这段是"UCM 里带着打不开的 CapturePCM"时期的记录，留作前车之鉴。
 
-### 8.11 其它已知限制
+### 8.11 一调音量就"卡掉"、扬声器没声音（8 声道 → Q6 ETIMEDOUT）★
+
+**症状**：Plasma 里拖动音量条 / 按音量键，声音（以及整个音频栈）会**卡住**几秒；
+底部扬声器一直没有任何声音。`dmesg` 里每 3 秒左右刷一条：
+
+```
+qcom-q6afe: AFE enable for port 0x1006 failed -110      (ETIMEDOUT)
+q6afe-dai: ASoC error (-110): at snd_soc_dai_prepare() on QUAT_MI2S_RX
+```
+
+**根因**：`pro-audio` profile 下 PipeWire 的 ACP 给 `pro-output-1` 选的是
+**`s16le 8ch`**（`aux0..aux7`）。而 Q6AFE 的 QUAT_MI2S_RX 端口只接受
+1/2 声道，8 声道会走进 DSP 里一条不存在的配置，AFE 端口使能超时（`-110`）；
+每次改音量/PCM 重开都会重新走一遍 AFE 使能 → 表现就是"一调就卡"。
+端口起不来，数据根本到不了功放 → 扬声器没声音。
+
+**修复**：用 WirePlumber 规则把这条通路**钉死成 2 声道 S16LE/48k**，并且不让节点
+挂起（每次重开 PCM 都会重建一遍 Q6 会话，关掉挂起就避免了反复重建）：
+
+`~/.config/wireplumber/wireplumber.conf.d/51-raphael-alsa.conf`（由 `07-desktop.sh` 写入）
+
+```json
+monitor.alsa.rules = [
+  {
+    matches = [ { node.name = "~alsa_output.*" } ]
+    actions = {
+      update-props = {
+        audio.format = "S16LE"
+        audio.rate = 48000
+        audio.channels = 2
+        session.suspend-timeout-seconds = 0
+      }
+    }
+  }
+]
+```
+
+**验证（纯文本，不用听）**：
+
+```bash
+pactl list sinks | grep "Sample Specification"   # 应为 s16le 2ch 48000Hz
+sudo dmesg | grep -c "AFE enable.*failed"        # 应为 0
+```
+
+功放侧还可以用 debugfs 直接确认整条链路真的上电了（`SPKR ` 前缀来自设备树的
+`sound-name-prefix`）：
+
+```bash
+sudo cat /sys/kernel/debug/asoc/Raphael/tfa987x.0-0034/dapm/"SPKR PWUP"      # → On
+sudo cat /sys/kernel/debug/asoc/Raphael/tfa987x.0-0034/dapm/"SPKR Speaker"   # → On
+sudo grep '^00:' /sys/kernel/debug/regmap/0-0034/registers   # → 00: 0018 (bit3 = AMPE 已解静音)
+```
+
+> 顺带修掉的另一个坑：`MultiMedia1`（= 裸 ALSA 的 `hw:0,0`，也是 `aplay` 的默认设备）
+> 原先**一个后端都没接**，内核会直接报
+> `ASoC: no backend DAIs enabled for MultiMedia1` 并且播放"成功"但一声不响。
+> 现在 `raphael-audio-init.sh` / `raphael-audio-routing.sh` 把
+> `QUAT_MI2S_RX Audio Mixer MultiMedia1` 和 `MultiMedia2` **都**打开，
+> 两个 PCM 都能到扬声器。
+
+### 8.12 其它已知限制
 
 | 项 | 说明 |
 |:--|:--|
@@ -512,7 +588,7 @@ q6afe 的 `SLIMBUS_0_TX`、q6asm 的 `MM_UL1` 全部 `On`，`TX port` 不再溢�
 | 摄像头 | 主线缺 sm8150 的 CAMSS/CCI 设备树与驱动，也缺 IMX586 等 sensor 驱动 —— 详见 [camera.md](camera.md) |
 | 手电筒 | ✅ 可用：`shoudian on/off/toggle`（KDE 菜单里也有） |
 | 锁屏 | 默认关闭（不设 PIN），避免手机上解不开 |
-| 中文输入法 | ✅ fcitx5 + Rime（Ctrl+Space 切换） |
+| 中文输入法 | ✅ 触摸屏 plasma-keyboard（系统设置里勾 zh_CN/en_US，屏上地球图标切换）；fcitx5+Rime 已装未启用 |
 
 ## 9. 排障
 
@@ -523,7 +599,7 @@ q6afe 的 `SLIMBUS_0_TX`、q6asm 的 `MM_UL1` 全部 `On`，`TX port` 不再溢�
 | 内核起来了但挂载根失败 | 在 `arch-debug.conf` 里看 log；initramfs 会掉进救援 shell（需 OTG 键盘） |
 | **Wi-Fi 扫描不到任何 AP** | 先查 `systemctl status tqftpserv` 是否 active、`qrtr-lookup` 里有没有 69 号 WLFW 服务 —— 详见 §8.1 |
 | 网卡名不是 wlan0 | 正常，systemd 把它叫 `wld0`（§8.3） |
-| 没有声音 | `aplay -l` 看有没有 `card 0: Raphael`；再查 `systemctl status rmtfs tqftpserv` |
+| 没有声音 | ① `aplay -l` 有没有 `card 0: Raphael`；② `pactl list short sinks` 有没有 `pro-output-1`；③ `amixer -c 0 cget "name=QUAT_MI2S_RX Audio Mixer MultiMedia2"` 是不是 `on`；④ `systemctl status rmtfs tqftpserv`；⑤ `dmesg | grep -i "AFE enable"` 有没有 `-110`（有就是声道数不对，见 §8.11） |
 | 无法重启 | 见 §8.2（关机卡在 watchdog 设置），新镜像已修复 |
 | 桌面起不来 | 用 USB NCM 网络 SSH 进去：`ssh user@172.16.42.1`，然后 `journalctl -b -u sddm`；必要时 `KWIN_COMPOSE=Q startplasma-wayland` 用软件渲染验证 |
 | 想回 Android | `fastboot flash boot <备份>`，再刷小米线刷包 |
