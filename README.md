@@ -185,7 +185,10 @@ GitHub 仓库设 Secret `IMAGE_BT_MAC`（云端构建）。
   `QT_IM_MODULE`（只有 KWin 拿到 `QT_IM_MODULES=qtvirtualkeyboard`，键盘进程自己用
   `env -u QT_IM_MODULES` 启动）。语言列表改由 **系统设置 → 键盘 → 屏幕键盘 → 语言**
   勾选（`kcm_plasmakeyboard`），镜像里预置 `zh_CN` + `en_US` —— 触摸屏上左下角
-  地球图标切换中英。`fcitx5 + fcitx5-rime` 仍然装着，外接键盘想用中州韵时手动开。
+  地球图标切换中英。
+  **镜像里不装 fcitx5**：它和触屏键盘会互相抢输入法（真机实测会反复闪退），
+  而 Plasma 键盘自带拼音。外接物理键盘想用中州韵的话自己装：
+  `sudo pacman -S fcitx5 fcitx5-rime`。
 - **锁屏/PIN**：默认**不锁屏**（`~/.config/kscreenlockerrc` 里 `Autolock=false`），
   所以不存在"锁了以后解不开"的问题。密码 `1234` 只用于 `sudo` 和 SSH。
 - **装软件**：已加 archlinuxcn 源（含密钥环）并预装 `paru`，联网后直接
@@ -757,7 +760,7 @@ pacman -Su --noscriptlet --ignore linux-firmware
 | 摄像头 | 主线缺 sm8150 的 CAMSS/CCI 设备树与驱动，也缺 IMX586 等 sensor 驱动 —— 详见 [camera.md](camera.md) |
 | 手电筒 | ✅ 可用：`shoudian on/off/toggle`（KDE 菜单里也有） |
 | 锁屏 | 默认关闭（不设 PIN），避免手机上解不开 |
-| 中文输入法 | ✅ 触摸屏 plasma-keyboard（系统设置里勾 zh_CN/en_US，屏上地球图标切换）；fcitx5+Rime 已装未启用 |
+| 中文输入法 | ✅ 触摸屏 plasma-keyboard（系统设置里勾 zh_CN/en_US，屏上地球图标切换）；**不装 fcitx5**（会和触屏键盘抢输入法导致闪退） |
 
 ## 9. 排障
 

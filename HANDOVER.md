@@ -301,6 +301,9 @@ dmesg 里那行 `Direct firmware load for regulatory.db failed` 是**预期的**
   2. **只有 KWin** 拿到 `QT_IM_MODULES=qtvirtualkeyboard`（systemd drop-in）
   3. plasma-keyboard 自己用 `Exec=env -u QT_IM_MODULES plasma-keyboard` 启动
   4. `/etc/environment` 里**不要**出现任何 `QT_IM_*`
+- **不要装 fcitx5**：它和 plasma-keyboard 会互相抢输入法（真机实测：KWin 会莫名选中
+  fcitx5，然后屏幕键盘反复闪退）。所以 `config/build.conf` 的 `PKGS_IME` 是空的、
+  `07-desktop.sh` 也不再写 fcitx5/Rime 的任何配置。想用中州韵的用户自己装。
 - **语言列表**：只能靠 KCM（系统设置 → 键盘 → 屏幕键盘 → 语言）写，
   `~/.config/plasma-keyboardrc` 的 `enabledLocales=zh_CN,en_US`
   —— **逗号后不能有空格**（KConfig 的 QStringList 不 trim，`"zh_CN, en_US"` 会变成非法的 `" en_US"`）。

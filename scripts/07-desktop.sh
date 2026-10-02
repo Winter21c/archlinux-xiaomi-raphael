@@ -158,15 +158,8 @@ cat > "$USERDIR/.config/plasmamobilerc" <<'EOF'
 wizardRun=true
 EOF
 
-# Rime 输入法配置 (取自 Shorin 指南: Shift 交给 fcitx5 切中英)
-mkdir -p "$USERDIR/.local/share/fcitx5/rime"
-cat > "$USERDIR/.local/share/fcitx5/rime/default.custom.yaml" <<'EOF'
-patch:
-  # Shift 交给 fcitx5 的 AltTriggerKeys（rime/mozd ↔ keyboard-us），Rime 内部不再用 Shift 切中英
-  "ascii_composer/switch_key/Shift_L": noop
-  "ascii_composer/switch_key/Shift_R": noop
-EOF
-log "  已关闭初始设置向导 + 写入 Rime 配置"
+# (不装 fcitx5 / Rime: 触摸屏输入交给 plasma-keyboard, 见 config/build.conf 的说明)
+log "  已关闭初始设置向导"
 
 # ---------------------------------------------------------------------------
 # 启用用户会话的音频服务 (PipeWire / WirePlumber)
@@ -520,7 +513,9 @@ MoveFactor=15
 [Compositing]
 AnimationSpeed=3
 [Wayland]
-InputMethod=fcitx
+# ★ 必须是 plasma-keyboard: 写 fcitx 会让 KWin 去拉 fcitx5 当输入法
+#   (而镜像里已经不装 fcitx5 了 -> 键盘会反复闪退)
+InputMethod[$e]=/usr/share/applications/org.kde.plasma.keyboard.desktop
 EOF
 cat > "$H/.config/kglobalshortcutsrc" <<'EOF'
 [krunner.desktop]
@@ -554,7 +549,8 @@ EOF
 #  ★ 2026-10-01 真机踩坑: 手机只有触屏键盘。正确做法是给合成器设
 #    QT_IM_MODULES=qtvirtualkeyboard (见 06 阶段的 /etc/environment 与注释),
 #    而不是给应用设单数 QT_IM_MODULE —— plasma-keyboard 明确说客户端侧不支持。
-#    fcitx5 仍然装着, 想要物理键盘 + 中州韵时手动开即可。
+#    镜像里**不装 fcitx5** (会和触屏键盘抢输入法, 真机实测会闪退); 外接物理
+#    键盘想用中州韵的用户自己装 fcitx5 即可。
 # 输入法环境: 不要把 QT_IM_MODULES 写进全局 (06 阶段的 /etc/environment 里没有它),
 # 否则每个 Qt 程序都去加载虚拟键盘上下文 -> plasma-keyboard 弹出来就闪退。
 # 正确做法是只给合成器:
@@ -651,67 +647,16 @@ monitor.alsa.rules = [
 EOF
 log "  WirePlumber: 固定 2ch/S16LE/48k + 不挂起 (QUAT_MI2S 不吃 8 声道)"
 log "  语言: 界面 zh_CN 优先 (英文兜底); 触屏键盘 zh_CN 默认 + 可切 en_US" 
-# fcitx5 随会话自启 (虚拟键盘 + 拼音都需要它在跑)
-install -d "$H/.config/autostart"
-cat > "$H/.config/autostart/fcitx5.desktop" <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=Fcitx 5
-Exec=fcitx5 -d
-Icon=fcitx
-X-GNOME-Autostart-Phase=Applications
-X-KDE-autostart-after=panel
-EOF
-install -d "$H/.config/fcitx5/conf"
-cat > "$H/.config/fcitx5/conf/virtualkeyboard.conf" <<'EOF'
-# 触屏虚拟键盘
-Enable=True
-AutoShow=True
-EOF
 rm -f "$H/.gtkrc-2.0"
 for v in 3.0 4.0; do
   rm -f "$H/.config/gtk-$v/settings.ini"
 done
-# fcitx5: 左右 Shift 都交给 Rime 处理 (指南: 右 Shift 切不回中文的修法)
-install -d "$H/.config/fcitx5"
-cat > "$H/.config/fcitx5/config" <<'EOF'
-[Hotkey/AltTriggerKeys]
-0=Shift_L
-1=Shift_R
-EOF
-# Rime: 默认方案 = 雾凇拼音; F4 可切换多方案
-install -d "$H/.local/share/fcitx5/rime"
-cat > "$H/.local/share/fcitx5/rime/default.custom.yaml" <<'EOF'
-patch:
-  # rime_ice_suggestion 是雾凇方案的默认预设 (指南写法)
-  __include: rime_ice_suggestion:/
-  schema_list:
-    - schema: rime_ice
-    - schema: luna_pinyin_simp
-    - schema: double_pinyin_flypy
-    - schema: wubi86
-EOF
-cat > "$H/.local/share/fcitx5/rime/rime_ice.custom.yaml" <<'EOF'
-patch:
-  # 默认英文标点 (指南可选): switches/@1/reset=1 -> 第二个开关「中英标点」默认英文
-  "switches/@1/reset": 1
-EOF
-cat > "$H/.local/share/fcitx5/rime/custom_phrase.txt" <<'EOF'
-# encoding: utf-8
-# 自定义词库: 词语<TAB>拼音<TAB>可选权重(越大越靠前)
-# 示例: 异环	yihuan	100
-EOF
-# 输入法自启 (KDE 虚拟键盘在系统设置里选 fcitx5, 这里保证进程一定起来)
-install -d "$H/.config/autostart"
-cat > "$H/.config/autostart/fcitx5.desktop" <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=Fcitx 5
-Exec=fcitx5 -d
-Icon=fcitx
-X-GNOME-Autostart-Phase=Applications
-X-KDE-autostart-after=panel
-EOF
+# ★ 这里原本会写 fcitx5/Rime 的一堆配置 + fcitx5 自启。
+#   现在镜像**不装 fcitx5** (见 config/build.conf), 这些东西写出来只会让 KWin
+#   误以为有 fcitx5 可用而反复切过去 -> 屏幕键盘闪退, 所以整段去掉。
+#   想用中州韵的用户自己装 fcitx5 后, 这些配置可以按上游文档重新加。
+rm -f "$H/.config/autostart/fcitx5.desktop" 2>/dev/null || true
+rm -rf "$H/.config/fcitx5" "$H/.local/share/fcitx5" 2>/dev/null || true
 
 # 13.9 修复 home 属主 (07 阶段新建的文件)
 chown -R 1000:1000 "$H" 2>/dev/null || true
@@ -757,10 +702,9 @@ export VISUAL=nvim
 alias ls='ls --color=auto'
 alias ll='ls -lh'
 BEOF
-# 4) fcitx5 自启: 关掉 (它会抢 Wayland 输入法, 也让触屏键盘输不进字)
-if [ -e "$H/.config/autostart/fcitx5.desktop" ]; then
-  mv "$H/.config/autostart/fcitx5.desktop" "$H/.config/autostart/fcitx5.desktop.disabled"
-fi
+# 4) fcitx5: 镜像里已经不装了, 这里只做残留清理 (老镜像升级上来的情况)
+rm -f "$H/.config/autostart/fcitx5.desktop" 2>/dev/null || true
+rm -f "$H/.config/autostart/fcitx5.desktop.disabled" 2>/dev/null || true
 # 5) 息屏自动变暗也关掉 (花屏最容易复现的路径), 见 raphael-display-nopm.service
 kwriteconfig6 --file powerdevilrc --group AC --group DimDisplay --key idleTime --delete 2>/dev/null || true
 # 6) GTK/fcitx 那套输入法环境 (会和触屏键盘抢输入)
