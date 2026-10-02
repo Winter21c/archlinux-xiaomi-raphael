@@ -19,6 +19,15 @@ IR="$WORK/initramfs"
 rm -rf "$IR"
 mkdir -p "$IR"/{bin,sbin,proc,sys,dev,run,tmp,newroot,usr/lib/firmware}
 chmod 1777 "$IR/tmp"
+# ★ /lib -> usr/lib 这个软链必须有: 内核的 firmware loader 只按 /lib/firmware
+#   (以及 /lib/firmware/updates) 找文件, 不认 /usr/lib/firmware。initramfs 里少了
+#   它, 下面特意塞进来的 a630_sqe.fw / a640_gmu.bin 就等于没塞 ——
+#   真机 dmesg 复现:
+#     [0.63s] msm_dpu: Direct firmware load for qcom/a630_sqe.fw failed with error -2
+#     [10.0s] msm_dpu: [drm:adreno_request_fw] loaded qcom/a630_sqe.fw from new location
+#   0.63s 那次失败会让内建 adreno/msm_dpu 在没有 SQE 固件的情况下起来, 之后屏
+#   在熄屏/开机瞬间花屏 (正是之前排查很久的那个问题); 10 秒后才成功已经晚了。
+ln -sfn usr/lib "$IR/lib"
 
 # ---- 静态 busybox ---------------------------------------------------------
 # /usr/bin/busybox (busybox 包, 静态链接, 392 个 applet) 才有 mount/switch_root/findfs,

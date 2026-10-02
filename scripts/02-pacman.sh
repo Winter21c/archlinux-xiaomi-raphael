@@ -149,5 +149,36 @@ if [ -x "$ROOT/usr/bin/gdk-pixbuf-query-loaders" ]; then
   done
 fi
 
+# ---------------------------------------------------------------------------
+# 关键程序烟雾测试: 动态库/符号版本对不对得上, 只有真跑一次才知道。
+# 踩过的坑 (2026-10-02): 仓库处于"半同步"状态时 (nftables 已按新 libnftnl 重建,
+# 但 libnftnl 新版本还没推上镜像), 装出来的 dnsmasq 启动即报
+#   /usr/lib/libnftables.so.1: version `LIBNFTNL_19' not found
+# 直接 failed, 而 pacman 的依赖检查完全看不出来 —— 镜像就这样带着坏程序出厂。
+# ---------------------------------------------------------------------------
+log "关键程序烟雾测试 (qemu 实跑)"
+SMOKE_FAIL=0
+smoke() {  # smoke <rootfs 内路径> [参数...]
+  local bin="$1"; shift
+  [ -x "$ROOT$bin" ] || return 0
+  local out=""
+  out="$(gq "$bin" "$@" 2>&1)" && return 0
+  case "$out" in
+    *"error while loading shared libraries"*|*"cannot open shared object"*|*"version \`"*"not found"*)
+      warn "  $bin 跑不起来: $(printf '%s' "$out" | grep -m1 . )"
+      SMOKE_FAIL=$((SMOKE_FAIL+1)) ;;
+  esac
+}
+smoke /usr/bin/bash --version
+smoke /usr/bin/dnsmasq --version
+smoke /usr/bin/nft --version
+smoke /usr/bin/nmcli --version
+smoke /usr/bin/iw --version
+smoke /usr/bin/wpa_supplicant -v
+if [ "$SMOKE_FAIL" -gt 0 ]; then
+  die "有 $SMOKE_FAIL 个关键程序因库/符号版本不匹配跑不起来 (多半是 Arch 镜像正在半同步, 等同步完重跑)"
+fi
+log "  关键程序全部可运行"
+
 log "已安装包数: $(ls "$ROOT/var/lib/pacman/local" | wc -l)"
 log "rootfs 大小: $(du -sh "$ROOT" | cut -f1)"
