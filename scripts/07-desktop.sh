@@ -623,6 +623,33 @@ LANG=zh_CN.UTF-8
 [Translations]
 LANGUAGE=zh_CN:en_US
 EOF
+
+# ---------------------------------------------------------------------------
+# 音频格式固定 (2026-10-02 真机): 扬声器走 QUAT_MI2S -> TFA9874, 只有 2 声道;
+# pro-audio profile 下 PipeWire 默认会按 8 声道打开, DSP 侧
+#   qcom-q6afe: AFE enable for port 0x1006 failed -110   (ETIMEDOUT)
+#   q6afe-dai: ASoC error (-110): at snd_soc_dai_prepare() on QUAT_MI2S_RX
+# 每 3 秒刷一次, 表现就是"调音量就卡掉、扬声器没声音"。
+# 固定成 2ch/S16LE/48k 并关闭节点挂起 (每次重开 PCM 都会重建 Q6 会话) 后就正常了。
+install -d "$H/.config/wireplumber/wireplumber.conf.d"
+cat > "$H/.config/wireplumber/wireplumber.conf.d/51-raphael-alsa.conf" <<'EOF'
+monitor.alsa.rules = [
+  {
+    matches = [
+      { node.name = "~alsa_output.*" }
+    ]
+    actions = {
+      update-props = {
+        audio.format = "S16LE"
+        audio.rate = 48000
+        audio.channels = 2
+        session.suspend-timeout-seconds = 0
+      }
+    }
+  }
+]
+EOF
+log "  WirePlumber: 固定 2ch/S16LE/48k + 不挂起 (QUAT_MI2S 不吃 8 声道)"
 log "  语言: 界面 zh_CN 优先 (英文兜底); 触屏键盘 zh_CN 默认 + 可切 en_US" 
 # fcitx5 随会话自启 (虚拟键盘 + 拼音都需要它在跑)
 install -d "$H/.config/autostart"
