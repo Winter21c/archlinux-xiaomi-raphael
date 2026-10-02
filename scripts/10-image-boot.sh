@@ -77,7 +77,8 @@ if [ -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" ]; then
       warn "蓝牙地址注入失败 (设备树里没有 bluetooth 节点?)"
     fi
   elif [ -n "$BT_MAC" ]; then
-    warn "蓝牙地址格式不对 (需要 12 位十六进制, 如 f0:04:e0:78:00:02 或 'f0 04 e0 78 00 02') -> 该镜像蓝牙不可用"
+    # 只报长度不报内容 (Secret 可能是敏感值, 也已经被 CI 打码)
+    warn "蓝牙地址格式不对: 去掉分隔符后是 ${#BT_MAC_HEX} 位十六进制, 需要正好 12 位 (如 f0:04:e0:78:00:02 或 f004e0780002)$([ ${#BT_MAC_HEX} -gt 12 ] && echo ' —— 值里混进了多余字符' || echo ' —— 位数不够, 可能没填全') -> 该镜像蓝牙不可用"
   else
     warn "未提供蓝牙地址 -> 该镜像蓝牙不可用 (在 config/local.conf 里设 BT_MAC, 或用 RAPHAEL_BT_MAC)"
   fi
