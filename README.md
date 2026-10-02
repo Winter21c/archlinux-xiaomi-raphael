@@ -579,7 +579,114 @@ sudo grep '^00:' /sys/kernel/debug/regmap/0-0034/registers   # → 00: 0018 (bit
 > `QUAT_MI2S_RX Audio Mixer MultiMedia1` 和 `MultiMedia2` **都**打开，
 > 两个 PCM 都能到扬声器。
 
-### 8.12 其它已知限制
+### 8.12 熄屏 / 开机瞬间花屏（GPU 固件在 initramfs 里"没放对地方"）★
+
+**症状**：开机、熄屏、亮度变化那一瞬间屏幕出现彩色条纹/雪花（花屏），之后有时能自己恢复。
+
+**根因**：`msm_dpu` / `adreno` 是**内建**驱动，0.6 秒就 probe 并 `request_firmware()` —— 那时
+rootfs 还没挂上，只能从 initramfs 里读固件。而内核的 firmware loader **只按
+`/lib/firmware`（以及 `/lib/firmware/updates`）找文件，不认 `/usr/lib/firmware`**；
+initramfs 里只建了 `usr/lib/firmware/...` 却没建 `/lib -> usr/lib` 这个软链，
+于是特意塞进去的 GPU 固件等于没塞：
+
+```
+[ 0.63s] msm_dpu: Direct firmware load for qcom/a630_sqe.fw failed with error -2
+[ 0.63s] msm_dpu: [drm:adreno_request_fw] *ERROR* failed to load a630_sqe.fw
+[10.0s]  msm_dpu: [drm:adreno_request_fw] loaded qcom/a630_sqe.fw from new location
+```
+
+0.63 秒那次才是 GPU 初始化时用的；10 秒后"补上"已经晚了 —— GPU 是在没有 SQE 固件的
+状态下起来的，这才是花屏的来源。
+
+**修复**：`08-initramfs.sh` 在 initramfs 顶层建 `lib -> usr/lib`。
+
+**真机验证（不用刷机！）**：设备的 `/boot` 就是 **cache 分区**（FAT32）且已挂载，
+所以可以直接替换 `initramfs` 后重启：
+
+```bash
+scp work/initramfs.img user@172.16.42.1:/tmp/initramfs.new
+ssh user@172.16.42.1 'echo 1234 | sudo -S cp /tmp/initramfs.new /boot/initramfs && sudo reboot'
+sudo dmesg | grep -c "failed to load a630_sqe.fw"     # 期望 0
+sudo dmesg | grep -E "a630_sqe|a640_gmu"              # 期望 0.9s 就 "loaded ..."
+```
+
+修好之前：`failed to load a630_sqe.fw` 1 条 + 固件 10 秒后才加载；
+修好之后：0.94 秒 `loaded qcom/a630_sqe.fw / a640_gmu.bin`，失败计数 0。
+
+> 残留：每次拉起 plasmashell 仍会有 **1 次** `hangcheck recover`（`gpu fault ring 0 ...
+> offending task: QSGRenderThread`）—— 这是 vendor 内核 + Mesa 层面的事，可自恢复，
+> 与上面的花屏不是一回事。另外 `raphael-display-nopm.service` 会关掉显示运行时电源
+> 管理（自动变暗），因为变暗/关屏是花屏最容易复现的路径。
+
+### 8.13 CI 产物没有 Wi-Fi、没有声音（阶段 05 链接 libqrtr 失败）★
+
+**症状**（刷了 CI 产物后）：`/usr/bin/{rmtfs,tqftpserv,pd-mapper}` 根本不存在；
+Wi-Fi 扫不到任何 AP；声卡 profile 掉成 `off`；`dmesg` 每 3 秒刷
+
+```
+qcom-q6afe: AFE enable for port 0x1006 failed -110
+q6afe-dai: ASoC error (-110): at snd_soc_dai_prepare() on QUAT_MI2S_RX
+```
+
+**根因**：阶段 05 交叉编译出 `libqrtr.so.1` 后**没有在 `$STAGE` 里建 `libqrtr.so`
+软链**，而 `-lqrtr` 只认 `libqrtr.so` / `libqrtr.a`。本地构建时 rootfs 里还留着上一次
+装好的 `/usr/lib/libqrtr.so`，clang 的 sysroot 搜索路径会把它兜住，所以一直没暴露；
+CI 是**全新 rootfs**，于是：
+
+```
+ld.lld: error: unable to find library -lqrtr
+```
+
+`qrtr-lookup / qrtr-cfg / rmtfs / pd-mapper / tqftpserv` 全部链接失败，而阶段 05 原来
+只 `warn` 不报错 —— CI 就这样静默产出了"没 Wi-Fi 没声音"的镜像。
+
+这几个 daemon 不是可选项：`tqftpserv` 通过 QRTR 给 ADSP/CDSP 传固件，没有它：
+ath10k 拿不到网卡（QRTR 里看不到 `ATH10k WLAN firmware service`，ID 69），
+Q6 的 AFE 端口使能也会 -110 超时 → 扬声器没声音、调音量卡死。
+
+**修复**：建完 `libqrtr.so.1` 立刻 `ln -sfn libqrtr.so.1 "$STAGE/libqrtr.so"`；
+产物校验改成**硬失败**（缺 `rmtfs` / `tqftpserv` / `libqrtr.so.1` 直接 die），
+不再允许"静默残废"的镜像出厂。
+
+**判断方法**（刷完机后 30 秒就能确认）：
+
+```bash
+ls /usr/bin/{rmtfs,tqftpserv,pd-mapper}      # 三个都得在
+systemctl is-active rmtfs tqftpserv          # 都应为 active
+sudo qrtr-lookup | grep -i wlfw              # 应看到 ATH10k WLAN firmware service (69)
+```
+
+### 8.14 半升级导致的"库符号版本不匹配"（dnsmasq 起不来）★
+
+**症状**：开机后 `dnsmasq.service` 反复重启到 `start-limit-hit`，日志里
+
+```
+/usr/lib/libnftables.so.1: version `LIBNFTNL_19' not found
+    (required by /usr/lib/libnftables.so.1)
+```
+
+**根因**：阶段 02 原来用 `pacman -S --needed <列表>`，它**只装列表里的包、不升级
+rootfs tarball 里自带的旧包**。ALARM 的 `ArchLinuxARM-aarch64-latest.tar.gz` 常常落后
+仓库几周，于是很容易出现"半升级"：新装的 `nftables` 需要新版 `libnftnl`，而 tarball 里
+的 `libnftnl` 还是旧的。pacman 自己的依赖检查**看不出**这种符号版本层面的不匹配。
+
+**修复**：装完列表后再做一次全量升级把整棵树对齐到同一个仓库快照：
+
+```bash
+pacman -Su --noscriptlet --ignore linux-firmware
+```
+
+`--ignore linux-firmware` 是必要的：仓库里 `linux-firmware` 已拆成 meta 包，升级会连带
+拉进 `linux-firmware-{mediatek,nvidia,radeon,realtek}` 好几个 GB 的无关固件
+（本机只用 qcom + ath10k），保留 tarball 里的单包版本即可。
+
+**第二道防线**：阶段 02 末尾的"关键程序烟雾测试"会用 qemu 实跑
+`bash / dnsmasq / nft / nmcli / iw / wpa_supplicant`，只把
+`error while loading shared libraries` / `cannot open shared object` /
+``version `X' not found`` 判为失败并直接 die。2026-10-02 CI 上它准确拦下了这个问题
+（否则又是一个"能刷但没 Wi-Fi"的镜像）。
+
+### 8.15 其它已知限制
 
 | 项 | 说明 |
 |:--|:--|
