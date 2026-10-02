@@ -58,14 +58,25 @@ if [ -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" ]; then
   if [ -z "$BT_MAC" ] && [ -f "$PROJ/config/local.conf" ]; then
     BT_MAC="$(sed -n 's/^BT_MAC="\(.*\)".*/\1/p' "$PROJ/config/local.conf" | head -1)"
   fi
-  if [ -n "$BT_MAC" ] && command -v fdtput >/dev/null 2>&1; then
+  # 蓝牙地址归一化: 允许 f0:04:e0:78:00:02 / f0-04-e0-78-00-02 / f004e0780002 /
+  # "f0 04 e0 78 00 02" 四种写法, 统一成 fdtput 要的 "f0 04 e0 78 00 02"。
+  # (CI 上踩过: Secret 里写成带冒号的, fdtput 直接报参数错 -> 镜像没蓝牙)
+  BT_MAC_NORM=""
+  BT_MAC_IN="$(printf '%s' "$BT_MAC" | tr -d ' \t')"
+  BT_MAC_HEX="$(printf '%s' "$BT_MAC_IN" | tr -d ':-' | tr 'A-F' 'a-f')"
+  if printf '%s' "$BT_MAC_HEX" | grep -qE '^[0-9a-f]{12}$'; then
+    BT_MAC_NORM="$(printf '%s' "$BT_MAC_HEX" | sed 's/../& /g; s/ $//')"
+  fi
+  if [ -n "$BT_MAC_NORM" ] && command -v fdtput >/dev/null 2>&1; then
     # shellcheck disable=SC2086
     if fdtput -t bx "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb" \
-         /soc@0/geniqup@cc0000/serial@c8c000/bluetooth local-bd-address $BT_MAC 2>/dev/null; then
-      log "设备树: 使用修补版, 并已注入本机蓝牙地址"
+         /soc@0/geniqup@cc0000/serial@c8c000/bluetooth local-bd-address $BT_MAC_NORM 2>/dev/null; then
+      log "设备树: 使用修补版, 并已注入本机蓝牙地址 ($BT_MAC_NORM)"
     else
-      warn "蓝牙地址注入失败 (格式应为 'aa bb cc dd ee ff')"
+      warn "蓝牙地址注入失败 (设备树里没有 bluetooth 节点?)"
     fi
+  elif [ -n "$BT_MAC" ]; then
+    warn "蓝牙地址格式不对 (需要 12 位十六进制, 如 f0:04:e0:78:00:02 或 'f0 04 e0 78 00 02') -> 该镜像蓝牙不可用"
   else
     warn "未提供蓝牙地址 -> 该镜像蓝牙不可用 (在 config/local.conf 里设 BT_MAC, 或用 RAPHAEL_BT_MAC)"
   fi

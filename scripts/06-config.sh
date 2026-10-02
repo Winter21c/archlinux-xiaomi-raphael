@@ -64,32 +64,9 @@ gq /usr/bin/bash /usr/bin/locale-gen >/dev/null 2>&1 && log "  locale-gen 完成
 ROOTFS_LAYOUT="$(rootfs_layout)"
 ROOTFS_UUID="$(rootfs_uuid)"
 log "写 /etc/fstab (布局: $ROOTFS_LAYOUT, root UUID=$ROOTFS_UUID)"
-{
-  printf '# <device>                                       <dir>   <type>  <options>                                                                          <dump> <pass>\n'
-  # 根用 **UUID**: 由内核/udev 直接从文件系统读出来, 不依赖 GPT 分区名。
-  # (PARTLABEL 解析不到时 systemd-remount-fs 会失败, 根可能停在只读 -> 一堆服务挂)
-  case "$ROOTFS_LAYOUT" in
-    btrfs-subvol)
-      # 注意: / 这一行**不要**加 nofail —— 加了 systemd 可能跳过"把根重挂成 rw",
-# 结果根一直是只读, sshd(生成主机密钥)、usb-ncm(写 configfs) 等一堆要写文件的服务全失败。
-# 原版 ext4 镜像就是不带 nofail 的, 那是验证过可用的写法。
-      printf 'UUID=%-42s /       btrfs   rw,%s,x-systemd.growfs  0      1\n' "$ROOTFS_UUID" "$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
-      # /home **不单独挂载**: 家目录数据本来就在 @/home 里 (@home 只是它的副本)。
-      # 实测单独挂 @home 会让 user@1000 会话因 "Dependency failed" 起不来
-      # (挂载失败 -> Session N of user 依赖失败 -> SDDM respawn 循环 -> 进不了桌面),
-      # 而 @/home 的数据一直都在, 所以直接不挂最稳, 也少一个开机失败点。
-      # 想用独立 home 子卷的话, 手动: mount -o subvol=/@home /dev/disk/by-partlabel/userdata /home
-      ;;
-    btrfs-flat)
-      printf 'UUID=%-42s /       btrfs   rw,%s,x-systemd.growfs  0      1\n' "$ROOTFS_UUID" "$(btrfs_opts)"
-      ;;
-    *)
-      printf 'UUID=%-42s /       ext4    rw,errors=remount-ro,x-systemd.growfs  0      1\n' "$ROOTFS_UUID"
-      ;;
-  esac
-  # /boot 带 nofail: 分区名解析不到也只是这一个单元失败, 不会拖垮启动
-  printf 'PARTLABEL=cache                                /boot   vfat    umask=0077,nofail,noatime,x-systemd.device-timeout=10       0      0\n'
-} > "$ROOT/etc/fstab"
+# 真正干活的是 lib.sh 的 write_root_fstab(): 09 阶段在实际确定布局后会再调一次,
+# 以防"缓存说 subvol 但实际回退成 flat"导致 fstab 与镜像不一致 (见 lib.sh 注释)。
+write_root_fstab "$ROOTFS_LAYOUT" "$ROOTFS_UUID"
 log "  $(grep -c . "$ROOT/etc/fstab") 行:"; sed 's/^/    /' "$ROOT/etc/fstab"
 if [ ! -e "$ROOT/usr/lib/systemd/system/systemd-growfs@.service" ]; then
   warn "systemd 未提供 systemd-growfs@, 改用自建扩容服务"

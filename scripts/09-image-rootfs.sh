@@ -98,12 +98,17 @@ case "$LAYOUT" in
       else
         warn "loop 挂载失败 (容器缺 /dev/loop*?) -> 回退单子卷布局"
         LAYOUT="btrfs-flat"; echo "$LAYOUT" > "$WORK/rootfs-layout"
+        # ★ 必须先把 fstab 改成 flat 再 mkfs -r: mkfs -r 是直接把 $ROOT 写进镜像,
+        #   晚一步改就来不及了 (06 是按缓存里的 subvol 写的 fstab -> 挂不上根)。
+        write_root_fstab "$LAYOUT" "$UUID"
+        log "  已按回退后的布局重写 /etc/fstab"
         rm -f "$IMG"; truncate -s "$IMAGE_SIZE" "$IMG"
         mkfs.btrfs -q -f -L userdata -U "$UUID" -r "$ROOT" "$IMG"
       fi
       rmdir "$MNT" 2>/dev/null || true
     else
       log "mkfs.btrfs -r ($IMAGE_SIZE): 单子卷布局 (数据在顶层)"
+      write_root_fstab "$LAYOUT" "$UUID"     # 与缓存一致时是幂等的
       truncate -s "$IMAGE_SIZE" "$IMG"
       mkfs.btrfs -q -f -L userdata -U "$UUID" -r "$ROOT" "$IMG"
       log "  注: mkfs -r 直接写块不走压缩; 压缩对系统运行后的写入生效"

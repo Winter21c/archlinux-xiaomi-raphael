@@ -309,6 +309,39 @@ rootfs_layout() {
 }
 
 # btrfs 挂载参数 (含透明压缩); 子卷布局时额外给出 subvol= 前缀
+# ---------------------------------------- 根文件系统 fstab ------------------
+# ★ fstab 的根挂载选项必须和 09 实际造出的布局、10 写进引导项的 rootflags
+#   **三者一致**。踩过的坑: rootfs-layout 缓存里写着 btrfs-subvol, 但 09 里
+#   loop 挂载失败回退成 flat (例如宿主内核没带 loop 模块), 而 fstab 还是 06
+#   按 subvol 写的 -> 镜像里没有 /@ 子卷却让内核去挂它 -> 开不了机。
+#   所以 06 写完还不够, 09 在实际确定布局后要**再写一次** (幂等)。
+write_root_fstab() {   # write_root_fstab [layout] [uuid]
+  local layout="${1:-$(rootfs_layout)}"
+  local uuid="${2:-$(rootfs_uuid)}"
+  {
+    printf '# <device>                                       <dir>   <type>  <options>                                                                          <dump> <pass>\n'
+    # 根用 **UUID**: 由内核/udev 直接从文件系统读出, 不依赖 GPT 分区名。
+    # (PARTLABEL 解析不到时 systemd-remount-fs 会失败, 根可能停在只读 -> 一堆服务挂)
+    case "$layout" in
+      btrfs-subvol)
+        # 注意: / 这一行**不要**加 nofail —— 加了 systemd 可能跳过"把根重挂成 rw",
+        # 结果根一直只读, sshd(生成主机密钥)/usb-ncm(写 configfs) 等全失败。
+        printf 'UUID=%-42s /       btrfs   rw,%s,x-systemd.growfs  0      1\n' "$uuid" "$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
+        # /home **不单独挂载**: 数据本来就在 @/home 里 (@home 只是副本)。实测单独挂
+        # @home 会让 user@1000 会话 "Dependency failed" -> SDDM respawn 循环。
+        ;;
+      btrfs-flat)
+        printf 'UUID=%-42s /       btrfs   rw,%s,x-systemd.growfs  0      1\n' "$uuid" "$(btrfs_opts)"
+        ;;
+      *)
+        printf 'UUID=%-42s /       ext4    rw,errors=remount-ro,x-systemd.growfs  0      1\n' "$uuid"
+        ;;
+    esac
+    # /boot 带 nofail: 分区名解析不到也只是这一个单元失败, 不会拖垮启动
+    printf 'PARTLABEL=cache                                /boot   vfat    umask=0077,nofail,noatime,x-systemd.device-timeout=10       0      0\n'
+  } > "$ROOT/etc/fstab"
+}
+
 btrfs_opts() {   # btrfs_opts [subvol]
   local sv="${1:-}"
   local o="compress=${BTRFS_COMPRESS:-zstd:3},noatime,ssd,discard=async,space_cache=v2"
