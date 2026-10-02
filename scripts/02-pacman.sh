@@ -108,6 +108,23 @@ log "准备安装 ${#VALID[@]} 个包 (含依赖)"
 "${PACMAN[@]}" -S --noscriptlet --needed "${VALID[@]}" 2>&1 | tail -30
 
 # ---------------------------------------------------------------------------
+# 全量升级: 把 rootfs tarball 里"自带的旧包"也升到仓库当前版本
+# ---------------------------------------------------------------------------
+# ★ 为什么必须做: ALARM 的 rootfs tarball (ArchLinuxARM-aarch64-latest) 常常落后
+#   仓库几周, 而上面那条 `-S --needed` **只装列表里的包, 不升级 tarball 里已有的
+#   包**。于是很容易出现"半升级"状态: 新装的 nftables 依赖新版 libnftnl, 而
+#   tarball 里的 libnftnl 还是旧的 -> 运行时
+#     /usr/lib/libnftables.so.1: version `LIBNFTNL_19' not found
+#   真机上表现为 dnsmasq 开机即 failed (2026-10-02 复现)。pacman 的依赖检查看不出
+#   这种"符号版本"层面的不匹配, 只有把整棵树对齐到同一个仓库快照才根治。
+#   (下面的"关键程序烟雾测试"是第二道防线。)
+# 注意 --ignore linux-firmware: 仓库里 linux-firmware 已经拆成 meta 包, 升级它会
+# 连带拉进 linux-firmware-{mediatek,nvidia,radeon,realtek} 好几个 GB 的固件, 而
+# 这台机器只用 qcom + ath10k —— 保留 tarball 里那份单包版本即可。
+log "全量升级 (对齐 rootfs tarball 与仓库快照; 跳过 linux-firmware)"
+"${PACMAN[@]}" -Su --noscriptlet --ignore linux-firmware 2>&1 | tail -15
+
+# ---------------------------------------------------------------------------
 # 移除手机上不需要的电视版界面 (plasma-bigscreen):
 # 它的自启动项会拉起 plasma-bigscreen-inputhandler, 缺 libcec 时报 status=127
 # ---------------------------------------------------------------------------
