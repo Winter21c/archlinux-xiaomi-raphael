@@ -96,6 +96,13 @@ Xiaomi Redmi K20 Pro (raphael / SM8150) — Arch Linux ARM + KDE Plasma Mobile
   fastboot flash userdata rootfs.sparse.img
   fastboot reboot
 
+【关于蓝牙地址 (每台设备不同, 公开镜像不带)】
+  没有地址时内核会直接关掉蓝牙控制器。补法:
+    ./scripts/bt-mac.sh set boot-cache.img "f0 04 e0 78 00 02"
+  注意写的是"设备树字节序"(小端), 和系统里 bluetoothctl 显示的是反的:
+    设备树 f0 04 e0 78 00 02  <->  显示 02:00:78:E0:04:F0
+  详细说明见 README 第 2 节与 8.9。
+
 【第 4 步: 首次开机】
   自动登录 Plasma Mobile, 用户 $USERNAME / 密码 (构建时设定, 默认 1234), root 密码 (同上)
   首启动会自动扩容根分区、初始化 pacman 密钥环, 请耐心等 1-2 分钟

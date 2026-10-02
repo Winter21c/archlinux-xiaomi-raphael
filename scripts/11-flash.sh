@@ -7,6 +7,9 @@
 #  用法:
 #     ./scripts/11-flash.sh --backup   # 可选: 用 TWRP 备份 boot/dtbo 分区
 #     ./scripts/11-flash.sh --flash    # 刷入 U-Boot + 引导 + Arch rootfs
+#     ./scripts/11-flash.sh --flash --bt-mac "f0 04 e0 78 00 02"
+#                                      # 刷机时把蓝牙地址写进引导镜像的设备树
+#                                      # (公开镜像不带地址, 每台设备不同, 见 lib.sh)
 #     ./scripts/11-flash.sh --dry-run  # 只打印命令, 不动手机
 # ============================================================================
 set -euo pipefail
@@ -14,13 +17,17 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 MODE=""
 DRY=0
-for a in "$@"; do
+BT_MAC_ARG=""
+while [ $# -gt 0 ]; do
+  a="$1"; shift
   case "$a" in
     --backup) MODE=backup ;;
     --flash)  MODE=flash ;;
     --dry-run) DRY=1 ;;
+    --bt-mac) [ $# -gt 0 ] || die "--bt-mac 后面要跟地址, 例如 --bt-mac 'f0 04 e0 78 00 02'"; BT_MAC_ARG="$1"; shift ;;
+    --bt-mac=*) BT_MAC_ARG="${a#--bt-mac=}" ;;
     -h|--help)
-      sed -n '2,12p' "$0"; exit 0 ;;
+      sed -n '2,15p' "$0"; exit 0 ;;
     *) die "未知参数: $a" ;;
   esac
 done
@@ -77,6 +84,24 @@ read -rp "确认继续? 输入 yes: " ok
 for f in "$UBOOT_IMG" "$ROOTFS_IMG" "$BOOT_IMG"; do
   [ -s "$f" ] || die "缺少产物: $f (先跑 build.sh)"
 done
+
+# ---------------------------------------------------------------------------
+# 蓝牙地址: 每台设备都不一样, 公开镜像里不带 -> 想用蓝牙就在这里补上
+# ---------------------------------------------------------------------------
+if [ -n "$BT_MAC_ARG" ]; then
+  if ! MAC_NORM="$(normalize_bt_mac "$BT_MAC_ARG")"; then
+    die "蓝牙地址格式不对: '$BT_MAC_ARG' (需要 12 位十六进制, 如 f0 04 e0 78 00 02)"
+  fi
+  FLASH_BOOT_IMG="$WORK/boot-cache-$(printf '%s' "$MAC_NORM" | tr -d ' ').img"
+  echo ">>> 注入蓝牙地址: 设备树 [${MAC_NORM}]  ->  系统里显示为 $(printf '%s' "$MAC_NORM" | tr -d ' ' | sed 's/../&:/g; s/:$//' | awk -F: '{for(i=NF;i>0;i--) printf "%s%s", $i, (i>1?":":"\n")}')"
+  cp -f "$BOOT_IMG" "$FLASH_BOOT_IMG"
+  inject_bt_mac_into_boot_img "$FLASH_BOOT_IMG" "$MAC_NORM" \
+    || die "蓝牙地址注入失败 (引导镜像里没有设备树?)"
+  BOOT_IMG="$FLASH_BOOT_IMG"
+elif [ -z "${RAPHAEL_BT_MAC:-}" ]; then
+  echo ">>> 提示: 未指定 --bt-mac -> 刷入后的镜像蓝牙不可用"
+  echo "    (想用蓝牙: 重新执行并加上 --bt-mac '对应你设备的地址', 见 README §8.9)"
+fi
 
 run fastboot devices
 echo ">>> 擦除分区"

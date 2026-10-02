@@ -61,13 +61,7 @@ if [ -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" ]; then
   # 蓝牙地址归一化: 允许 f0:04:e0:78:00:02 / f0-04-e0-78-00-02 / f004e0780002 /
   # "f0 04 e0 78 00 02" 四种写法, 统一成 fdtput 要的 "f0 04 e0 78 00 02"。
   # (CI 上踩过: Secret 里写成带冒号的, fdtput 直接报参数错 -> 镜像没蓝牙)
-  BT_MAC_NORM=""
-  # 只保留十六进制字符: 冒号 / 连字符 / 空格 / 换行 / 引号 一律丢掉, 于是
-  # Secret 里粘成 "f0:04:e0:78:00:02"、'f004e0780002'、末尾带换行 都能用。
-  BT_MAC_HEX="$(printf '%s' "$BT_MAC" | tr -cd '0-9a-fA-F' | tr 'A-F' 'a-f')"
-  if printf '%s' "$BT_MAC_HEX" | grep -qE '^[0-9a-f]{12}$'; then
-    BT_MAC_NORM="$(printf '%s' "$BT_MAC_HEX" | sed 's/../& /g; s/ $//')"
-  fi
+  BT_MAC_NORM="$(normalize_bt_mac "$BT_MAC" 2>/dev/null || true)"
   if [ -n "$BT_MAC_NORM" ] && command -v fdtput >/dev/null 2>&1; then
     # shellcheck disable=SC2086
     if fdtput -t bx "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb" \

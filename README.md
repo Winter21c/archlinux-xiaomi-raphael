@@ -103,6 +103,25 @@ fastboot flash userdata out/rootfs.sparse.img      # Arch rootfs
 fastboot reboot
 ```
 
+**蓝牙地址（每台设备都不一样，公开镜像里不带）**
+
+蓝牙地址是**产线写进每台设备自己的分区**的（`dtbo` 里那份厂商设备树带这个值，而刷机会把
+`dtbo` 清掉），所以公开镜像不可能带某个人的地址；没有地址时内核会因为"控制器上报全零
+BD_ADDR"直接把蓝牙关掉（详见 §8.9）。两种补法：
+
+```bash
+# A. 用在 GitHub 下载来的引导镜像上（原地写入，自动留 .bak 备份）
+./scripts/bt-mac.sh show boot-cache.img          # 先看现在是什么
+./scripts/bt-mac.sh set  boot-cache.img "f0 04 e0 78 00 02"
+
+# B. 本地构建的镜像：刷机时顺手写进去
+./scripts/11-flash.sh --flash --bt-mac "f0 04 e0 78 00 02"
+```
+
+也可以一次到位：自己的地址填进 `config/local.conf` 的 `BT_MAC`（本机构建），或在
+GitHub 仓库设 Secret `IMAGE_BT_MAC`（云端构建）。
+⚠️ 地址写法见 §8.9 —— 本项目和设备树用**小端字节序**，和 `bluetoothctl` 显示的是反的。
+
 **刷完第一次开机**
 
 1. 屏幕亮起 → U-Boot 菜单（3 秒倒计时，默认第一项）→ systemd-boot → 内核
@@ -478,6 +497,40 @@ hci0:  Primary controller
        current settings: powered bondable ssp br/edr le secure-conn ...
 $ bluetoothctl --timeout 15 scan on     # 实测扫到 9 个真实设备
 ```
+
+**地址是每台设备唯一的 —— 公开镜像怎么办？**
+
+- 地址由**产线**写在每台设备自己的数据里，公开镜像不可能带某个人的地址；
+  而且本项目的刷机流程会 `fastboot erase dtbo`，**把厂商那份带地址的设备树清掉**。
+- 写法（很容易踩的坑）：设备树 `local-bd-address` 存的是**小端字节序**，
+  也就是 `bluetoothctl` / Android 里显示的地址的**反序**：
+
+  | 设备树里写 | 系统里显示 |
+  |:--|:--|
+  | `f0 04 e0 78 00 02` | `02:00:78:E0:04:F0` |
+
+  内核代码（`net/bluetooth/hci_sync.c` 的 `hci_dev_get_bd_addr_from_property()`）
+  是把 DT 数组**原样**拷进 `bdaddr_t`，而 `%pMR` 打印时是反序的 —— 所以两边正好相反。
+- 三种给地址的方式：
+
+  | 场景 | 做法 |
+  |:--|:--|
+  | 本机构建 | `config/local.conf` 的 `BT_MAC="f0 04 e0 78 00 02"`（该文件已 gitignore，不会进仓库） |
+  | 云端构建 | GitHub 仓库 Secret `IMAGE_BT_MAC`（同上写法） |
+  | 直接刷公开镜像 | `./scripts/bt-mac.sh set boot-cache.img "f0 04 e0 78 00 02"`，或 `./scripts/11-flash.sh --flash --bt-mac "..."` |
+
+- **怎么查自己设备的地址**：最稳的是刷机前先在 Android 里看
+  （设置 → 关于手机 → 状态信息 → 蓝牙地址），按上表反着写进配置。
+  如果设备已经被刷成 Linux 且当时没记地址，可以试着从这几个地方找（本机实测的情况）：
+
+  | 来源 | 结果 |
+  |:--|:--|
+  | `dtbo` 分区（厂商设备树） | 本项目刷机流程会清掉它；查的时候已经是**全 0** |
+  | `persist` 分区（Android NV） | 无 `bt_nv` 类文件，也搜不到明文/XOR 后的地址 |
+  | `bluetooth` 分区 `image/`（产线 NVM：`crnv21.bin`/`apnv11.bin`…） | 只有 NVM 校准，**没有明文地址** |
+
+  也就是说：**刷机前那份地址一旦丢了，就只能从旧记录里翻**（本项目就是把它记在
+  `config/local.conf` 里才留住的）。所以刷公开镜像时，请务必先记下自己的地址。
 
 ### 8.10 麦克风录音全是 0（采集链路不上电）★
 

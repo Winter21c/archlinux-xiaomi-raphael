@@ -309,6 +309,44 @@ rootfs_layout() {
 }
 
 # btrfs 挂载参数 (含透明压缩); 子卷布局时额外给出 subvol= 前缀
+# ---------------------------------------- 蓝牙地址注入 ----------------------
+# 蓝牙地址是**每台设备唯一**的 (产线写入设备自己的 dtbo 分区, 而刷机会清掉 dtbo),
+# 所以公开镜像里不能带某个人的地址 -> 两条路:
+#   1) 构建时注入: config/build.conf 旁边的 config/local.conf 的 BT_MAC,
+#      或 CI 里用仓库 Secret IMAGE_BT_MAC (见 10-image-boot.sh)
+#   2) 刷机时注入: scripts/11-flash.sh --bt-mac <地址> (把公开镜像临时改成自己的)
+# 写法 = **设备树里的字节序**(小端), 与本项目历史 DTB 一致, 例如
+#   f0 04 e0 78 00 02   ->  系统里 bluetoothctl 显示为 02:00:78:E0:04:F0
+# (如果你手上只有屏幕上显示的地址, 把它反过来写即可。)
+BT_DT_NODE="/soc@0/geniqup@cc0000/serial@c8c000/bluetooth"
+
+# 归一化成 fdtput 需要的 "f0 04 e0 78 00 02"; 失败返回 1
+normalize_bt_mac() {   # normalize_bt_mac <任意写法>
+  local raw="$1" hex
+  hex="$(printf '%s' "$raw" | tr -cd '0-9a-fA-F' | tr 'A-F' 'a-f')"
+  printf '%s' "$hex" | grep -qE '^[0-9a-f]{12}$' || return 1
+  printf '%s' "$hex" | sed 's/../& /g; s/ $//'
+}
+
+# 把 BT 地址写进 FAT 引导镜像里的设备树 (原地修改该镜像文件)
+inject_bt_mac_into_boot_img() {   # inject_bt_mac_into_boot_img <boot-cache.img> <归一化后的地址>
+  local img="$1" mac="$2" tmp
+  [ -f "$img" ] || return 1
+  command -v fdtput >/dev/null 2>&1 || { warn "缺少 fdtput (dtc 包), 无法注入蓝牙地址"; return 1; }
+  setup_mtools >&2
+  tmp="$(mktemp -d)"
+  if ! mrun mcopy -o -i "$img" "::/dtbs/qcom/raphael-redmi-k20pro.dtb" "$tmp/dtb" 2>/dev/null; then
+    rm -rf "$tmp"; return 1
+  fi
+  # shellcheck disable=SC2086
+  if ! fdtput -t bx "$tmp/dtb" "$BT_DT_NODE" local-bd-address $mac 2>/dev/null; then
+    rm -rf "$tmp"; return 1
+  fi
+  mrun mcopy -o -i "$img" "$tmp/dtb" "::/dtbs/qcom/raphael-redmi-k20pro.dtb" 2>/dev/null || { rm -rf "$tmp"; return 1; }
+  rm -rf "$tmp"
+  return 0
+}
+
 # ---------------------------------------- 根文件系统 fstab ------------------
 # ★ fstab 的根挂载选项必须和 09 实际造出的布局、10 写进引导项的 rootflags
 #   **三者一致**。踩过的坑: rootfs-layout 缓存里写着 btrfs-subvol, 但 09 里
