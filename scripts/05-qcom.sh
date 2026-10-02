@@ -82,6 +82,13 @@ if compile libqrtr -fPIC -shared -Wl,-soname,libqrtr.so.1 \
       -I "$SRC/qrtr/include" -o "$STAGE/libqrtr.so.1" \
       "$SRC/qrtr/lib/logging.c" "$SRC/qrtr/lib/qmi.c" "$SRC/qrtr/lib/qrtr.c"; then
   OK_LIBQRTR=1
+  # ★ 必须在 STAGE 里补 libqrtr.so 软链: `-lqrtr` 只认 libqrtr.so / libqrtr.a,
+  #   光有 libqrtr.so.1 是找不到的 (ld.lld: unable to find library -lqrtr)。
+  #   本地构建时 rootfs 里还留着上一次装好的 /usr/lib/libqrtr.so, 会被 clang 的
+  #   sysroot 搜索路径兜住, 所以这个坑只在"全新 rootfs"的 CI 上暴露 —— 一旦暴露,
+  #   后面 rmtfs/pd-mapper/tqftpserv/qrtr-* 会**全部**链接失败, 而脚本只 warn 不报错,
+  #   最后产出一个没有 WiFi、没有音频的镜像 (2026-10-02 真机上就是这样)。
+  ln -sfn libqrtr.so.1 "$STAGE/libqrtr.so"
 fi
 
 LINK_QRTR=(-L"$STAGE" -lqrtr -Wl,-rpath-link,"$STAGE")
@@ -228,14 +235,27 @@ gq /usr/bin/ldconfig >/dev/null 2>&1 || true
 # 5. 校验
 # ---------------------------------------------------------------------------
 log "产物校验:"
+MISSING=()
 for b in rmtfs pd-mapper tqftpserv qrtr-lookup; do
   if [ -x "$ROOT/usr/bin/$b" ]; then
     printf '  %-12s %s\n' "$b" "$(file -b "$ROOT/usr/bin/$b" | cut -c1-60)"
   else
     warn "  $b 未生成"
+    # libqrtr / rmtfs / tqftpserv 是"缺了镜像就是残废"的三件套:
+    #   没有 rmtfs      -> 调制解调器起不来
+    #   没有 tqftpserv  -> ADSP 拿不到固件 -> Wi-Fi 扫描为空 + 音频 AFE 端口使能超时
+    # 以前这里只 warn, 结果 CI 静默产出没 WiFi/没声音的镜像, 所以改成硬失败。
+    case "$b" in rmtfs|tqftpserv) MISSING+=("$b") ;; esac
   fi
 done
-[ -f "$ROOT/usr/lib/libqrtr.so.1" ] && log "  libqrtr.so.1 已安装"
+if [ -f "$ROOT/usr/lib/libqrtr.so.1" ]; then
+  log "  libqrtr.so.1 已安装"
+else
+  MISSING+=(libqrtr.so.1)
+fi
+if [ "${#MISSING[@]}" -gt 0 ]; then
+  die "阶段 05 缺少必需产物: ${MISSING[*]} —— 缺这些会让镜像没有 Wi-Fi 与音频, 拒绝继续"
+fi
 
 rm -rf "$SRC" "$STAGE"
 log "阶段 05 完成"
