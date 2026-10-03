@@ -25,6 +25,11 @@ name: 构建镜像
 on:
   workflow_dispatch:
     inputs:
+      session:
+        description: '桌面形态: mobile = Plasma Mobile (手机), desktop = 桌面版 Plasma (精简包列表)'
+        type: choice
+        options: [mobile, desktop]
+        default: mobile
       username:
         description: '镜像里的用户名 (留空 = 用 config/build.conf 里的 user)'
         required: false
@@ -256,9 +261,19 @@ jobs:
           echo ">> 密码不回显 (如需确认请看上面的“已设置”)"
 
       - name: 显示构建配置
-        run: grep -vE '^\s*#|^\s*$' config/build.conf | head -40
+        env:
+          SESSION: ${{ inputs.session }}
+        run: |
+          echo ">> 系统形态 SESSION=$SESSION"
+          echo ">> 生效的包列表 (含按形态拼装后的结果):"
+          bash -c 'SESSION='"$SESSION"'; . config/build.conf; echo "$ALL_PKGS" | tr " " "\n" | sort | tr "\n" " "; echo'
+          echo ">> build.conf 里的关键项:"
+          grep -E '^(SESSION|USERNAME|HOSTNAME|KERNEL_VERSION)=' config/build.conf | head -10
 
       - name: 运行 build.sh
+        env:
+          # build.conf 里写的是 SESSION="${SESSION:-mobile}", 这里透传即可
+          SESSION: ${{ inputs.session }}
         run: |
           set -o pipefail
           STAGES='${{ inputs.stages }}'

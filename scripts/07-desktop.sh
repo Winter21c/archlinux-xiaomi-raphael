@@ -70,14 +70,21 @@ RememberLastSession=true
 RememberLastUser=true
 EOF
 if [ "$AUTOLOGIN" = "true" ]; then
+  # 会话名 = wayland-sessions/ 下的 .desktop 文件名(去后缀):
+  #   mobile  -> plasma-mobile.desktop (startplasmamobile, 手机形态)
+  #   desktop -> plasma.desktop        (普通桌面: 面板 + 开始菜单)
+  case "${SESSION:-mobile}" in
+    desktop) SDDM_SESSION="plasma";         SESSION_DESC="Plasma 桌面" ;;
+    *)       SDDM_SESSION="plasma-mobile";  SESSION_DESC="Plasma Mobile" ;;
+  esac
   cat >> "$ROOT/etc/sddm.conf.d/10-raphael.conf" <<EOF
 
 [Autologin]
 User=$USERNAME
-Session=plasma-mobile
+Session=$SDDM_SESSION
 Relogin=false
 EOF
-  log "  已启用自动登录 -> $USERNAME / Plasma Mobile"
+  log "  已启用自动登录 -> $USERNAME / $SESSION_DESC"
 fi
 mkdir -p "$ROOT/var/lib/sddm"
 chown 0:0 "$ROOT/var/lib/sddm" 2>/dev/null || true
@@ -132,11 +139,14 @@ SingleClick=true
 [Icons]
 Theme=breeze
 EOF
-# 移动端主屏缩放 (Plasma Mobile 读这个键)
-cat > "$USERDIR/.config/plasmamobile" <<'EOF'
+# 手机形态专属 (桌面形态装了 plasma-mobile 才有意义)
+if [ "${SESSION:-mobile}" != "desktop" ]; then
+  # 移动端主屏缩放 (Plasma Mobile 读这个键)
+  cat > "$USERDIR/.config/plasmamobile" <<'EOF'
 [general]
 mobileTaskSwitcher=true
 EOF
+fi
 
 # 触摸设备上桌面会话也要能弹出虚拟键盘
 # (KWin 6.7 的键名是 [Wayland] VirtualKeyboardEnabled / VirtualKeyboardMode,
@@ -153,13 +163,15 @@ log "  已为桌面会话启用虚拟键盘 (plasma-keyboard, 非鼠标输入时
 # 它的开关在 ~/.config/plasmamobilerc 的 [InitialStart] wizardRun。
 # 不清掉它的话每次登录都会弹一次; 想看可以手动跑:
 #   plasma-mobile-initial-start --test-wizard
-cat > "$USERDIR/.config/plasmamobilerc" <<'EOF'
+if [ "${SESSION:-mobile}" != "desktop" ]; then
+  cat > "$USERDIR/.config/plasmamobilerc" <<'EOF'
 [InitialStart]
 wizardRun=true
 EOF
+  log "  已关闭 Plasma Mobile 初始设置向导"
+fi
 
 # (不装 fcitx5 / Rime: 触摸屏输入交给 plasma-keyboard, 见 config/build.conf 的说明)
-log "  已关闭初始设置向导"
 
 # ---------------------------------------------------------------------------
 # 启用用户会话的音频服务 (PipeWire / WirePlumber)
