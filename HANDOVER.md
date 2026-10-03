@@ -52,6 +52,26 @@ U-Boot  →  systemd-boot  →  定制 7.2 内核  →  Arch Linux ARM (btrfs)  
 
 ---
 
+## 1.5 两种形态（`SESSION`）
+
+`config/build.conf` 的 `SESSION`（可用环境变量覆盖）在**两种桌面形态**间切换，
+包列表与 SDDM 会话名都跟着变：
+
+| 值 | 包列表 | SDDM `Session=` | 说明 |
+|:--|:--|:--|:--|
+| `mobile`（默认） | `PKGS_KDE_COMMON` + `PKGS_KDE_MOBILE_EXTRA` + 手机应用 + 全套字体 | `plasma-mobile` | Plasma Mobile 外壳 |
+| `desktop` | `PKGS_KDE_COMMON` + `PKGS_KDE_DESKTOP_EXTRA`（只多 kate），并去掉 flatpak/kdeconnect/man-pages/vim、手机字体、yay | `plasma` | 普通桌面（面板+开始菜单） |
+
+脚本里用 `[ "${SESSION:-mobile}" != "desktop" ]` 把 Plasma Mobile 专属配置
+（`plasmamobile` 主屏缩放、`plasmamobilerc` 向导）圈起来。改形态时**记得同时看**：
+`config/build.conf` 的拼装段、`scripts/07-desktop.sh` 的两处分支。
+CI 侧对应 `session` 输入（choice），日志「显示构建配置」会把生效的完整包列表打出来。
+
+> `@`/`@home` 与形态无关：取决于**构建时能不能 loop 挂载 btrfs**（CI 有准备 loop
+> 设备；本地内核升级后没重启会退回单子卷 flat）。
+
+---
+
 ## 2. 仓库结构与构建流水线
 
 ### 2.1 目录

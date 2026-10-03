@@ -15,6 +15,26 @@
 
 ---
 
+## 0. 两种形态：Plasma Mobile 还是桌面版 Plasma
+
+`config/build.conf` 里的 `SESSION` 决定装哪种桌面（同一套脚本，包列表自动切换）：
+
+| 形态 | 装什么 | 自动登录到 |
+|:--|:--|:--|
+| `SESSION="mobile"`（默认） | `plasma-mobile` 外壳 + 手机应用 + 一批桌面应用 | `plasma-mobile` 会话（手机形态） |
+| `SESSION="desktop"` | 精简包列表：`plasma-desktop` + `sddm` + `plasma-nm`/`plasma-pa`/`powerdevil` + **konsole**（终端）/dolphin/kate/systemsettings + `plasma-keyboard`（没物理键盘，屏幕键盘必留） | `plasma` 会话（普通桌面：面板 + 开始菜单） |
+
+```bash
+# 本地构建桌面版
+SESSION=desktop sudo ./build.sh
+# 云端: Actions → 构建镜像 → session 选 desktop
+```
+
+> 两种形态都**不装 fcitx5**（会和屏幕键盘抢输入法），中文输入靠 Plasma 键盘自带拼音；
+> 屏幕小的话在「系统设置 → 显示与监视器 → 缩放」里调到 150%~200% 更好用。
+
+---
+
 ## 1. 产物（`out/`）
 
 | 文件 | 大小 | 说明 |
