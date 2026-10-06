@@ -808,6 +808,9 @@ pacman -Su --noscriptlet --ignore linux-firmware
 - [Aospa-raphael-unofficial/linux](https://github.com/Aospa-raphael-unofficial/linux) — 内核源码
 - [postmarketOS](https://postmarketos.org/) — sm8150 主线化工作与 `goodix_gtx8` 驱动来源
 - [linux-msm](https://github.com/linux-msm) — qrtr / rmtfs / pd-mapper / tqftpserv
+- [SHORiN-KiWATA/Shorin-ArchLinux-Guide](https://github.com/SHORiN-KiWATA/Shorin-ArchLinux-Guide) —
+  构建固件时参考的 Arch Linux 安装指南。btrfs 子卷布局（`@` / `@home`）、snapper 快照维护、
+  终端美化、中文输入法与 KDE 自定义设置均参考此指南，逐条对照见 [notes/shoria-alignment.md](notes/shoria-alignment.md)
 - Arch Linux ARM 与 KDE 社区
 
 ---
