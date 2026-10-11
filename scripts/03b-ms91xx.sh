@@ -52,23 +52,37 @@ fi
 printf '' > "$KDIR/include/config/auto.conf.cmd"
 touch "$KDIR/include/config/auto.conf" "$KDIR/include/config/auto.conf.cmd"
 
-if [ ! -x "$KDIR/scripts/basic/fixdep" ] || [ ! -x "$KDIR/scripts/mod/modpost" ]; then
-  log "编译内核宿主工具 (fixdep / modpost)"
-  # 该目标会在编完 modpost 后因缺 scripts/dtc 报错, 属于预期, 所以忽略退出码
+if [ ! -x "$KDIR/scripts/basic/fixdep" ]; then
+  log "编译 fixdep"
+  # 该目标会在编完脚本工具后因缺 scripts/dtc 报错, 属于预期, 忽略退出码
   make -C "$KDIR" ARCH=arm64 LLVM=1 scripts >/dev/null 2>&1 || true
 fi
 [ -x "$KDIR/scripts/basic/fixdep" ] || die "fixdep 没编出来, 无法继续"
+
+# modpost: 用 headers 包自带的源码直接编 (宿主程序, 与目标架构无关)。
+#   ★ 不能带 -I"$KDIR/include": 那会让内核的 linux/types.h 遮蔽系统头, 直接编挂。
+#   ★ 早先的写法依赖宿主 /lib/modules/*/build 里的 modpost, 本地能用但 CI
+#     (GitHub runner 没装内核头) 必挂 —— 已改成先自建、宿主只作兜底。
 if [ ! -x "$KDIR/scripts/mod/modpost" ]; then
-  # headers 包缺 scripts/mod 的一部分头文件, modpost 在这个树里编不出来。
-  # modpost 只做符号表/vermagic 处理, 与架构无关, 借用宿主内核构建树里的即可
-  # (宿主内核 7.2.9 与本项目 7.2.0 同代, 实测可用)。
-  HOST_MODPOST="$(ls -d /lib/modules/*/build/scripts/mod/modpost 2>/dev/null | head -1)"
+  # 宿主编译器: 本地一般是 cc, CI 的 Arch 容器只装了 clang
+  MODPOST_CC="$(command -v cc || command -v clang || command -v gcc || true)"
+  [ -n "$MODPOST_CC" ] || die "找不到 C 编译器 (cc / clang / gcc 都没有)"
+  log "编译 modpost ($MODPOST_CC, headers 包自带源码)"
+  ( cd "$KDIR/scripts/mod" && \
+    "$MODPOST_CC" -O2 -o modpost modpost.c file2alias.c sumversion.c symsearch.c \
+       -I. -I"$KDIR/scripts/include" ) >"$WORK/ms91xx-modpost.log" 2>&1 || true
+fi
+if [ ! -x "$KDIR/scripts/mod/modpost" ]; then
+  HOST_MODPOST="$(ls -d /lib/modules/*/build/scripts/mod/modpost 2>/dev/null | head -1 || true)"
   if [ -n "$HOST_MODPOST" ]; then
     cp "$HOST_MODPOST" "$KDIR/scripts/mod/modpost" && chmod +x "$KDIR/scripts/mod/modpost"
-    log "  借用宿主的 modpost ($HOST_MODPOST)"
+    log "  自建失败, 借用宿主的 modpost ($HOST_MODPOST)"
   fi
 fi
-[ -x "$KDIR/scripts/mod/modpost" ] || die "modpost 不可用 (装个 linux-headers 或把 scripts/mod 源码补全)"
+[ -x "$KDIR/scripts/mod/modpost" ] || {
+  tail -5 "$WORK/ms91xx-modpost.log" 2>/dev/null >&2 || true
+  die "modpost 不可用 (自建失败且宿主机没有内核构建树)"
+}
 
 # ---- 2. 编译模块 ----------------------------------------------------------
 log "交叉编译 usbdisp_drm.ko (aarch64, 内核 $KV)"
