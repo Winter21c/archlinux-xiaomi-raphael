@@ -34,6 +34,26 @@ KV="$(ls "$TMP/image/lib/modules" | head -1)"
 [ -n "$KV" ] || die "找不到内核模块目录"
 log "内核版本: $KV"
 
+# ---- 清理上次残留 ----------------------------------------------------------
+# ★ 上游换内核版本时 (例如 g29662fdcefa9 -> ga1573649db08) 这里必须显式清理:
+#   下面的 cp 只覆盖同名目录, 增量构建会把上一版内核的模块 (200 多兆) 和
+#   /boot 下的 vmlinuz/config/System.map 一起留在镜像里。
+for _d in "$ROOT"/usr/lib/modules/*/; do
+  [ -d "$_d" ] || continue
+  _v="$(basename "$_d")"
+  [ "$_v" = "$KV" ] && continue
+  log "  清理上一版内核模块: $_v"
+  rm -rf "$_d"
+done
+for _d in "$ROOT"/usr/src/linux-headers-*/; do
+  [ -d "$_d" ] || continue
+  _v="$(basename "$_d")"
+  [ "$_v" = "linux-headers-$KV" ] && continue
+  log "  清理上一版内核头文件: $_v"
+  rm -rf "$_d"
+done
+rm -f "$ROOT"/boot/vmlinuz-* "$ROOT"/boot/config-* "$ROOT"/boot/System.map-*
+
 # ---- 模块 -----------------------------------------------------------------
 rm -rf "$ROOT/usr/lib/modules/$KV"
 mkdir -p "$ROOT/usr/lib/modules"
