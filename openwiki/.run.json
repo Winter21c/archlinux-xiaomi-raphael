@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "runId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
+  "mode": "init",
+  "phase": "planning",
+  "startedAt": "2026-10-10T11:58:54.634Z",
+  "language": "zh",
+  "languageChanged": true,
+  "requiredRewritePages": [],
+  "initialPages": [],
+  "sourceFingerprint": "sha256:25022109b89e77490b3a4773eaf44c9cc49d78cda63e402575b210aaf8a236fe",
+  "targetGitHead": "64d74592105545da83e0a79ed4f45f81d444dc10",
+  "actor": {
+    "producerActor": "openwiki/0.7.2",
+    "metadataModel": "deepseek-flash"
+  },
+  "previousLastUpdate": null,
+  "beforeContentSnapshot": "ffa63583dfa6706b87d284b86b0d693a161e4840aad2c5cf6b5d27c3b9621f7d",
+  "preparedWiki": {
+    "generatedProvenance": []
+  }
+}
