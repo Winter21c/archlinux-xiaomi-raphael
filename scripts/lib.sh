@@ -193,6 +193,51 @@ mask_unit() {
   log "  mask (手工软链): $u"
 }
 
+# ---------------------------------------- wlroots layer-shell 补丁 -----------
+# 为什么需要 (2026-10-11 真机逐层定位出来的):
+#   phosh 的 home bar 用 set_size(0,0) + 只锚 BOTTOM(anchor=14), 尺寸指望 phoc 的
+#   zphoc_layer_shell_effects 协议去定; 但 wlroots 的 layer-shell 校验在客户端
+#   **第一个 commit** 上就要求"高度为 0 时必须同时锚 TOP 和 BOTTOM", 于是:
+#       wl_display.error(zwlr_layer_surface_v1, 1,
+#         "height 0 requested without setting top and bottom anchors")
+#   -> phosh 被按协议断开 -> 整个会话死掉 (phoc 的 effects 对象还没来得及建)。
+# 补丁: 把该校验放宽为"至少锚定一个垂直边" —— 只是接受更多请求, 原来合法的请求
+#   仍然合法, 不会引入新的拒绝。原始库会备份成 *.raphael-orig。
+# 说明: 这是二进制补丁 (不从源码重编 wlroots), 所以**带版本特征校验**: 找不到那段
+#   指令序列就只告警, 让其它桌面照常构建, 由人来看是不是 wlroots 升级了。
+patch_wlroots_layer_shell() {
+  local root="$1" lib found=0 rc=0
+  for lib in "$root"/usr/lib/libwlroots-*.so*; do
+    [ -f "$lib" ] || continue
+    case "$lib" in *.raphael-orig) continue ;; esac
+    found=1
+    if python3 - "$lib" <<'PYEOF'
+import struct, sys, shutil
+p = sys.argv[1]
+d = bytearray(open(p, 'rb').read())
+le = lambda *w: b''.join(struct.pack('<I', x) for x in w)
+orig  = le(0x12000402, 0x71000c5f, 0x54fffdc0)   # and w2,w0,#3 ; cmp w2,#3 ; b.eq
+fixed = le(0x12000402, 0x7100005f, 0x54fffdc1)   # and w2,w0,#3 ; cmp w2,#0 ; b.ne
+if fixed in d and orig not in d:
+    print("      已是补丁状态"); sys.exit(0)
+if d.count(orig) != 1:
+    print("      在库里找不到唯一的校验指令序列 (wlroots 升级了? 补丁需要重写)")
+    sys.exit(2)
+try:
+    shutil.copy2(p, p + '.raphael-orig')
+    i = d.find(orig)
+    d[i:i+12] = fixed
+    open(p, 'wb').write(d)
+except OSError as e:
+    print("      写库失败: %s" % e); sys.exit(3)
+print("      已打补丁 (备份 " + p.split('/')[-1] + ".raphael-orig)")
+PYEOF
+    then :; else warn "  $lib: wlroots layer-shell 补丁失败 (原因见上)"; rc=1; fi
+  done
+  if [ "$found" = 0 ]; then warn "  没找到 libwlroots-*.so, phosh 修复跳过"; return 1; fi
+  return $rc
+}
+
 # ------------------------------------------- 构建树属主归一化 ----------------
 # 为什么必须做 (2026-10 事故复盘):
 #   构建时如果在 userns 里以"假 root"跑, 生成/改动的文件在宿主上属主是 uid 1000。

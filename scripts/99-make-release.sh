@@ -72,7 +72,7 @@ done
 log "校验和: release/SHA256SUMS"
 
 cat > "$REL/刷机说明.txt" <<EOF
-Xiaomi Redmi K20 Pro (raphael / SM8150) — Arch Linux ARM + KDE Plasma Mobile
+Xiaomi Redmi K20 Pro (raphael / SM8150) — Arch Linux ARM + $DE_SUMMARY
 版本: $TAG
 生成时间: $(date -Iseconds)
 
@@ -107,7 +107,9 @@ Xiaomi Redmi K20 Pro (raphael / SM8150) — Arch Linux ARM + KDE Plasma Mobile
   详细说明见 README 第 2 节与 8.9。
 
 【第 4 步: 首次开机】
-  自动登录 Plasma Mobile, 用户 $USERNAME / 密码 (构建时设定, 默认 1234), root 密码 (同上)
+  桌面环境: $DE_SUMMARY
+  登录方式: $( [ "$HAVE_ANY_DE" = 1 ] && echo "SDDM 登录界面 (已列出所有已装会话), 自动登录 $PRIMARY_SESSION" || echo "纯命令行: 文本控制台 / SSH, 无自动登录" )
+  用户 $USERNAME / 密码 (构建时设定, 默认 1234), root 密码 (同上)
   首启动会自动扩容根分区、初始化 pacman 密钥环, 请耐心等 1-2 分钟
   ⚠ 请立刻修改默认密码: passwd && sudo passwd root
 

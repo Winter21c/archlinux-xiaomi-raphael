@@ -124,7 +124,7 @@ console-mode keep
 EOF
 
 cat > "$STAGE/loader/entries/arch.conf" <<EOF
-title   Arch Linux ARM (raphael) - Plasma Mobile
+title   Arch Linux ARM (raphael) - $DE_SUMMARY
 linux   /linux.efi
 initrd  /initramfs
 $DT_LINE

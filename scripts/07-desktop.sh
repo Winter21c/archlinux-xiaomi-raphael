@@ -2,10 +2,15 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (C) 2026 Winter21c <https://github.com/Winter21c>
 # ============================================================================
-#  阶段 07 — KDE Plasma 桌面 + Plasma Mobile 配置
-#  两个会话同时安装, 登录界面可切换:
-#    plasma-mobile.desktop -> startplasmamobile   (手机形态, 默认)
-#    plasma.desktop        -> startplasma-wayland (桌面形态)
+#  阶段 07 — 桌面环境配置 (可多选; 一个都不选 = 纯命令行)
+#  装哪些桌面由 config/build.conf 的 DESKTOPS 决定:
+#    plasma-mobile / plasma-desktop / phosh / gnome   (顺序 = 自动登录优先级)
+#  本阶段做四件事:
+#    1) 选了桌面: 字体优先级 + SDDM 登录界面 (自动登录进 DESKTOPS 第一个会话)
+#    2) 每个桌面的用户级预置 (Plasma / Phosh / GNOME 各自一段)
+#    3) 与桌面无关的: 音频用户服务 / 蓝牙 / 调制解调器 / 电源键
+#    4) 纯命令行: 不装不启用登录器, 默认 multi-user.target, 清掉增量重建的旧残留
+#  登录界面统一用 SDDM: 装了哪个桌面它就列出哪个会话, 登录时可随便切。
 # ============================================================================
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -13,10 +18,11 @@ require_ns
 ns_mount
 setup_qemu_shim
 
-confirm_stage "07 配置 KDE Plasma / Plasma Mobile"
+confirm_stage "07 配置桌面环境 ($DE_SUMMARY)"
 HOME_DIR="/home/$USERNAME"
 USERDIR="$ROOT$HOME_DIR"
 
+if [ "$HAVE_ANY_DE" = 1 ]; then
 # ---------------------------------------------------------------------------
 # 1. 中文字体优先级 (fontconfig) — 否则中文会掉进无 CJK 的字体里
 # ---------------------------------------------------------------------------
@@ -43,9 +49,13 @@ EOF
 gq /usr/bin/fc-cache -f >/dev/null 2>&1 && log "字体缓存已重建"
 
 # ---------------------------------------------------------------------------
-# 2. SDDM: 自动登录到 Plasma Mobile (手机形态), 桌面会话可手动切换
+# 2. SDDM: 登录界面列出所有已装会话, 自动登录进 DESKTOPS 里的第一个
+#   ★ 装了哪个桌面, /usr/share/wayland-sessions/ 里就有哪个 .desktop:
+#       plasma-mobile.desktop (startplasmamobile) / plasma.desktop / phosh.desktop
+#       (phosh-session) / gnome.desktop (gnome-session) —— SDDM 会自动列出来,
+#     所以"多选桌面"不需要额外配置, 登录时选一次即可 (RememberLastSession)。
 # ---------------------------------------------------------------------------
-log "配置 SDDM"
+log "配置 SDDM (会话: $DE_SUMMARY)"
 mkdir -p "$ROOT/etc/sddm.conf.d"
 cat > "$ROOT/etc/sddm.conf.d/10-raphael.conf" <<EOF
 [General]
@@ -56,43 +66,62 @@ Numlock=none
 # 否则一旦自动登录失败 (例如 pam_shells 拒绝 zsh) 就彻底进不去系统。
 InputMethod=qtvirtualkeyboard
 
+[Wayland]
+DisplayServer=wayland
+EOF
+# 登录界面自己的 Wayland 合成器: KDE 形态用 kwin_wayland, 没有 KDE 就用 weston
+if [ "$HAVE_KDE" = 1 ] && [ -x "$ROOT/usr/bin/kwin_wayland" ]; then
+  echo "CompositorCommand=kwin_wayland --drm --no-lockscreen --no-global-shortcuts --locale1" \
+    >> "$ROOT/etc/sddm.conf.d/10-raphael.conf"
+else
+  # SDDM 的默认值就是它; 这里显式写出来, 免得以后默认变了没人发现
+  echo "CompositorCommand=weston --shell=kiosk" >> "$ROOT/etc/sddm.conf.d/10-raphael.conf"
+fi
+# 主题/光标: breeze 是 KDE 带的, 没有 KDE 就用 SDDM 自带主题 (写不存在的主题会黑屏)
+if [ -d "$ROOT/usr/share/sddm/themes/breeze" ]; then
+  cat >> "$ROOT/etc/sddm.conf.d/10-raphael.conf" <<'EOF'
+
 [Theme]
 Current=breeze
 CursorTheme=breeze_cursors
-
-[Wayland]
-DisplayServer=wayland
-CompositorCommand=kwin_wayland --drm --no-lockscreen --no-global-shortcuts --locale1
+EOF
+else
+  log "  未装 KDE 的 breeze 主题 -> SDDM 用自带主题 (elarun)"
+fi
+cat >> "$ROOT/etc/sddm.conf.d/10-raphael.conf" <<'EOF'
 
 [Users]
 MaximumUid=60000
 RememberLastSession=true
 RememberLastUser=true
 EOF
-if [ "$AUTOLOGIN" = "true" ]; then
-  # 会话名 = wayland-sessions/ 下的 .desktop 文件名(去后缀):
-  #   mobile  -> plasma-mobile.desktop (startplasmamobile, 手机形态)
-  #   desktop -> plasma.desktop        (普通桌面: 面板 + 开始菜单)
-  case "${SESSION:-mobile}" in
-    desktop) SDDM_SESSION="plasma";         SESSION_DESC="Plasma 桌面" ;;
-    *)       SDDM_SESSION="plasma-mobile";  SESSION_DESC="Plasma Mobile" ;;
-  esac
+if [ "$AUTOLOGIN" = "true" ] && [ -n "$PRIMARY_SESSION" ]; then
   cat >> "$ROOT/etc/sddm.conf.d/10-raphael.conf" <<EOF
 
 [Autologin]
 User=$USERNAME
-Session=$SDDM_SESSION
+Session=$PRIMARY_SESSION
 Relogin=false
 EOF
-  log "  已启用自动登录 -> $USERNAME / $SESSION_DESC"
+  log "  已启用自动登录 -> $USERNAME / $DE_SUMMARY (第一个: $PRIMARY_SESSION)"
 fi
 mkdir -p "$ROOT/var/lib/sddm"
 chown 0:0 "$ROOT/var/lib/sddm" 2>/dev/null || true
 enable_unit sddm.service
+gq /usr/bin/systemctl --root=/ set-default graphical.target >/dev/null 2>&1 \
+  && log "  默认启动目标: graphical.target" || warn "  set-default graphical 失败"
+
+# 多装几个桌面时提示一下自动登录进哪个 (用户可能想换顺序)
+case "$DESKTOPS" in *" "*)
+  log "  提示: 装了多个桌面 (${DESKTOPS// /, }), 自动登录用第一个 ($PRIMARY_SESSION);"
+  log "        换顺序就改 config/build.conf 的 DESKTOPS, 或登录界面里手动选一次 (会记住)"
+  ;;
+esac
 
 # ---------------------------------------------------------------------------
-# 3. 用户级 Plasma 默认配置 (手机场景)
+# 3. Plasma (KDE) 用户级默认配置 —— 只有选了 plasma-mobile / plasma-desktop 才做
 # ---------------------------------------------------------------------------
+if [ "$HAVE_KDE" = 1 ]; then
 log "写入 Plasma 默认配置 ($HOME_DIR)"
 mkdir -p "$USERDIR/.config"
 # 不自动锁屏 (手机上没有密码键盘时会很尴尬)
@@ -139,8 +168,8 @@ SingleClick=true
 [Icons]
 Theme=breeze
 EOF
-# 手机形态专属 (桌面形态装了 plasma-mobile 才有意义)
-if [ "${SESSION:-mobile}" != "desktop" ]; then
+# 手机形态专属 (选了 plasma-mobile 才有意义)
+if [ "$HAVE_PLASMA_MOBILE" = 1 ]; then
   # 移动端主屏缩放 (Plasma Mobile 读这个键)
   cat > "$USERDIR/.config/plasmamobile" <<'EOF'
 [general]
@@ -148,22 +177,21 @@ mobileTaskSwitcher=true
 EOF
 fi
 
-# 触摸设备上桌面会话也要能弹出虚拟键盘
-# (KWin 6.7 的键名是 [Wayland] VirtualKeyboardEnabled / VirtualKeyboardMode,
-#  0=Never 1=NonMouseInput 2=AnyInput; 网上流传的 kwinrc InputMethod= 是错的,
-#  InputMethod= 其实是 SDDM 的键)
+# 触摸屏上的虚拟键盘 (plasma-keyboard)。
+# ★ 只写 InputMethod[$e] 一个键, 不要同时写 [Wayland] VirtualKeyboardEnabled/
+#   VirtualKeyboardMode —— 两个都在会互相抢输入: 键盘弹得出来但字进不了输入框
+#   (真机实测, 见 HANDOVER §5.5)。InputMethod[$e] 才是 KWin 认的那个。
 cat > "$USERDIR/.config/kwinrc" <<'EOF'
 [Wayland]
-VirtualKeyboardEnabled=true
-VirtualKeyboardMode=1
+InputMethod[$e]=/usr/share/applications/org.kde.plasma.keyboard.desktop
 EOF
-log "  已为桌面会话启用虚拟键盘 (plasma-keyboard, 非鼠标输入时弹出)"
+log "  已把 KWin 的虚拟键盘指向 plasma-keyboard"
 
 # 关掉 Plasma Mobile 的"初始设置向导" (plasma-mobile-initial-start)。
 # 它的开关在 ~/.config/plasmamobilerc 的 [InitialStart] wizardRun。
 # 不清掉它的话每次登录都会弹一次; 想看可以手动跑:
 #   plasma-mobile-initial-start --test-wizard
-if [ "${SESSION:-mobile}" != "desktop" ]; then
+if [ "$HAVE_PLASMA_MOBILE" = 1 ]; then
   cat > "$USERDIR/.config/plasmamobilerc" <<'EOF'
 [InitialStart]
 wizardRun=true
@@ -172,9 +200,114 @@ EOF
 fi
 
 # (不装 fcitx5 / Rime: 触摸屏输入交给 plasma-keyboard, 见 config/build.conf 的说明)
+fi   # ← HAVE_KDE
 
 # ---------------------------------------------------------------------------
-# 启用用户会话的音频服务 (PipeWire / WirePlumber)
+# 4. GNOME 系桌面 (Phosh / GNOME) 的系统级默认值
+#   ★ 为什么用 dconf 系统库而不是 gsettings: 构建期没有用户会话/dbus,
+#     gsettings 写不进用户库; dconf 的 system-db 是"系统默认值", 用户登录后生效
+#     (用户自己改过的键以用户的为准)。
+#   ★ /etc/dconf/profile/user 必须自己建: dconf 包只带 /etc/dconf/db/ 占位,
+#     没有 profile 文件时 system-db:local 根本不会被读取。
+# ---------------------------------------------------------------------------
+if [ "$HAVE_PHOSH" = 1 ] || [ "$HAVE_GNOME" = 1 ]; then
+  install -d "$ROOT/etc/dconf/db/local.d" "$ROOT/etc/dconf/profile"
+  cat > "$ROOT/etc/dconf/profile/user" <<'EOF'
+user-db:user
+system-db:local
+EOF
+  # 触摸屏: 聚焦输入框时自动弹屏幕键盘 (GNOME Shell 用自带 OSK, Phosh 用 squeekboard)
+  cat > "$ROOT/etc/dconf/db/local.d/00-raphael" <<'EOF'
+[org/gnome/desktop/a11y/applications]
+screen-keyboard-enabled=true
+EOF
+  if [ "$HAVE_GNOME" = 1 ]; then
+    # 1080x2340 的 6.39 寸屏: 1 倍缩放偏小。打开分数缩放的实验特性后,
+    # 用户能在「设置 → 显示器」里选 125%/150% (这里不预设, 免得猜错比例)
+    cat >> "$ROOT/etc/dconf/db/local.d/00-raphael" <<'EOF'
+
+[org/gnome/mutter]
+experimental-features=['scale-monitor-framebuffer']
+EOF
+  fi
+  if [ -x "$ROOT/usr/bin/dconf" ]; then
+    gq /usr/bin/dconf update >/dev/null 2>&1 && log "  dconf 系统默认值已编译" \
+      || warn "  dconf update 失败 (登录后 dconf 会自己生成, 影响不大)"
+  else
+    warn "  没找到 dconf, 跳过系统默认值编译"
+  fi
+  log "  $DE_SUMMARY: 屏幕键盘自动弹出 + 系统默认值已写入 /etc/dconf"
+fi
+
+# ---------------------------------------------------------------------------
+# 4b. Phosh 专用修复 (2026-10-11 真机逐层定位, 三处缺一不可)
+#   ① 内核: 这台设备的 msm/dpu 在 wlroots 的 atomic 提交路径上会失败
+#      (phoc: connector DSI-1: Atomic commit failed) -> 会话包装里走 legacy 路径
+#   ② 环境: squeekboard / xdg-desktop-portal-* 是 systemd **用户服务**, 拿不到
+#      WAYLAND_DISPLAY 就 "无法打开显示" 然后 abort -> 包装脚本里 import-environment
+#   ③ wlroots: layer-shell 的"高度 0 必须同时锚 TOP+BOTTOM"校验挡住了 phosh 的
+#      home bar (详见 lib.sh 里 patch_wlroots_layer_shell 的注释) -> 二进制补丁
+#   三处都做完之后, 真机上 phosh 能正常起来: 会话 active、squeekboard 不崩、
+#   0 个失败单元 (2026-10-11 用户确认屏幕可用)。
+#   ★ 想让 Phosh 当默认会话: DESKTOPS 里把它写在第一个 (顺序 = 自动登录优先级)
+# ---------------------------------------------------------------------------
+if [ "$HAVE_PHOSH" = 1 ]; then
+  install -d "$ROOT/usr/local/bin"
+  cat > "$ROOT/usr/local/bin/phosh-session-wrapper" <<'PSEOF'
+#!/bin/bash
+# Phosh 会话包装 (raphael):
+#   * WLR_DRM_NO_ATOMIC=1 —— 本机内核的 atomic 提交会让 phoc 起不来
+#   * 等 phoc 建好 wayland socket 后, 把 WAYLAND_DISPLAY 导入 systemd 用户管理器,
+#     否则 squeekboard / 各 portal 会 "无法打开显示" 直接 abort
+export WLR_DRM_NO_ATOMIC=1
+rt="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+(
+  for _ in $(seq 1 300); do
+    s="$(ls "$rt"/wayland-[0-9] 2>/dev/null | head -1)"
+    if [ -n "$s" ]; then
+      systemctl --user import-environment WAYLAND_DISPLAY XDG_RUNTIME_DIR >/dev/null 2>&1
+      systemctl --user reset-failed >/dev/null 2>&1
+      break
+    fi
+    sleep 0.1
+  done
+) &
+exec /usr/bin/phosh-session
+PSEOF
+  chmod 755 "$ROOT/usr/local/bin/phosh-session-wrapper"
+  if [ -f "$ROOT/usr/share/wayland-sessions/phosh.desktop" ]; then
+    sed -i 's|^Exec=.*|Exec=/usr/local/bin/phosh-session-wrapper|'         "$ROOT/usr/share/wayland-sessions/phosh.desktop"
+    log "  phosh 会话已包装 (NO_ATOMIC + 导入 WAYLAND_DISPLAY)"
+  else
+    warn "  没找到 phosh.desktop (phosh 包装未生效)"
+  fi
+  patch_wlroots_layer_shell "$ROOT" && log "  wlroots layer-shell 补丁已应用" \
+    || warn "  wlroots 补丁未应用 —— phosh 的 home bar 会被判协议错误, 会话起不来"
+fi
+
+else   # ← HAVE_ANY_DE = 0: 纯命令行 (DESKTOPS 为空)
+# ---------------------------------------------------------------------------
+# 4'. 纯命令行: 不装显示管理器、不开图形目标
+#   增量重建 (work/root 还在) 时, 上一版可能留下 SDDM 的 enable 软链和配置:
+#   必须显式清掉 —— 否则开机时 systemd 会去拉一个已经不存在的单元, 直接多一个
+#   failed, 而且会停在"等待图形界面"上。
+# ---------------------------------------------------------------------------
+log "纯命令行模式 (DESKTOPS 为空): 不启用任何显示管理器"
+for f in etc/systemd/system/display-manager.service \
+         etc/systemd/system/multi-user.target.wants/sddm.service \
+         etc/systemd/system/graphical.target.wants/sddm.service \
+         etc/systemd/system/sddm.service; do
+  rm -f "$ROOT/$f"
+done
+rm -f "$ROOT/etc/sddm.conf.d/10-raphael.conf"
+gq /usr/bin/systemctl --root=/ set-default multi-user.target >/dev/null 2>&1 \
+  && log "  默认启动目标: multi-user.target (文本控制台)" \
+  || warn "  set-default multi-user 失败 (Arch 默认图形目标, 手动改一下)"
+log "  登录方式: SSH (sshd 已启用) 或接 OTG 键盘用控制台; 想要桌面就重新构建时选桌面"
+fi   # ← HAVE_ANY_DE
+
+# ---------------------------------------------------------------------------
+# 5. 用户会话的音频服务 (PipeWire / WirePlumber) — 与桌面选择无关
 # ★ 必须显式 enable: 构建时 pacman 跳过了 scriptlet/hook, 发行版的 user preset
 #   没有执行, 用户家目录里没有任何 systemd 用户单元 -> 三个服务全不启动 ->
 #   表现为 "系统里有声音选项, 但一个声音设备都没有" (真机踩过)。
@@ -195,19 +328,21 @@ log "  已启用音频用户服务 (pipewire / pipewire-pulse / wireplumber)"
 
 chown -R 1000:1000 "$USERDIR" 2>/dev/null || true
 
-# 让 Plasma 首启动不弹向导/欢迎页
-mkdir -p "$ROOT/etc/xdg"
-cat > "$ROOT/etc/xdg/plasmashellrc" <<'EOF'
+# 让 Plasma 首启动不弹向导/欢迎页 (只在装了 Plasma 时有意义)
+if [ "$HAVE_KDE" = 1 ]; then
+  mkdir -p "$ROOT/etc/xdg"
+  cat > "$ROOT/etc/xdg/plasmashellrc" <<'EOF'
 [General]
 ShowedWelcomeScreen=true
 EOF
-cat > "$ROOT/etc/xdg/plasma-welcomerc" <<'EOF'
+  cat > "$ROOT/etc/xdg/plasma-welcomerc" <<'EOF'
 [General]
 published=false
 EOF
+fi
 
 # ---------------------------------------------------------------------------
-# 4. 其它服务
+# 6. 其它服务
 # ---------------------------------------------------------------------------
 log "启用蓝牙 / 调制解调器 / 传感器 / 时间同步"
 enable_unit bluetooth.service
@@ -221,15 +356,18 @@ if [ -f "$ROOT/usr/lib/systemd/system/systemd-timesyncd.service" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 5. 电源键守护 (上游 GNOME 版无法在 KDE 上工作, 这里换成 freedesktop 版)
+# 7. 电源键守护 (短按熄屏 / 长按关机) —— 与桌面选择无关, 但启用策略有关
 # ---------------------------------------------------------------------------
 log "安装电源键守护进程"
 cat > "$ROOT/usr/local/sbin/raphael-power-key.py" <<'PYEOF'
 #!/usr/bin/env python3
 """电源键处理: 短按熄屏/亮屏, 长按 1.5 秒关机。
-上游 Debian 版依赖 GNOME 的 org.gnome.ScreenSaver / SessionManager, 在 KDE 上
-完全无效, 这里改用 freedesktop 标准接口 (kscreenlocker 实现了
-org.freedesktop.ScreenSaver)。logind 已设 HandlePowerKey=ignore, 由本进程接管。
+
+三条通路, 按可用性依次回退:
+  1. org.freedesktop.ScreenSaver (KDE 的 kscreenlocker / GNOME Shell 都实现) —— 最省事
+  2. logind 的 Lock/Unlock (GNOME / Phosh 一定支持) —— 会话锁屏即熄屏
+  3. kscreen-doctor --dpms (只有在 KDE 且上面都不可用时兜底)
+logind 已设 HandlePowerKey=ignore, 由本进程接管电源键。
 """
 import logging, os, select, struct, subprocess, sys, threading, time
 
@@ -292,13 +430,42 @@ def set_active(active, env):
                    env=env, timeout=5, check=False)
 
 
+def user_sessions():
+    """当前用户的 logind 会话 id 列表 (本进程是 root, 不能用 loginctl 的 self)"""
+    try:
+        r = subprocess.run(["loginctl", "show-user", USER, "-p", "Display", "--value"],
+                           capture_output=True, text=True, timeout=3)
+        return [s for s in r.stdout.split() if s]
+    except Exception:
+        return []
+
+
+def locked_hint(sid):
+    try:
+        r = subprocess.run(["loginctl", "show-session", sid, "-p", "LockedHint", "--value"],
+                           capture_output=True, text=True, timeout=3)
+        return r.stdout.strip() == "yes"
+    except Exception:
+        return None
+
+
 def toggle_screen():
     env = user_env()
     if env is None:
         return
     cur = saver_active(env)
     if cur is None:
-        # 会话还没起来 / 没有 ScreenSaver -> 用 kscreen-doctor 直接切 DPMS
+        # 没有 freedesktop ScreenSaver 接口 (GNOME/Phosh 常见) -> 用 logind:
+        # 锁屏就是熄屏, 解锁就是亮屏 (两者都实现了 Session.Lock/Unlock)
+        sessions = user_sessions()
+        if sessions:
+            sid = sessions[0]
+            locked = locked_hint(sid)
+            if locked is not None:
+                action = "unlock-session" if locked else "lock-session"
+                subprocess.run(["loginctl", action, sid], timeout=5, check=False)
+                return
+        # 最后的兜底: KDE 直接切 DPMS
         if os.path.exists("/usr/bin/kscreen-doctor"):
             subprocess.run(["kscreen-doctor", "--dpms", "off"], env=env, timeout=5, check=False)
         return
@@ -359,16 +526,29 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 EOF
-# 默认不启用: PowerDevil 6.7 自己会处理电源键 (PowerButtonAction=128 切换屏幕)。
-# 如果发现电源键没反应, 用 systemctl enable --now raphael-power-key 启用本守护,
-# 同时建议把 powerdevilrc 的 PowerButtonAction 改成 0 以免重复触发。
-log "已安装电源键守护 (默认未启用): raphael-power-key.service"
+if [ "$HAVE_KDE" = 1 ]; then
+  # KDE 有 PowerDevil 自己处理电源键 (powerdevilrc 里 PowerButtonAction=128 切屏),
+  # 两个一起接管会重复触发 -> 默认不启用本守护。
+  # 要用就 systemctl enable --now raphael-power-key, 同时把 powerdevilrc 的
+  # PowerButtonAction 改成 0。
+  log "已安装电源键守护 (KDE 的 PowerDevil 已接管电源键, 默认不启用)"
+else
+  # GNOME / Phosh / 纯命令行 都没有 PowerDevil: 不启用的话电源键完全没反应
+  # (06 阶段把 logind 的 HandlePowerKey 设成了 ignore)
+  enable_unit raphael-power-key.service
+  log "已安装并启用电源键守护 (短按熄屏, 长按 1.5 秒关机)"
+fi
 
-log "KDE 配置完成"
+log "桌面环境配置完成 ($DE_SUMMARY)"
 
 # ---------------------------------------------------------------------------
 # 13. Shorin 指南对齐 (终端美化 + 中文输入法 + KDE 自定义)
+#   ★ 2026-10-10: 这一整段是 KDE/Plasma 专属 (Konsole/kdeglobals/kwin/plasma-keyboard),
+#     而且 13.10 紧接着又把它撤掉了。为了不让 phosh/GNOME/纯命令行 的构建白跑一遍
+#     (git clone oh-my-zsh、下 Catppuccin 配色、写一堆马上就删的 KDE 配置),
+#     整段只在选了 KDE 桌面时执行。代码保留, 想恢复个性化删掉这个 if 即可。
 # ---------------------------------------------------------------------------
+if [ "$HAVE_KDE" = 1 ]; then
 H="$ROOT/home/$USERNAME"
 install -d "$H/.config" "$H/.local/share" "$H/.local/state"
 
@@ -673,6 +853,7 @@ rm -rf "$H/.config/fcitx5" "$H/.local/share/fcitx5" 2>/dev/null || true
 # 13.9 修复 home 属主 (07 阶段新建的文件)
 chown -R 1000:1000 "$H" 2>/dev/null || true
 log "Shorin 对齐 (终端/输入法/KDE) 完成"
+fi   # ← HAVE_KDE (13.1~13.9)
 
 # ---------------------------------------------------------------------------
 # 13.10 ★ 去掉 Shorin 指南带来的"个性化"覆盖 (2026-10-01 用户要求)
@@ -680,22 +861,29 @@ log "Shorin 对齐 (终端/输入法/KDE) 完成"
 #   这里只做"把个性化配置撤掉、回到 KDE/系统默认", **不卸载任何包**
 #   (字体 / zsh / fcitx5 / konsole 都还在, 想用随时手动开)。
 #   要恢复个性化: 删掉本段即可 (上面的生成逻辑仍然完整保留)。
+#   ★ 本段对所有形态都跑 (纯命令行 / phosh / GNOME 也一样): 它的作用是清理
+#     增量重建时上一版留下的个性化文件, 属于卫生工作, 不是"配置桌面"。
 # ---------------------------------------------------------------------------
+H="$USERDIR"          # 13.1~13.9 被跳过时 H 没定义过
 log "撤销 Shorin 个性化覆盖 (保留包本身)"
 # 1) 字体/光标/快捷键/截图/星舰提示符/Konsole 覆盖 -> 回默认
 for f in kdeglobals kcminputrc kglobalshortcutsrc spectaclerc starship.toml konsolerc; do
   rm -f "$H/.config/$f"
 done
 rm -rf "$H/.local/share/konsole"
-# 2) kwin 特效 (wobbly / geometry change) + InputMethod=fcitx
-#    触屏键盘靠 KCM 写的 [Wayland] InputMethod[$e]=...plasma.keyboard.desktop,
-#    不要同时写 VirtualKeyboard= (两个都在会抢输入: 键盘弹得出来但字进不了输入框)
+# 2) kwin 特效 (wobbly / geometry change) + fcitx 输入法
+#    ★ 13.7 又写过一遍带特效的 kwinrc, 这里必须覆盖回来: 只留 InputMethod[$e]。
+#      两个都在 (VirtualKeyboard= + InputMethod=) 会互相抢输入 —— 键盘弹得出来
+#      但字进不了输入框; 特效那段也是"个性化", 用户明确要求撤掉。
+rm -f "$H/.config/kwineffectsrc" 2>/dev/null || true
 rm -f "$H/.config/kwinrc"
-mkdir -p "$H/.config"
-cat > "$H/.config/kwinrc" <<'KEOF'
+if [ "$HAVE_KDE" = 1 ]; then
+  mkdir -p "$H/.config"
+  cat > "$H/.config/kwinrc" <<'KEOF'
 [Wayland]
 InputMethod[$e]=/usr/share/applications/org.kde.plasma.keyboard.desktop
 KEOF
+fi
 # 3) oh-my-zsh / oh-my-bash 主题: 换朴素 rc (先备份成 .shorin-bak 便于用户自己找回来)
 for rc in .zshrc .bashrc; do
   [ -e "$H/$rc" ] && mv "$H/$rc" "$H/$rc.shorin-bak" 2>/dev/null

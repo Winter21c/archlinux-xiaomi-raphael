@@ -117,7 +117,11 @@ echo ">>> 重启"
 run fastboot reboot
 
 echo
-echo "设备应该会在几秒后显示 U-Boot 启动菜单, 然后进入 Plasma Mobile。"
+# 自动登录哪个桌面以"镜像里实际写的"为准 (构建时可以用 DESKTOPS=... 覆盖, 所以
+# 不能只看 build.conf 的默认值)
+_autologin="$(grep -h '^Session=' "$ROOT/etc/sddm.conf.d/10-raphael.conf" 2>/dev/null | tail -1 | cut -d= -f2)"
+echo "设备应该会在几秒后显示 U-Boot 启动菜单, 然后进入: ${_autologin:-$DE_SUMMARY}"
+[ -n "$_autologin" ] && echo "  (登录界面还可选其它已装的桌面: $(ls "$ROOT/usr/share/wayland-sessions/" 2>/dev/null | sed 's/\.desktop//' | tr '\n' ' '))"
 echo "首次启动会自动扩容根分区并初始化 pacman 密钥环, 可能多花 1-2 分钟。"
 echo
 echo "排障:"

@@ -93,12 +93,36 @@ log "同步软件包数据库"
 # ---------------------------------------------------------------------------
 # 校验包名 (不存在的包只告警, 不中断; 手机端可选应用常常缺失)
 # ---------------------------------------------------------------------------
-VALID=(); MISSING=()
+VALID=(); MISSING=(); ISGROUP=()
 for p in $ALL_PKGS; do
-  if "${PACMAN[@]}" -Si "$p" >/dev/null 2>&1; then VALID+=("$p"); else MISSING+=("$p"); fi
+  if "${PACMAN[@]}" -Si "$p" >/dev/null 2>&1; then
+    VALID+=("$p")
+  elif "${PACMAN[@]}" -Sg "$p" >/dev/null 2>&1; then
+    # 包组 (gnome / plasma / kde-* ...): -Si 查不到, 但 -S 可以整组装
+    VALID+=("$p"); ISGROUP+=("$p")
+  else
+    MISSING+=("$p")
+  fi
 done
+if [ ${#ISGROUP[@]} -gt 0 ]; then
+  log "其中包组 (整组安装): ${ISGROUP[*]}"
+fi
 if [ ${#MISSING[@]} -gt 0 ]; then
   warn "以下包在 Arch Linux ARM 仓库中不存在, 已跳过: ${MISSING[*]}"
+fi
+# 选中的桌面环境缺了关键包 = 坏镜像 (能刷但进不去桌面), 直接失败不要蒙混过关
+if [ "$HAVE_ANY_DE" = 1 ]; then
+  DE_CRIT="sddm"
+  [ "$HAVE_KDE" = 1 ]            && DE_CRIT="$DE_CRIT plasma-desktop plasma-keyboard"
+  [ "$HAVE_PLASMA_MOBILE" = 1 ]  && DE_CRIT="$DE_CRIT plasma-mobile"
+  [ "$HAVE_PHOSH" = 1 ]          && DE_CRIT="$DE_CRIT phosh phoc squeekboard"
+  [ "$HAVE_GNOME" = 1 ]          && DE_CRIT="$DE_CRIT gnome-shell gnome-session nautilus"
+  for p in $DE_CRIT; do
+    case " ${MISSING[*]-} " in
+      *" $p "*) die "选中的桌面需要 '$p', 但它在仓库里不存在 —— 拒绝产出进不去桌面的镜像" ;;
+    esac
+  done
+  log "桌面关键包检查通过: $DE_SUMMARY"
 fi
 log "准备安装 ${#VALID[@]} 个包 (含依赖)"
 
@@ -132,6 +156,18 @@ if ls -d "$ROOT"/var/lib/pacman/local/plasma-bigscreen-* >/dev/null 2>&1; then
   log "移除 plasma-bigscreen (电视版界面, 手机用不到)"
   "${PACMAN[@]}" -Rdd plasma-bigscreen >/dev/null 2>&1 || warn "  移除失败"
 fi
+
+# ---------------------------------------------------------------------------
+# 去重: 把"同功能只留一个"里被去掉的包从树里删掉 (见 build.conf 的 drop_pkgs)
+#   ★ 必须显式删: 增量构建时 02 只装不删, 上次构建装进去的会一直留着。
+#   ★ 用 -Rdd: 只删点名的包, 不连带删依赖 (共享库 phosh/GNOME 还要用)。
+# ---------------------------------------------------------------------------
+for _p in ${PKGS_PRUNE:-}; do
+  if ls -d "$ROOT"/var/lib/pacman/local/"$_p"-* >/dev/null 2>&1; then
+    log "  去重移除 $_p"
+    "${PACMAN[@]}" -Rdd --noscriptlet "$_p" >/dev/null 2>&1 || warn "    移除 $_p 失败"
+  fi
+done
 
 # ---------------------------------------------------------------------------
 # 清理发行版自带内核遗留 & 默认用户

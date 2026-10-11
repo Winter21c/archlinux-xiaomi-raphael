@@ -26,10 +26,26 @@ on:
   workflow_dispatch:
     inputs:
       session:
-        description: '桌面形态: mobile = Plasma Mobile (手机), desktop = 桌面版 Plasma (精简包列表)'
+        description: '[旧] 单选形态; 留 auto = 用下面四个"桌面"复选框 (四个都不勾 = 纯命令行)'
         type: choice
-        options: [mobile, desktop]
-        default: mobile
+        options: [auto, mobile, desktop, none]
+        default: auto
+      de_plasma_mobile:
+        description: '桌面: Plasma Mobile (手机外壳, 触屏键盘 + 手机应用)'
+        type: boolean
+        default: true
+      de_plasma_desktop:
+        description: '桌面: 普通 Plasma 桌面 (面板 + 开始菜单)'
+        type: boolean
+        default: false
+      de_phosh:
+        description: '桌面: Phosh (GNOME 手机外壳 + squeekboard 键盘 + 通话/短信)'
+        type: boolean
+        default: false
+      de_gnome:
+        description: '桌面: GNOME 桌面 (gnome-shell + nautilus + 控制中心)'
+        type: boolean
+        default: false
       username:
         description: '镜像里的用户名 (留空 = 用 config/build.conf 里的 user)'
         required: false
@@ -263,17 +279,46 @@ jobs:
       - name: 显示构建配置
         env:
           SESSION: ${{ inputs.session }}
+          DE_PLASMA_MOBILE: ${{ inputs.de_plasma_mobile }}
+          DE_PLASMA_DESKTOP: ${{ inputs.de_plasma_desktop }}
+          DE_PHOSH: ${{ inputs.de_phosh }}
+          DE_GNOME: ${{ inputs.de_gnome }}
         run: |
-          echo ">> 系统形态 SESSION=$SESSION"
-          echo ">> 生效的包列表 (含按形态拼装后的结果):"
-          bash -c 'SESSION='"$SESSION"'; . config/build.conf; echo "$ALL_PKGS" | tr " " "\n" | sort | tr "\n" " "; echo'
+          # 桌面环境选择 -> DESKTOPS (空格分隔; 顺序 = 自动登录优先级)
+          #   * session != auto 时按旧单选走 (向后兼容)
+          #   * 复选框是 workflow_dispatch 才有的值; push 触发时它们是空的 ->
+          #     保持历史默认 (Plasma Mobile), 免得自动构建悄悄变成纯命令行
+          if [ -n "$SESSION" ] && [ "$SESSION" != "auto" ]; then
+            case "$SESSION" in
+              mobile)  DESKTOPS="plasma-mobile" ;;
+              desktop) DESKTOPS="plasma-desktop" ;;
+              none)    DESKTOPS="" ;;
+              *)       echo "!! 未知 session='$SESSION'"; exit 1 ;;
+            esac
+            echo ">> 用旧输入 session=$SESSION -> DESKTOPS='$DESKTOPS'"
+          elif [ -n "$DE_PLASMA_MOBILE$DE_PLASMA_DESKTOP$DE_PHOSH$DE_GNOME" ]; then
+            DESKTOPS=""
+            [ "$DE_PLASMA_MOBILE"  = "true" ] && DESKTOPS="$DESKTOPS plasma-mobile"
+            [ "$DE_PLASMA_DESKTOP" = "true" ] && DESKTOPS="$DESKTOPS plasma-desktop"
+            [ "$DE_PHOSH"          = "true" ] && DESKTOPS="$DESKTOPS phosh"
+            [ "$DE_GNOME"          = "true" ] && DESKTOPS="$DESKTOPS gnome"
+            DESKTOPS="${DESKTOPS# }"
+            echo ">> 复选框选择 -> DESKTOPS='$DESKTOPS'"
+          else
+            DESKTOPS="plasma-mobile"
+            echo ">> 没给桌面选择 (push 触发?) -> 历史默认 DESKTOPS='plasma-mobile'"
+          fi
+          # 写进 $GITHUB_ENV: 后续所有步骤 (含 build.sh) 都会继承
+          echo "DESKTOPS=$DESKTOPS" >> "$GITHUB_ENV"
+          export DESKTOPS
+          echo ">> 生效的桌面:"
+          ( . config/build.conf; echo "   $DE_SUMMARY  (自动登录: ${PRIMARY_SESSION:-无})" )
+          echo ">> 生效的包列表 (按桌面选择拼装后):"
+          ( . config/build.conf; echo "$ALL_PKGS" | tr " " "\n" | sort | tr "\n" " "; echo )
           echo ">> build.conf 里的关键项:"
-          grep -E '^(SESSION|USERNAME|HOSTNAME|KERNEL_VERSION)=' config/build.conf | head -10
+          grep -E '^(USERNAME|HOSTNAME|KERNEL_VERSION|IMAGE_SIZE)=' config/build.conf | head -10
 
       - name: 运行 build.sh
-        env:
-          # build.conf 里写的是 SESSION="${SESSION:-mobile}", 这里透传即可
-          SESSION: ${{ inputs.session }}
         run: |
           set -o pipefail
           STAGES='${{ inputs.stages }}'
@@ -356,6 +401,8 @@ jobs:
         run: |
           {
             echo "### 构建结果"
+            echo
+            echo "桌面环境: **${DESKTOPS:-纯命令行}**"
             echo
             echo '```'
             ls -lh out/ release/ 2>/dev/null || true

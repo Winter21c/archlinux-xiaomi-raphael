@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Copyright (C) 2026 Winter21c <https://github.com/Winter21c>
 # ============================================================================
-#  阶段 09 — 生成 rootfs 磁盘镜像 (ext4)
+#  阶段 09 — 生成 rootfs 磁盘镜像 (ext4 / btrfs)
 #  关键点:
 #   * 在 user namespace 内执行 mke2fs -d, 这样镜像里的文件属主是 uid 0
 #     (namespace 内所有文件都映射为 root)
-#   * 镜像大小 8G, 首启动由 fstab 的 x-systemd.growfs 扩容到 userdata 实际大小
+#   * 镜像大小: config/build.conf 的 IMAGE_SIZE 是**下限**, 内容多了这里自动
+#     放大 (多选桌面时内容差别很大); 首启动由 fstab 的 x-systemd.growfs 扩容
+#     到 userdata 分区实际大小
 #   * 同时产出 fastboot 用的 sparse 镜像 (体积/时间都小很多)
 # ============================================================================
 set -euo pipefail
@@ -38,6 +40,24 @@ for d in proc sys dev run tmp; do mkdir -p "$ROOT/$d"; done
 rm -f "$ROOT"/etc/ssh/ssh_host_* 2>/dev/null || true
 
 log "rootfs 内容: $(du -sh "$ROOT" | cut -f1), $(find "$ROOT" | wc -l) 个条目"
+
+# ---- 镜像大小: 配置里的 IMAGE_SIZE 是下限, 内容超了就自动放大 --------------
+#   多选桌面 (例如 plasma-mobile + phosh + gnome) 时内容会明显变大: 死守 8G
+#   会做出一个"装不下"的镜像 —— mkfs 到一半报 no space, 或者镜像满了以后
+#   设备上连日志都写不进去。这里按实际内容算一个够用的值, 只上不下。
+#   估法: 内容 × 1.15 + 512 MB 余量 (btrfs 走 zstd 压缩写入, 实际更松;
+#   ext4 不压缩, 这个余量刚好够 inode/元数据)。镜像本身是稀疏文件,
+#   多要的空间不会真的占宿主磁盘, 首启动还会 growfs 到 userdata 全尺寸。
+CFG_BYTES="$(numfmt --from=iec "$IMAGE_SIZE" 2>/dev/null || echo $((8*1024*1024*1024)))"
+USED_MB="$(du -sm --apparent-size "$ROOT" | cut -f1)"
+NEED_MB=$(( USED_MB * 115 / 100 + 512 ))
+WANT_MB=$(( CFG_BYTES / 1024 / 1024 ))
+if [ "$NEED_MB" -gt "$WANT_MB" ]; then
+  log "镜像自动放大: 内容 ${USED_MB} MB -> ${NEED_MB} MB (配置下限 $IMAGE_SIZE)"
+  IMAGE_SIZE="${NEED_MB}M"
+else
+  log "镜像大小: $IMAGE_SIZE (内容 ${USED_MB} MB, 配置下限够用)"
+fi
 
 # ---- 生成镜像 -------------------------------------------------------------
 rm -f "$IMG" "$OUT/rootfs.sparse.img"

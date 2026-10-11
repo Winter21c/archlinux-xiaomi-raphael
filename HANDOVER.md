@@ -11,11 +11,12 @@
 ## 0. 三十秒版本
 
 把小米 **Redmi K20 Pro（代号 raphael，骁龙 855+）** 从 Android 换成一个能日常开机的
-**Arch Linux ARM + KDE Plasma Mobile** 手机系统：
+**Arch Linux ARM** 手机系统，桌面环境**可多选**（Plasma Mobile / Plasma 桌面 / Phosh / GNOME，
+也可以一个都不选 = 纯命令行，见 §1.5）：
 
 ```
-U-Boot  →  systemd-boot  →  定制 7.2 内核  →  Arch Linux ARM (btrfs)  →  Plasma Mobile
-(boot 分区)   (cache 分区)                     (userdata 分区)
+U-Boot  →  systemd-boot  →  定制 7.2 内核  →  Arch Linux ARM (btrfs)  →  SDDM 登录界面
+(boot 分区)   (cache 分区)                     (userdata 分区)          →  所选桌面
 ```
 
 触摸屏、Wi-Fi、蓝牙、扬声器、USB 网络共享、屏幕键盘都能用；
@@ -52,20 +53,40 @@ U-Boot  →  systemd-boot  →  定制 7.2 内核  →  Arch Linux ARM (btrfs)  
 
 ---
 
-## 1.5 两种形态（`SESSION`）
+## 1.5 桌面环境选择（`DESKTOPS`，可多选）
 
-`config/build.conf` 的 `SESSION`（可用环境变量覆盖）在**两种桌面形态**间切换，
-包列表与 SDDM 会话名都跟着变：
+`config/build.conf` 的 `DESKTOPS`（可用环境变量覆盖）决定装哪些桌面，**空格分隔、可多选，
+顺序 = 自动登录优先级；留空 = 纯命令行**：
+
+> 想把某个桌面设成默认，就把它写在 `DESKTOPS` 的第一个（例如 `DESKTOPS="phosh plasma-mobile"`）。
+> 多选时**同功能的 app 只留一个**（有 KDE 就留 KDE 的：终端 konsole、文件 dolphin、
+> PDF okular、图片 gwenview、监视器 plasma-systemmonitor、编辑器 kate），见 README §8.19。
 
 | 值 | 包列表 | SDDM `Session=` | 说明 |
 |:--|:--|:--|:--|
-| `mobile`（默认） | `PKGS_KDE_COMMON` + `PKGS_KDE_MOBILE_EXTRA` + 手机应用 + 全套字体 | `plasma-mobile` | Plasma Mobile 外壳 |
-| `desktop` | `PKGS_KDE_COMMON` + `PKGS_KDE_DESKTOP_EXTRA`（只多 kate），并去掉 flatpak/kdeconnect/man-pages/vim、手机字体、yay | `plasma` | 普通桌面（面板+开始菜单） |
+| `plasma-mobile`（默认） | `PKGS_KDE_COMMON` + `PKGS_KDE_MOBILE_EXTRA` + 手机应用 + 全套字体 + yay | `plasma-mobile` | Plasma Mobile 外壳 |
+| `plasma-desktop` | `PKGS_KDE_COMMON` + `PKGS_KDE_DESKTOP_EXTRA`（只多 kate） | `plasma` | 普通桌面（面板+开始菜单） |
+| `phosh` | `PKGS_PHOSH`（phosh/phoc/squeekboard/feedbackd/通话短信…） | `phosh` | GNOME 手机外壳，**2026-10-11 已修好**（构建时自动打三处修复，见 README §8.17） |
+| `gnome` | `PKGS_GNOME`（精选 20 包，不是完整 gnome 组） | `gnome` | GNOME 桌面 |
+| *(空)* | 只有 `PKGS_BASE` 等基础包 | —— | 纯命令行（不装 DM/字体/wayland） |
 
-脚本里用 `[ "${SESSION:-mobile}" != "desktop" ]` 把 Plasma Mobile 专属配置
-（`plasmamobile` 主屏缩放、`plasmamobilerc` 向导）圈起来。改形态时**记得同时看**：
-`config/build.conf` 的拼装段、`scripts/07-desktop.sh` 的两处分支。
-CI 侧对应 `session` 输入（choice），日志「显示构建配置」会把生效的完整包列表打出来。
+派生标志（脚本里一律用这些判断，别再解析字符串）：
+`HAVE_KDE` / `HAVE_PLASMA_MOBILE` / `HAVE_PHOSH` / `HAVE_GNOME` / `HAVE_MOBILE_SHELL` /
+`HAVE_ANY_DE` / `PRIMARY_SESSION`（自动登录的会话名）/ `DE_SUMMARY`（日志用）。
+
+要点：
+- **登录器统一 SDDM**（`PKGS_DM`）：含 KDE 时用 `kwin_wayland` 当登录界面合成器，
+  否则装 `weston` 用 `weston --shell=kiosk`（SDDM 的默认 `CompositorCommand`）；
+  breeze 主题只在真装了 KDE 时才写（写不存在的主题会黑屏）。
+- **纯命令行**：不装 sddm，`07` 里显式清掉增量重建留下的 `display-manager.service`
+  软链并 `set-default multi-user.target`。
+- **触屏输入**：Plasma→plasma-keyboard、Phosh→squeekboard、GNOME→自带 OSK
+  （dconf `screen-keyboard-enabled`）；SDDM 登录界面用 `qt6-virtualkeyboard`。
+- **电源键**：KDE 交给 PowerDevil（不启用自研守护）；非 KDE（含纯命令行）由
+  `raphael-power-key.service` 接管（ScreenSaver → logind 锁屏 → DPMS 三级回退）。
+- 改这块时**记得同时看**：`config/build.conf` 的拼装段、`scripts/07-desktop.sh` 的
+  `HAVE_*` 分支、`scripts/02-pacman.sh` 的桌面关键包硬检查。CI 侧是四个复选框
+  （`de_*`），旧的 `session` 单选仍兼容，日志「显示构建配置」会打印生效的桌面与完整包列表。
 
 > `@`/`@home` 与形态无关：取决于**构建时能不能 loop 挂载 btrfs**（CI 有准备 loop
 > 设备；本地内核升级后没重启会退回单子卷 flat）。
@@ -98,7 +119,7 @@ CI 侧对应 `session` 输入（choice），日志「显示构建配置」会把
 |:--|:--|:--|:--|
 | 00 | 下载上游产物（ALARM rootfs、内核 deb、固件、U-Boot、FAT 模板） | 看缓存 | 上游 Release 改名/删除 |
 | 01 | 解包 rootfs 并校正权限 | 1-2 min | userns 下 uid 映射（见 §5.1） |
-| 02 | `pacman` 装基础系统 + KDE + Plasma Mobile（约 190 个包） | 5-15 min | **半升级**（见 §4.5）；脚本后置步骤要 qemu 补跑 |
+| 02 | `pacman` 装基础系统 + 所选桌面（Plasma Mobile 约 190 个包；纯命令行约 78 个） | 5-15 min | **半升级**（见 §4.5）；脚本后置步骤要 qemu 补跑；桌面关键包缺失会直接失败 |
 | 03 | 装 raphael 定制内核（Image + 模块 + dtb） | 秒级 | |
 | 04 | 设备固件 + ALSA UCM | 秒级 | **故意删掉 `regulatory.db`**（见 §4.8） |
 | 05 | 交叉编译 qcom 用户态：`rmtfs`/`pd-mapper`/`tqftpserv`/`qrtr` | 1 min | **`-lqrtr` 找不到库**（见 §4.6） |
@@ -334,6 +355,9 @@ dmesg 里那行 `Direct firmware load for regulatory.db failed` 是**预期的**
   AUR 安装脚本挂在 `multi-user.target`（1 分 43 秒）。
 - **修**：都改成 **timer**（`OnBootSec=12s` / `90s`），开机从 **2 分 01 秒 → 18.7 秒**
   （`systemd-analyze`：firmware 4.96 + loader 3.25 + kernel 1.70 + userspace 8.78）。
+- **后续（2026-10-10）**：那个 **AUR 首启动安装整个删掉了**（用户要求镜像不要自己装 AUR 包，
+  且它每次开机失败都会往 `/etc/motd` 刷「AUR 安装失败」，一登 SSH 就看到）。
+  现在只剩音频那两个 timer，见 `scripts/06-config.sh` 13.8 段的说明。
 
 ### 5.7 蓝牙完全不可用（`Invalid Index`）
 
