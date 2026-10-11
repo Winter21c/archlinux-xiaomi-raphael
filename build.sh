@@ -18,15 +18,21 @@ set -euo pipefail
 PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$PROJ"
 
+# 读配置只为两件事: 提前校验 DESKTOPS (写错了立刻报错, 别等装完包才发现),
+# 以及把"这次装哪些桌面"打印出来。
+# shellcheck source=/dev/null
+. config/build.conf
+
 STAGES=(
   "00-fetch.sh:下载上游产物 (rootfs / 内核 deb / 固件 / U-Boot / 模板)"
   "01-rootfs.sh:解包 Arch Linux ARM rootfs 并校正权限"
-  "02-pacman.sh:安装基础系统 + KDE Plasma 桌面 + Plasma Mobile"
+  "02-pacman.sh:安装基础系统 + 桌面环境: $DE_SUMMARY"
   "03-kernel.sh:安装 raphael 定制内核 (Image + 模块 + dtb)"
+  "03b-ms91xx.sh:编译 MS91xx USB 投屏驱动模块"
   "04-firmware.sh:安装设备固件 + ALSA UCM 音频配置"
   "05-qcom.sh:构建 rmtfs / pd-mapper / tqftpserv (调制解调器与音频必需)"
   "06-config.sh:系统配置 (locale/fstab/用户/NCM 网络/电源/zram)"
-  "07-desktop.sh:Plasma 桌面与 Plasma Mobile 会话配置"
+  "07-desktop.sh:桌面环境配置 (Plasma Mobile / Plasma / Phosh / GNOME, 或纯命令行)"
   "08-initramfs.sh:生成 initramfs"
   "09-image-rootfs.sh:生成 rootfs.ext4 镜像 (含 sparse 版本)"
   "10-image-boot.sh:生成 cache 分区 FAT32 引导镜像"
@@ -70,7 +76,12 @@ should_run() {
 
 echo "=============================================================="
 echo "  Xiaomi Redmi K20 Pro (raphael / SM8150) — Arch Linux ARM"
-echo "  KDE Plasma 桌面 + Plasma Mobile"
+echo "  桌面环境: $DE_SUMMARY"
+if [ "$HAVE_ANY_DE" = 1 ]; then
+  echo "  自动登录: $PRIMARY_SESSION   (登录界面可切其它已装会话)"
+else
+  echo "  纯命令行: 不装显示管理器, 用 SSH / OTG 键盘登录"
+fi
 echo "=============================================================="
 echo
 

@@ -15,23 +15,60 @@
 
 ---
 
-## 0. 两种形态：Plasma Mobile 还是桌面版 Plasma
+## 0. 选桌面环境（可多选；一个都不选 = 纯命令行）
 
-`config/build.conf` 里的 `SESSION` 决定装哪种桌面（同一套脚本，包列表自动切换）：
+`config/build.conf` 里的 `DESKTOPS` 决定镜像装哪些桌面 —— **空格或逗号分隔，可以多选**，
+**顺序就是自动登录的优先级**：
 
-| 形态 | 装什么 | 自动登录到 |
+| 取值 | 装什么 | 适合 |
 |:--|:--|:--|
-| `SESSION="mobile"`（默认） | `plasma-mobile` 外壳 + 手机应用 + 一批桌面应用 | `plasma-mobile` 会话（手机形态） |
-| `SESSION="desktop"` | 精简包列表：`plasma-desktop` + `sddm` + `plasma-nm`/`plasma-pa`/`powerdevil` + **konsole**（终端）/dolphin/kate/systemsettings + `plasma-keyboard`（没物理键盘，屏幕键盘必留） | `plasma` 会话（普通桌面：面板 + 开始菜单） |
+| `plasma-mobile`（默认） | Plasma Mobile 外壳 + 手机应用 + `plasma-keyboard` 触屏键盘 | 手机形态 |
+| `plasma-desktop` | Plasma 桌面：面板 + 开始菜单 + dolphin/kate/systemsettings | 桌面形态 |
+| `phosh` | Phosh（GNOME 手机外壳）+ `squeekboard` 键盘 + 通话/短信 + 移动设置 | ✅ 可用（2026-10-11 真机验证）。构建脚本自动打三处修复，见 §8.17 |
+| `gnome` | GNOME 桌面：gnome-shell + nautilus + 控制中心 + gvfs-mtp + 自带屏幕键盘 | 完整桌面体验 |
+| *(留空)* | 不装桌面、不装登录器、不装字体 | 纯命令行（SSH / OTG 键盘） |
 
 ```bash
-# 本地构建桌面版
-SESSION=desktop sudo ./build.sh
-# 云端: Actions → 构建镜像 → session 选 desktop
+DESKTOPS="plasma-mobile" ./build.sh                             # 默认: 手机形态 Plasma
+DESKTOPS="phosh" ./build.sh                                     # 只要 Phosh
+DESKTOPS="plasma-desktop gnome" ./build.sh                      # 两个都装, 自动登录进 Plasma
+DESKTOPS="plasma-mobile phosh" ./build.sh                       # 手机上两个外壳都装上
+DESKTOPS="gnome phosh plasma-desktop plasma-mobile" ./build.sh  # 全选 (四个都装)
+DESKTOPS="" ./build.sh                                          # 纯命令行
+sudo DESKTOPS="plasma-mobile gnome" ./build.sh                   # 本机有 sudo (btrfs @/@home 布局)
 ```
 
-> 两种形态都**不装 fcitx5**（会和屏幕键盘抢输入法），中文输入靠 Plasma 键盘自带拼音；
-> 屏幕小的话在「系统设置 → 显示与监视器 → 缩放」里调到 150%~200% 更好用。
+云端：Actions → 构建镜像 → 四个「桌面」复选框随便勾 —— **四个都不勾就是纯命令行**。
+
+**登录界面统一用 SDDM**：装了哪个桌面，它就把哪个会话列出来，登录时随便切（会记住上次的选择）；
+自动登录进 `DESKTOPS` 里的**第一个**，想换就调整顺序。
+
+| 选择 | 登录界面 | 会话名 | 备注 |
+|:--|:--|:--|:--|
+| 含 KDE | SDDM（kwin_wayland 合成） | `plasma-mobile` / `plasma` | 登录界面用 breeze 主题 |
+| 只有 Phosh/GNOME | SDDM（weston kiosk 合成，因为没有 kwin_wayland） | `phosh` / `gnome` | 用 SDDM 自带主题 |
+| 纯命令行 | 不装登录器 | —— | 默认 `multi-user.target`，控制台 + SSH |
+
+**这台设备没有物理键盘，所以每个桌面都配了触屏输入**：
+
+| 桌面 | 屏幕键盘 |
+|:--|:--|
+| Plasma Mobile / Plasma | `plasma-keyboard`（qtvirtualkeyboard），KWin 的 `InputMethod[$e]` 已指向它 |
+| Phosh | `squeekboard`（phosh 的默认 OSK） |
+| GNOME | GNOME Shell 自带屏幕键盘，dconf 里已开 `screen-keyboard-enabled` |
+| SDDM 登录界面 | `qt6-virtualkeyboard`（任何选择都会装上） |
+
+**体积**：只装 Plasma Mobile 约 7 GB，单独加 Phosh 或 GNOME 各再多 1~2 GB，全选约 15 GB。
+`IMAGE_SIZE`（默认 8G）是**下限** —— 阶段 09 会按实际内容自动放大，不用手动改。
+
+> 详细的取舍与验证过程（上游包事实、SDDM 合成器/主题、dconf 系统默认值、电源键三级回退）见
+> [notes/desktop-environments.md](notes/desktop-environments.md)。
+>
+> 各形态都**不装 fcitx5**（它和屏幕键盘会互相抢输入法），中文输入用桌面自带的拼音；
+> Plasma 嫌字小：「系统设置 → 显示与监视器 → 缩放」调到 150%~200%；
+> GNOME 嫌字小：「设置 → 显示器」里选 125%/150%（分数缩放特性已默认打开）。
+
+> **兼容旧写法**：`SESSION=mobile|desktop|none` 仍然有效（只在 `DESKTOPS` 完全没设置时才看它）。
 
 ---
 
@@ -188,10 +225,11 @@ GitHub 仓库设 Secret `IMAGE_BT_MAC`（云端构建）。
 
 ## 4. 桌面
 
-- 登录界面是 SDDM（Wayland 模式），自动登录到 **Plasma Mobile**（`startplasmamobile`）
-- 想用 **Plasma 桌面**：注销后（或开机时按住）在 SDDM 会话菜单里选 *Plasma (Wayland)*；
-  也可以改 `/etc/sddm.conf.d/10-raphael.conf` 的 `[Autologin] Session=plasma`
-- 虚拟键盘：`plasma-keyboard`（桌面会话已开启"非鼠标输入时弹出"）
+- 登录界面是 SDDM（Wayland 模式），**装了哪些桌面就会列出哪些会话**，登录时随便切；
+  自动登录进 `DESKTOPS` 里的第一个（见 §0）
+- 想换自动登录的会话：改 `/etc/sddm.conf.d/10-raphael.conf` 的 `[Autologin] Session=`
+  （会话名见 §0 的表：`plasma-mobile` / `plasma` / `phosh` / `gnome`）
+- 各桌面的屏幕键盘：Plasma 用 `plasma-keyboard`、Phosh 用 `squeekboard`、GNOME 用自带的
 - 密码键盘/中文：`noto-fonts-cjk` + `adobe-source-han-sans-cn-fonts` + 字体优先级已配好；
   SSH 会话自动切中文（`/etc/profile.d/99-locale-fix.sh`）
 - 熄屏/亮屏快捷命令（KDE 版）：`leijun`（熄屏） / `jinfan`（亮屏）
@@ -211,8 +249,9 @@ GitHub 仓库设 Secret `IMAGE_BT_MAC`（云端构建）。
   `sudo pacman -S fcitx5 fcitx5-rime`。
 - **锁屏/PIN**：默认**不锁屏**（`~/.config/kscreenlockerrc` 里 `Autolock=false`），
   所以不存在"锁了以后解不开"的问题。密码 `1234` 只用于 `sudo` 和 SSH。
-- **装软件**：已加 archlinuxcn 源（含密钥环）并预装 `paru`，联网后直接
-  `paru -S 包名`（AUR）/ `sudo pacman -S 包名`（官方仓库）。
+- **装软件**：已加 archlinuxcn 源（含密钥环）并预装 `paru`（手机形态额外带 `yay`），联网后直接
+  `paru -S 包名`（AUR）/ `sudo pacman -S 包名`（官方仓库）。**镜像不会自己装任何 AUR 包**
+  （首启动自动安装那套已删除，原因见 §8.15），手动装时按提示输入 `sudo` 密码。
   > ⚠️ 作者内核**没有编 Landlock**，而 pacman 7.1 默认用它做下载沙箱 —— 镜像里已经
   > 预先关掉（`/etc/pacman.conf` 的 `DisableSandboxFilesystem`/`DisableSandboxSyscalls`），
   > 否则 `pacman -Sy` 会直接报错、连软件都装不了。
@@ -242,7 +281,7 @@ raphael-arch/
 │   ├── 09-image-rootfs.sh   # mke2fs -d → rootfs.img (+ sparse)
 │   ├── 10-image-boot.sh     # mtools 写 FAT → boot-cache.img
 │   └── 11-flash.sh          # 备份 / 刷机
-├── notes/                   # 深度调研报告 (相机 / 移植清单 / Plasma Mobile / Qualcomm 用户态)
+├── notes/                   # 深度调研报告 (桌面环境多选 / 相机 / 移植清单 / Plasma Mobile / Qualcomm 用户态)
 ├── pkgs/                    # 6 个 PKGBUILD (qrtr/rmtfs/pd-mapper/tqftpserv/qbootctl/hexagonrpc)
 └── out/                     # 产物
 ```
@@ -288,6 +327,9 @@ GitHub Release 单个文件上限 2 GB，而 rootfs 有 6 GB 左右，脚本会�
 仓库自带 [`.github/workflows/build.yml`](.github/workflows/build.yml)，不用本地环境也能出镜像：
 
 - **手动触发**：Actions → 「构建镜像」→ *Run workflow*
+  - **桌面环境**：四个复选框 `de_plasma_mobile` / `de_plasma_desktop` / `de_phosh` / `de_gnome`
+    随便勾（可以全勾）；**四个都不勾 = 纯命令行镜像**。默认只勾 Plasma Mobile。
+    旧的 `session` 单选还留着（`auto` = 用复选框，`mobile`/`desktop`/`none` = 按旧行为）
   - `username` / `user_password` / `root_password` 留空 = 用仓库默认（`user` / `1234` / `1234`）；
     填了就以你填的为准（也可改用仓库 Secrets `IMAGE_USERNAME` / `IMAGE_USER_PASSWORD` / `IMAGE_ROOT_PASSWORD`，
     Secrets 优先级高于手动输入；密码在日志里会被 `::add-mask::` 打码，只回显"已设置"）
@@ -771,7 +813,37 @@ pacman -Su --noscriptlet --ignore linux-firmware
 ``version `X' not found`` 判为失败并直接 die。2026-10-02 CI 上它准确拦下了这个问题
 （否则又是一个"能刷但没 Wi-Fi"的镜像）。
 
-### 8.15 其它已知限制
+### 8.15 一登录 SSH 就提示「AUR 安装失败」★
+
+- **症状**：连上 SSH（或开机看 motd）出现
+  `raphael: 以下 AUR 包没装上: ...`，家目录里还可能多出
+  `AUR-安装失败-请看这里.txt`；**每次开机重来一遍**。
+- **根因**：老镜像里装了个「AUR 包首启动自动安装」定时器
+  （`raphael-aur-setup.timer` → `/usr/local/sbin/raphael-aur-setup.sh`）：开机 90 秒后用
+  `paru` 装一批 AUR 包，**只要有一个装不上就不写完成标记**，于是下次开机继续重试、
+  继续往 `/etc/motd` 追加提示。真机实测（2026-10-03）卡在
+  `kwin-effect-rounded-corners-git`：它的 PKGBUILD 只声明 `arch=x86_64`，
+  在 aarch64 上必然报 `错误： ... 不具备 'aarch64' 架构`。
+- **修**：**整套机制已从项目里删除**（`scripts/06-config.sh` 的 13.8 段现在只剩说明 +
+  增量重建时的残留清理），新镜像不会自己装任何 AUR 包、也不会再写 motd。
+  `paru` / `yay` / archlinuxcn 源保留，要装什么手动 `paru -S <包名>`。
+- **救老镜像**（不必重刷）：
+
+  ```bash
+  sudo systemctl disable --now raphael-aur-setup.timer
+  sudo rm -f /usr/local/sbin/raphael-aur-setup.sh \
+             /etc/systemd/system/raphael-aur-setup.service \
+             /etc/systemd/system/raphael-aur-setup.timer \
+             /etc/systemd/system/timers.target.wants/raphael-aur-setup.timer \
+             /etc/systemd/system/multi-user.target.wants/raphael-aur-setup.service \
+             /etc/sudoers.d/10-pacman-nopasswd
+  sudo sed -i '/^raphael: .*AUR/d; /raphael-aur-setup\.sh/d; /^ 或逐个: paru -S/d' /etc/motd
+  rm -f ~/AUR-安装失败-请看这里.txt
+  ```
+
+  （**已装好的 AUR 包不受影响**，不会卸载；`/var/lib/raphael/aur-setup.done` 留着无所谓。）
+
+### 8.16 其它已知限制
 
 | 项 | 说明 |
 |:--|:--|
@@ -781,6 +853,88 @@ pacman -Su --noscriptlet --ignore linux-firmware
 | 手电筒 | ✅ 可用：`shoudian on/off/toggle`（KDE 菜单里也有） |
 | 锁屏 | 默认关闭（不设 PIN），避免手机上解不开 |
 | 中文输入法 | ✅ 触摸屏 plasma-keyboard（系统设置里勾 zh_CN/en_US，屏上地球图标切换）；**不装 fcitx5**（会和触屏键盘抢输入法导致闪退） |
+
+### 8.17 Phosh 已修复：三个拦路虎（★ 构建脚本已自动处理）
+
+- **症状**：选了 `phosh` 会话后，登录界面闪一下又回到登录界面（看着像"没自动登录"，
+  其实是会话起来几秒就崩了）。SSH 进去看：没有任何 `phoc`/`phosh` 进程。
+- **证据链**（2026-10-10 真机实测）：
+  1. SDDM 侧正常，`phoc` 确实启动了：`Output 'DSI-1' added` → `Enabling shell mode`；
+  2. 然后 wlroots 在这块 DSI 屏上 **atomic 提交失败**：
+     ```
+     phoc: [backend/drm/atomic.c:82] connector DSI-1: Atomic commit failed
+     phoc: [wayland] error in client communication (pid …)
+     ```
+  3. 加 `WLR_DRM_NO_ATOMIC=1` 能过 modeset（`Modesetting with 1080x2340 @ 60.000 Hz`），
+     `phosh` 甚至打印 `Phosh ready after 1.98s`，但随即
+     `Error 71 (协议错误) dispatching to Wayland display` 断开；
+  4. 内核同时报 GPU 故障，不是单纯的 DRM 平面问题：
+     ```
+     adreno 2c00000.gpu: [drm:a6xx_irq] *ERROR* gpu fault ring 0 … status 00800005
+     msm_dpu ae01000.display-controller: [drm:recover_worker] *ERROR* 06040001: hangcheck recover!
+     ```
+  5. `WLR_DRM_NO_MODIFIERS=1` 和 `WLR_RENDERER=pixman`（软件渲染）都没救回来。
+- **结论**：**构建侧是对的**（包、会话文件、SDDM、dconf、触屏键盘都验证过了），
+  卡在内核 DRM / wlroots 这一层。同镜像里 **Plasma Mobile / Plasma 桌面 / GNOME 三个都正常**
+  （GNOME 已由真机屏幕确认）。
+- **想继续查**：对 `phoc` 打开详细日志看是哪个 atomic 属性被拒；换 wlroots/phoc 版本；
+  或从这个 vendor 内核的 `msm_dpu` atomic 实现入手。细节见
+  [notes/desktop-environments.md](notes/desktop-environments.md) §5。
+- **临时办法**：先用 `plasma-mobile` / `plasma-desktop` / `gnome`，别选 `phosh`。
+- **2026-10-11 已修复**（真机验证：Phosh 界面可用、0 个失败单元）：三处缺一不可，构建脚本已固化，详见 [notes §6/§7](notes/desktop-environments.md)：
+  ① 本机内核的 DRM atomic 提交会让 phoc 起不来 → 会话包装里 `WLR_DRM_NO_ATOMIC=1`；
+  ② `squeekboard` / `xdg-desktop-portal-*` 是 systemd 用户服务，拿不到 `WAYLAND_DISPLAY`
+     就 "无法打开显示" 然后 abort → 包装脚本等 socket 出现后 `systemctl --user import-environment`；
+  ③ wlroots 的 layer-shell 校验要求"高度 0 必须同时锚 TOP+BOTTOM"，而 Phosh 的 home bar
+     只锚 BOTTOM（尺寸交给 phoc 的 effects 协议）→ 首个 commit 被判协议错误、Phosh 被踢下线。
+     `scripts/lib.sh` 里的 `patch_wlroots_layer_shell()` 把校验放宽为"至少锚一个垂直边"
+     （二进制补丁 2 字节，带版本特征校验，原始库备份成 `*.raphael-orig`）。
+
+### 8.18 USB 投屏 / 扩展屏 (MacroSilicon MS91xx)
+
+`scripts/03b-ms91xx.sh` 会把 `vendor/ms91xx/` 里的驱动交叉编译成 aarch64 内核模块
+（`usbdisp_drm.ko`）装进 rootfs 并刷新 depmod，插上转接器后由 USB modalias 自动加载。
+
+支持芯片：**MS9132 / MS9133 / MS9135**（`lsusb` 看到 `345f:9132` / `345f:9133`，或
+mode-switch 之后的 `534d:6021`；USB→VGA 的 MS912C 还需要额外的模块参数，见
+`vendor/ms91xx/docs/MS912C-VGA.md`）。这类芯片常见于杂牌便携显示器、双屏/三屏笔记本
+扩展器、USB 3.0→HDMI/VGA 转接器。
+
+源码是 MacroSilicon 官方 GPL-2.0 源码的 modern-kernel fork（支持 6.8→7.0+，DKMS 打包）。
+本项目在它基础上又补了 4 处 **7.2** 适配：
+
+| 适配点 | 原因 |
+|:--|:--|
+| `drm_helper_mode_fill_fb_struct()` 传 `info` | 7.2 把这个参数加回来了（6.15 曾去掉） |
+| 原子钩子参数改 `struct drm_atomic_commit *` | 7.2 起原子钩子不再收 `drm_atomic_state` |
+| `fb_create()` 多一个 `info` 参数 | 同上，`drm_mode_config_funcs` 变了 |
+| `__kernel_write` → `kernel_write` | 本项目内核里 `__kernel_write` 属 `autofs4` 命名空间，modpost 会报错 |
+
+两个构建坑（脚本里已处理）：头文件 deb 带的是 **aarch64** 宿主工具（fixdep/modpost），
+在 x86_64 构建机跑不了 → 删掉让 kbuild 重编，并伪造 `.config`/`auto.conf.cmd` 跳过
+syncconfig；modpost 在 headers 包里缺文件编不出来 → 借用宿主 `/lib/modules/*/build` 里的。
+
+真机验证：模块加载成功（`usbcore: registered new interface driver msdisp_usb`），
+没有转接器时会安静待机（`Cannot find any crtc or sizes`）。
+
+### 8.19 重复功能的软件只保留一个
+
+多选桌面时，同功能的 app 会重复好几份。构建脚本里做了去重（`config/build.conf` 的
+`drop_pkgs`）：**装了 KDE 就用 KDE 的那份**，GNOME 系里同功能的去掉。
+
+| 功能 | 保留 | 去掉 |
+|:--|:--|:--|
+| 终端 | `konsole` | `gnome-console` |
+| 文件管理器 | `dolphin` | `nautilus` |
+| PDF | `okular` | `papers` |
+| 图片 | `gwenview` | `loupe` |
+| 系统监视 | `plasma-systemmonitor` | `gnome-system-monitor` |
+| 文本编辑 | `kate`（桌面形态才有） | `gnome-text-editor` |
+
+不可替代的**不动**：`gnome-control-center`（GNOME/Phosh 的设置中枢）、`phosh-mobile-settings`、
+`squeekboard`、`gnome-calls`/`chatty`（手机专属）、`gnome-disk-utility`、`gnome-font-viewer`。
+只选 Phosh/GNOME 而没选 KDE 时，上面这些 GNOME app 全部保留。
+
 
 ## 9. 排障
 
@@ -793,11 +947,16 @@ pacman -Su --noscriptlet --ignore linux-firmware
 | 网卡名不是 wlan0 | 正常，systemd 把它叫 `wld0`（§8.3） |
 | 没有声音 | ① `aplay -l` 有没有 `card 0: Raphael`；② `pactl list short sinks` 有没有 `pro-output-1`；③ `amixer -c 0 cget "name=QUAT_MI2S_RX Audio Mixer MultiMedia2"` 是不是 `on`；④ `systemctl status rmtfs tqftpserv`；⑤ `dmesg | grep -i "AFE enable"` 有没有 `-110`（有就是声道数不对，见 §8.11） |
 | 无法重启 | 见 §8.2（关机卡在 watchdog 设置），新镜像已修复 |
+| **SSH 一登录就刷「AUR 安装失败」** | 老镜像的 AUR 首启动安装定时器，新镜像已删除；手动清理见 §8.15 |
+| **非 KDE 形态登录界面不出来** | 非 KDE 时 SDDM 用 `weston --shell=kiosk` 当合成器（KDE 用 kwin_wayland）：先 `pacman -Q weston`；实在不行把 `/etc/sddm.conf.d/10-raphael.conf` 的 `DisplayServer=` 改成 `x11`（要装 `xorg-server`） |
+| **Phosh 登录后闪回登录界面** | 三个原因叠加（atomic 提交 / 用户服务看不到 Wayland display / layer-shell 校验拒绝 home bar），构建脚本已全部修掉。若换内核或升级 wlroots 后又出现，看 §8.17 与 `notes/desktop-environments.md` §6/§7 |
+| **Phosh / GNOME 想换缩放** | GNOME：「设置 → 显示器」选 125%/150%（分数缩放已开）；Phosh 用 `phosh-mobile-settings` 或 `gsettings set org.gnome.desktop.interface text-scaling-factor 1.25` |
 | 桌面起不来 | 用 USB NCM 网络 SSH 进去：`ssh user@172.16.42.1`，然后 `journalctl -b -u sddm`；必要时 `KWIN_COMPOSE=Q startplasma-wayland` 用软件渲染验证 |
 | 想回 Android | `fastboot flash boot <备份>`，再刷小米线刷包 |
 
 深度资料：`notes/camera.md`（相机适配结论与路线图）、`notes/bluetooth.md`（蓝牙排查记录）、`notes/porting-checklist.md`（Debian→Arch 逐条移植对照）、
-`notes/plasma-mobile.md`（Plasma 包与配置校验）、`notes/qcom-userspace.md`（Qualcomm 用户态服务构建）。
+`notes/plasma-mobile.md`（Plasma 包与配置校验）、`notes/qcom-userspace.md`（Qualcomm 用户态服务构建）、
+`notes/desktop-environments.md`（桌面环境多选：Phosh/GNOME 上游事实、SDDM 与 dconf 取舍、踩坑）。
 
 ---
 

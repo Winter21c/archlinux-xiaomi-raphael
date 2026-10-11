@@ -23,3 +23,12 @@ _recon/
 
 # 本地私有配置 (设备蓝牙地址等, 不要提交)
 config/local.conf
+
+# MS91xx 驱动源码树里的构建产物 (正常构建输出在 work/ms91xx-build)
+vendor/**/*.o
+vendor/**/.*.cmd
+vendor/**/*.ko
+vendor/**/*.mod
+vendor/**/*.mod.c
+vendor/**/modules.order
+vendor/**/Module.symvers
