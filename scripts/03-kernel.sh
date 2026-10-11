@@ -52,13 +52,31 @@ cp -f "$TMP/image/boot/config-$KV" "$ROOT/boot/config-$KV" 2>/dev/null || true
 cp -f "$TMP/image/boot/System.map-$KV" "$ROOT/boot/System.map-$KV" 2>/dev/null || true
 
 # ---- 设备树 ---------------------------------------------------------------
+# ★ 上游 deb 换过打包布局, 两种都要认 (2026-10-11 修: 新布局导致 CI 挂在
+#   "缺少 sm8150-xiaomi-raphael.dtb"):
+#     老: boot/dtbs/qcom/*.dtb                       (只有 qcom 相关的少量 dtb)
+#     新: usr/lib/linux-image-<kver>/qcom/*.dtb      (通用多平台内核, qcom 有 42M)
+#   新布局只挑 sm8150-*.dtb (11 个, 1.1M) —— 全拷会把引导镜像撑大 40 多兆,
+#   而本项目只用得上同 SoC 家族这几块。
 mkdir -p "$ROOT/usr/lib/modules/$KV/dtbs/qcom"
-if [ -d "$TMP/image/boot/dtbs/qcom" ]; then
-  cp -f "$TMP/image/boot/dtbs/qcom"/*.dtb "$ROOT/usr/lib/modules/$KV/dtbs/qcom/" 2>/dev/null || true
+dtb_src=""
+for d in "$TMP/image/boot/dtbs/qcom" \
+         "$TMP/image/usr/lib/linux-image-$KV/qcom"; do
+  [ -d "$d" ] && { dtb_src="$d"; break; }
+done
+if [ -z "$dtb_src" ]; then
+  # 版本目录名万一再变, 用 glob 兜一把
+  dtb_src="$(ls -d "$TMP/image"/usr/lib/linux-image-*/qcom 2>/dev/null | head -1 || true)"
+fi
+[ -n "$dtb_src" ] || die "内核 deb 里找不到 qcom 设备树目录 (打包布局又变了? 见 03-kernel.sh 注释)"
+if ls "$dtb_src"/sm8150-*.dtb >/dev/null 2>&1; then
+  cp -f "$dtb_src"/sm8150-*.dtb "$ROOT/usr/lib/modules/$KV/dtbs/qcom/" 2>/dev/null || true
+else
+  cp -f "$dtb_src"/*.dtb "$ROOT/usr/lib/modules/$KV/dtbs/qcom/" 2>/dev/null || true
 fi
 raph_dtb="$ROOT/usr/lib/modules/$KV/dtbs/qcom/sm8150-xiaomi-raphael.dtb"
-[ -f "$raph_dtb" ] || die "缺少 sm8150-xiaomi-raphael.dtb"
-log "设备树: $(ls "$ROOT/usr/lib/modules/$KV/dtbs/qcom" | wc -l) 个 dtb (含 raphael)"
+[ -f "$raph_dtb" ] || die "缺少 sm8150-xiaomi-raphael.dtb (来源目录: ${dtb_src#$TMP/image/})"
+log "设备树: $(ls "$ROOT/usr/lib/modules/$KV/dtbs/qcom" | wc -l) 个 dtb (含 raphael, 来自 ${dtb_src#$TMP/image/})"
 
 # ---- 头文件 (供用户后续自行编译模块) --------------------------------------
 if [ -d "$TMP/headers/usr/src" ]; then
