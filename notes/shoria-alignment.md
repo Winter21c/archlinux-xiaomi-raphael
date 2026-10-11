@@ -9,6 +9,12 @@
 >
 > 原则：**只做加法**，蓝牙 DT 补丁 + 原厂 NVM、麦克风 MCLK 路由、UCM、NCM、zram、手电筒等既有适配一律不动。
 
+> ⚠️ **2026-10-10 变更**：本文「首启动用 `paru` 自动安装 AUR 包」那条链路（`raphael-aur-setup`
+> 脚本 + systemd unit + `/etc/motd` 失败提示 + wheel 免密 pacman）**已从项目里整段删除**：
+> 镜像不再自己装任何 AUR 包，也不会一登录 SSH 就刷「AUR 安装失败」。
+> `paru` / `yay` / archlinuxcn 源仍然预装，要什么请手动 `paru -S <包名>`。
+> 下面保留原方案描述，作为历史记录。
+
 ---
 
 ## 0. 先回答你的两个问题
@@ -56,7 +62,7 @@
 
 | 指南条目 | 本项目动作 |
 |:--|:--|
-| `snapper btrfs-assistant inotify-tools` | `snapper`/`inotify-tools` 进镜像；**`btrfs-assistant` 在 AUR** → 首启动用 `paru` 装 |
+| `snapper btrfs-assistant inotify-tools` | `snapper`/`inotify-tools` 进镜像；**`btrfs-assistant` 在 AUR** → 想要自己 `paru -S btrfs-assistant`（镜像不再自动装） |
 | 可选 `snap-pac` | 加上（pacman 钩子自动快照，滚挂回档神器，也在 AUR/extra） |
 | `grub-btrfs` + `grub-btrfsd` | ❌ **不适用**：我们是 U-Boot → systemd-boot，不是 GRUB。**快照本身、回档、btrfs-assistant 都照常可用**，只是没有"GRUB 菜单里选快照启动"那一项 |
 | `snapper -c root create-config /` + `-c home create-config /home` | 做成**首启动服务**自动执行（幂等） |
@@ -73,17 +79,17 @@
 | 指南条目 | 本项目动作 |
 |:--|:--|
 | `fcitx5-im`、`fcitx5-rime` | 补 `fcitx5-im`（`fcitx5-rime` 已有） |
-| `rime-ice-git`（雾凇，AUR） | 已有 `rime-ice`；**首启动再用 paru 补 `rime-ice-git` 与可选方案**（万象、五笔、Mozc） |
+| `rime-ice-git`（雾凇，AUR） | 已有 `rime-ice`；想要自己 `paru -S` 补 `rime-ice-git` 与可选方案（万象、五笔、Mozc） |
 | `~/.local/share/fcitx5/rime/default.custom.yaml` → `__include: rime_ice_suggestion:/` | 按指南写（**注意路径是 `~/.local/share/fcitx5/rime/`**，不是 `~/.config`） |
 | 可选：`schema_list`（F4 切换多方案） | 写入（`luna_pinyin_simp`/`rime_ice`/`double_pinyin_flypy`/`wubi86`/`bopomofo`） |
-| 可选：万象语法模型 `rime-wanxiang-gram-zh-hans` + `rime_ice.custom.yaml` | 首启动 paru 装 + 写 `"grammar/language": wanxiang-lts-zh-hans` |
+| 可选：万象语法模型 `rime-wanxiang-gram-zh-hans` + `rime_ice.custom.yaml` | 自己 `paru -S` 装 + 写 `"grammar/language": wanxiang-lts-zh-hans` |
 | 可选：默认英文标点 `"switches/@1/reset": 1` | 按指南写入 `rime_ice.custom.yaml` |
 | 可选：`custom_phrase.txt` 自定义词库 | 建空模板 + 注释说明格式 |
 | 环境变量：`~/.config/environment.d/ime.conf`（`XMODIFIERS`/`QT_IM_MODULES`/`QT_IM_MODULE`/`SDL_IM_MODULE`） | 按指南写（**不再往 `/etc/environment` 塞 GTK_IM_MODULE**） |
 | GTK：`~/.gtkrc-2.0` + `~/.config/gtk-3.0/settings.ini` + `gtk-4.0/settings.ini` → `gtk-im-module=fcitx` | 按指南写（写在 GTK 配置里而不是环境变量，避免 Wayland 下闪烁/错位） |
 | KDE：虚拟键盘选 `fcitx5 wayland 启动器` | `07-desktop.sh` 已设 `VirtualKeyboardEnabled`，改为 `fcitx5` 启动器 |
 | 右 Shift 切不回中文的修法 | 写 `~/.config/fcitx5/config` 的 `[Hotkey/AltTriggerKeys]` = `Shift_L`/`Shift_R` |
-| 漏字/大写锁定异常的 `fcitx5-shorin-patched-git` | 列为**首启动可选安装**（AUR） |
+| 漏字/大写锁定异常的 `fcitx5-shorin-patched-git` | 需要就自己装（AUR；镜像不再自动装任何 AUR 包） |
 
 ## 4. 终端美化 → 要做的
 
@@ -115,7 +121,7 @@
 | Spectacle | 保存到默认文件夹 + 复制到剪贴板 |
 | 触摸优化 | **手机场景追加**：预设 Plasma Mobile 会话、虚拟键盘、单指点击（指南是鼠标桌面，这里必须兼顾触屏） |
 
-**只能你自己点/或首启动装的**（我会写进 README 清单）：
+**只能你自己点/自己装的**（清单见 README）：
 
 - 桌面右键操作（中键启动器、滚轮切桌面）、面板拖拽布局、壁纸/锁屏壁纸挑选、用户头像
 - AUR 挂件与特效：`plasma6-applets-wallpaper-effects`（模糊半径 30/圆角 15）、`kwin-effects-geometry-change`、`kwin-effect-rounded-corners-git`（圆角 15 + 轮廓 2/0）、`missioncenter`
@@ -131,7 +137,12 @@
 4. **输入法**：fcitx5-im、rime 配置（default.custom.yaml / rime_ice.custom.yaml / custom_phrase.txt）、environment.d、GTK 配置、KDE 虚拟键盘
 5. **snapper**：首启动服务（探测 btrfs 布局 → create-config → 策略 → 定时器）+ snap-pac
 6. **KDE 预置**：kdeglobals/kwinrc/快捷键/特效/光标/字体
-7. **AUR 首启动安装服务**：`btrfs-assistant`、`snap-pac`、`plasma6-applets-wallpaper-effects`、`kwin-effects-geometry-change`、`kwin-effect-rounded-corners-git`、`rime-ice-git`、`rime-wanxiang-gram-zh-hans`、`downgrade`、可选 `fcitx5-shorin-patched-git`（有网才跑、失败不影响系统、写日志）
+7. ~~**AUR 首启动安装服务**~~：**2026-10-10 已整段删除**（原因见文首说明：用户要求镜像不要
+   自己装 AUR 包、不要再刷 motd；且清单里的 `kwin-effect-rounded-corners-git` 只声明
+   `arch=x86_64`，在 aarch64 上永远构建失败）。原清单 =
+   `btrfs-assistant`、`snap-pac`、`plasma6-applets-wallpaper-effects`、
+   `kwin-effects-geometry-change`、`kwin-effect-rounded-corners-git`、`rime-ice-git`、
+   `rime-wanxiang-gram-zh-hans`、`downgrade`，需要的话自己 `paru -S` 装。
 8. **文档**：README 增加「日常维护（快照/滚挂口诀/downgrade）」章节
 9. 提交推送 → CI 构建验证 → 出镜像
 
@@ -144,22 +155,21 @@
    ```
    CI 构建（有 root）同样产出完整布局。首启动服务会自己探测，不适用的项会打印原因而不是报错。
 2. **faillock**：折中 **`deny = 5`**（比指南的 `deny=0` 安全，比原来的 10 宽松）。
-3. **AUR 包**：**首启动 paru 自动安装**，清单 =
+3. ~~**AUR 包**：首启动 paru 自动安装~~ —— **2026-10-10 已整段删除**（`06-config.sh` 的
+   13.8 段只留下说明 + 增量重建时的残留清理）。原行为是：清单 =
    `btrfs-assistant snap-pac downgrade plasma6-applets-wallpaper-effects
    kwin-effects-geometry-change kwin-effect-rounded-corners-git rime-ice-git
-   rime-wanxiang-gram-zh-hans`；
-   失败时写入 `/etc/motd` 与 `~/AUR-安装失败-请看这里.txt`，**不写完成标记，下次开机自动重试**，
-   也可随时手动重跑：`sudo /usr/local/sbin/raphael-aur-setup.sh`（日志 `/var/log/raphael-aur-setup.log`）。
-
-> 附带：为了让 paru 能非交互安装，按指南的可选步骤加了
-> `/etc/sudoers.d/10-pacman-nopasswd`（wheel 免密 **仅 pacman**）。
+   rime-wanxiang-gram-zh-hans`；失败时写入 `/etc/motd` 与 `~/AUR-安装失败-请看这里.txt`，
+   不写完成标记、下次开机自动重试。**这就是"一登录 SSH 就看到 AUR 安装失败"的来源**，
+   所以整条链路连同 `/etc/sudoers.d/10-pacman-nopasswd`（wheel 免密仅 pacman）一起删掉了。
+   现在装 AUR 包＝用户手动 `paru -S <包名>`（会正常提示输入密码）。
 
 ## 8. 落地位置速查
 
 | 内容 | 文件 |
 |:--|:--|
 | 包清单/字体版本/压缩级别等配置 | `config/build.conf` |
-| 编辑器、faillock、霞鹜文楷、性能模式、flatpak、sudoers、snapper、AUR 首启动 | `scripts/06-config.sh`（第 13 节） |
+| 编辑器、faillock、霞鹜文楷、性能模式、flatpak、sudoers、snapper | `scripts/06-config.sh`（第 13 节；**AUR 首启动安装已于 2026-10-10 删除**，只留说明与残留清理） |
 | multilib、oh-my-zsh/bash、zshrc/bashrc、starship、Konsole、KDE 预置、输入法 | `scripts/07-desktop.sh`（第 13 节） |
 | 布局判定（btrfs-subvol / btrfs-flat / ext4） | `scripts/lib.sh` → `rootfs_layout()` / `btrfs_opts()` |
 | 镜像与引导参数随布局自动生成 | `scripts/09-image-rootfs.sh` / `scripts/10-image-boot.sh` |

@@ -939,13 +939,18 @@ grep -q '^deny' "$ROOT/etc/security/faillock.conf" 2>/dev/null && \
   log "faillock: $(grep '^deny' "$ROOT/etc/security/faillock.conf")"
 
 # 13.3 霞鹜文楷 (用户指定: github.com/lxgw/LxgwWenkai) — 终端用 Mono 变体
-LXGW_VER="${LXGW_WENKAI_VERSION:-v1.522}"
-install -d "$ROOT/usr/share/fonts/TTF"
-for f in LXGWWenKai-Regular.ttf LXGWWenKaiMono-Regular.ttf; do
-  [ -s "$DL/$f" ] || fetch "https://github.com/lxgw/LxgwWenkai/releases/download/$LXGW_VER/$f" "$DL/$f"
-  cp -f "$DL/$f" "$ROOT/usr/share/fonts/TTF/$f"
-done
-log "字体: 霞鹜文楷 Regular + Mono ($LXGW_VER)"
+#      纯命令行构建没有桌面, 也用不到这两份 CJK 字体 (50 MB), 直接跳过
+if [ "$HAVE_ANY_DE" = 1 ]; then
+  LXGW_VER="${LXGW_WENKAI_VERSION:-v1.522}"
+  install -d "$ROOT/usr/share/fonts/TTF"
+  for f in LXGWWenKai-Regular.ttf LXGWWenKaiMono-Regular.ttf; do
+    [ -s "$DL/$f" ] || fetch "https://github.com/lxgw/LxgwWenkai/releases/download/$LXGW_VER/$f" "$DL/$f"
+    cp -f "$DL/$f" "$ROOT/usr/share/fonts/TTF/$f"
+  done
+  log "字体: 霞鹜文楷 Regular + Mono ($LXGW_VER)"
+else
+  log "纯命令行: 跳过霞鹜文楷字体 (无桌面)"
+fi
 
 # 13.3b 这几个挂载单元**不 mask**: 内核其实都支持
 #   (configfs=y debugfs=y posix_mqueue=y hugetlbfs=y; binfmt_misc=m fuse=m 需加载模块),
@@ -968,11 +973,10 @@ if [ -x "$ROOT/usr/bin/flatpak" ]; then
   log "flatpak: flathub remote 已配置"
 fi
 
-# 13.6 允许 wheel 免密使用 pacman (指南可选步骤; AUR 自动安装也需要它)
-install -d -m 755 "$ROOT/etc/sudoers.d"
-printf '%%wheel ALL=(ALL:ALL) NOPASSWD: /usr/bin/pacman\n' > "$ROOT/etc/sudoers.d/10-pacman-nopasswd"
-chmod 440 "$ROOT/etc/sudoers.d/10-pacman-nopasswd"
-log "sudoers: wheel 免密 pacman (供 paru/AUR 使用)"
+# 13.6 ~~wheel 免密使用 pacman~~ — 已移除 (2026-10-10)
+#   这条指南可选步骤只是为了"非交互跑 paru"给 AUR 自动安装用的; AUR 自动安装
+#   整段已经删掉 (见下面 13.8 的说明), 免密也就没有存在理由了, 一并去掉。
+#   paru / yay 仍然预装, 手动 `paru -S <包名>` 时会正常提示输入密码。
 
 # 13.7 snapper (指南: 快照和系统维护) — 首启动自动配置, 幂等
 cat > "$ROOT/usr/local/sbin/raphael-snapper-setup.sh" <<'EOF'
@@ -1024,77 +1028,38 @@ WantedBy=multi-user.target
 EOF
 enable_unit raphael-snapper-setup.service
 
-# 13.8 AUR 包首启动自动安装 (失败会提示用户手动重跑)
-cat > "$ROOT/usr/local/sbin/raphael-aur-setup.sh" <<'EOF'
-#!/bin/bash
-# 用 paru 安装指南里那些 AUR 包。失败只提示, 不影响系统; 可随时手动重跑本脚本。
-set -u
-MARK=/var/lib/raphael/aur-setup.done
-LOG=/var/log/raphael-aur-setup.log
-[ -e "$MARK" ] && { echo "AUR 安装已完成过 ($MARK), 跳过"; exit 0; }
-[ "$(id -u)" = 0 ] || { echo "请用 root 运行"; exit 1; }
-command -v paru >/dev/null 2>&1 || { echo "未安装 paru"; exit 1; }
-# 等网络, 最多 90 秒
-for _ in $(seq 1 45); do ping -c1 -W1 1.1.1.1 >/dev/null 2>&1 && break; sleep 2; done
-PKGS="btrfs-assistant snap-pac downgrade plasma6-applets-wallpaper-effects \
-kwin-effects-geometry-change kwin-effect-rounded-corners-git rime-ice-git \
-rime-wanxiang-gram-zh-hans"
-ok=0; fail=""
-install -d -o @USER@ -g @USER@ /home/@USER@/.cache
-for p in $PKGS; do
-  if runuser -u @USER@ -- env HOME=/home/@USER@ \
-       paru -S --noconfirm --needed "$p" >>"$LOG" 2>&1; then
-    ok=$((ok+1)); echo "  ok: $p"
-  else
-    fail="$fail $p"; echo "  fail: $p"
-  fi
+# 13.8 ~~AUR 包首启动自动安装~~ — 已整段移除 (2026-10-10, 用户要求)
+#   原来的实现: /usr/local/sbin/raphael-aur-setup.sh + raphael-aur-setup.service
+#   + raphael-aur-setup.timer, 开机 90 秒后用 paru 装一批 AUR 包
+#   (btrfs-assistant / snap-pac / downgrade / kwin 圆角与几何特效 / rime-ice-git ...),
+#   失败时往 /etc/motd 和 ~/AUR-安装失败-请看这里.txt 写"没装上"的提示, 且**不写完成标记**。
+#
+#   删掉的两个原因:
+#     1) 「镜像不要自己装 AUR 包」——装什么由用户自己决定, 系统不代劳;
+#     2) 原来的清单里 kwin-effect-rounded-corners-git 的 PKGBUILD 只声明
+#        arch=x86_64, 在 aarch64 上**永远构建不出来** -> 失败 -> 不写完成标记 ->
+#        每次开机重试, 并往 /etc/motd 刷"AUR 安装失败"。用户一登录 SSH 就看到这行,
+#        属于纯粹的噪声 (2026-10-03 真机日志: "不具备 'aarch64' 架构")。
+#
+#   paru / yay / archlinuxcn 源都还在 (见 config/build.conf), 想装什么手动来:
+#     paru -S <包名>        # AUR
+#     sudo pacman -S <包名>  # 官方仓库 / archlinuxcn
+#   手动装需要输入密码 (13.6 的 wheel 免密 pacman 已一并去掉)。
+#
+#   下面这段是"拆弹"用的: 增量重建 (work/root 还在) 时, 上一版生成的脚本/单元/
+#   软链/免密文件仍留在 rootfs 里 -> 定时器照样会跑、motd 照样会被刷。显式清掉。
+for f in usr/local/sbin/raphael-aur-setup.sh \
+         etc/systemd/system/raphael-aur-setup.service \
+         etc/systemd/system/raphael-aur-setup.timer \
+         etc/systemd/system/multi-user.target.wants/raphael-aur-setup.service \
+         etc/systemd/system/timers.target.wants/raphael-aur-setup.timer \
+         etc/sudoers.d/10-pacman-nopasswd; do
+  rm -f "$ROOT/$f"
 done
-if [ -n "$fail" ]; then
-  sed -i '/^raphael: AUR/d' /etc/motd 2>/dev/null || true
-  printf 'raphael: 以下 AUR 包没装上:%s\n 联网后手动重跑: sudo /usr/local/sbin/raphael-aur-setup.sh\n 或逐个: paru -S <包名>   (日志: %s)\n' "$fail" "$LOG" >> /etc/motd
-  printf 'raphael: AUR 安装未全部完成:%s\n手动重跑: sudo /usr/local/sbin/raphael-aur-setup.sh\n日志: %s\n' "$fail" "$LOG" > /home/@USER@/AUR-安装失败-请看这里.txt
-  chown @USER@:@USER@ /home/@USER@/AUR-安装失败-请看这里.txt 2>/dev/null || true
-  echo "AUR: 失败 $fail"
-  exit 0   # 不写 MARK, 下次开机再试
+if [ -f "$ROOT/etc/motd" ] && grep -q 'AUR' "$ROOT/etc/motd" 2>/dev/null; then
+  sed -i -e '/^raphael: .*AUR/d' -e '/raphael-aur-setup\.sh/d' -e '/^ 或逐个: paru -S/d' "$ROOT/etc/motd"
+  log "  /etc/motd: 清掉遗留的 AUR 提示"
 fi
-install -d "$(dirname "$MARK")"; date > "$MARK"
-rm -f /home/@USER@/AUR-安装失败-请看这里.txt 2>/dev/null || true
-echo "AUR: 全部安装完成 ($ok 个)"
-EOF
-sed -i "s/@USER@/$USERNAME/g" "$ROOT/usr/local/sbin/raphael-aur-setup.sh"
-chmod 755 "$ROOT/usr/local/sbin/raphael-aur-setup.sh"
-# ★ AUR 安装放定时器里跑, 不要挂在 multi-user.target 上:
-#   实测它会把开机拖到 1 分 40 秒 (而 graphical.target 依赖 multi-user.target,
-#   等于每次开机都要等它把 AUR 包编译完)。改成开机 90 秒后后台跑。
-cat > "$ROOT/etc/systemd/system/raphael-aur-setup.service" <<'EOF'
-[Unit]
-Description=Install AUR packages (background, until done)
-After=network-online.target
-Wants=network-online.target
-ConditionPathExists=/usr/bin/paru
-ConditionPathExists=!/var/lib/raphael/aur-setup.done
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-TimeoutStartSec=1800
-Nice=15
-CPUSchedulingPolicy=batch
-ExecStart=/usr/local/sbin/raphael-aur-setup.sh
-EOF
-cat > "$ROOT/etc/systemd/system/raphael-aur-setup.timer" <<'EOF'
-[Unit]
-Description=Run AUR setup 90s after boot (off the boot critical path)
-
-[Timer]
-OnBootSec=90s
-AccuracySec=30s
-Persistent=false
-
-[Install]
-WantedBy=timers.target
-EOF
-enable_unit raphael-aur-setup.timer
 
 # ---------------------------------------------------------------------------
 # 14b. 花屏缓解: 不让 msm 显示控制器/DSI 进 runtime suspend
