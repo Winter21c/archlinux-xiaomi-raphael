@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:fef931a1f1c807c3acb3ea7c601871be96e38a1006be4c6bcc5daee16a994f35",
+  "pageVersion": "sha256:a144bc709a27ea301aa057266ac45d330966c35166079081d15da063590bd04c",
   "claims": [
     {
       "id": "claim_d80c8799814c4b8bb8ab66441bf8c68c",
@@ -241,7 +241,7 @@
       "statement": "首启动的 raphael-snapper-setup.sh 自行探测布局：根不是 btrfs、或虽是 btrfs 但 btrfs subvolume show / 失败（单子卷布局）时打印原因并跳过，因此快照配置只在 btrfs-subvol 布局下建立。",
       "evidence": [
         {
-          "resource": "repo://scripts/06-config.sh#L1131-L1147",
+          "resource": "repo://scripts/06-config.sh#L1130-L1146",
           "version": "repo-lines-v1:sha256:7bdd43d369becbe42a93c1f8f31e31caaff621dd46579dd82f7449e78d072d00:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5N2UzZDZmMTFjM2EzNjJiNzE1ZmFmZDE5ZmYwYTg0Mzk5ZDE5M2NlNjRiODU0NjljMjI4YjRmMzRkZDQxY2EiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkwMjBmZGQxMjcxZjUyODY0ZDdlZDhhYTU5MDYyYjk3MzEyNTI4MjNhYTUzMDE2ZDk5OTk2MjAzYjA4YzNlMDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiNzgyMzNhMmUxMzkxMWRkYzFmNmEwYjNlMzBmMzQ5NTYyMmY0YmUwMTdhYTE5ZDFkM2E1ODA2NDEwNDM3ZDQifQ"
         }
       ]
@@ -499,6 +499,68 @@
         {
           "resource": "repo://scripts/06-config.sh#L88-L104",
           "version": "repo-lines-v1:sha256:a088225b8462af96624d978ba1ad77bc141c4478b46064d31341b4c997e6134c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiMDdmYWJhNGRlZDFjMDBlMGUxMmU3YmFkNWZhZjExMTBkYzgyZDczZmUxNzg4ZmMzODM4NmYyYTJlNjk1ZDEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI1MjlmOWMwNmRiMDAzMzdjMTFmZmU4NTYxYTlmYWQxODY4YzQ3ODQxY2FjYjk2ZmI2ZjA5ODUxNGI2Mjc3MGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU2ZTFhNzQ4ZTZkMWJlODY5YTEzZGMwNGQ5Mzg3YmE0MmMwODBhMmM1ZWEzOWRiN2U2NDliNTNlZGNhN2VlOWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA5MGNhYjYxMDMxOWZmNWRhYjQ2NjRjNDQ0MzE5Mjk4YmM2NjI3MzU2ZjJiNDU0MTk3MWNlMjllNDhiOGFiNDYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f696b5db6f404041b3ff6033da9a2a37",
+      "statement": "在全量构建里阶段 06 是 rootfs_layout() 的第一个调用者，所以 work/rootfs-layout 缓存通常由阶段 06 那次调用落地；阶段 09 与 10 随后只读它，09 中途唯一改写它的地方是 loop 回退分支（写成 btrfs-flat），末尾再把最终值写回一次（正常路径下是同一个值）。",
+      "evidence": [
+        {
+          "resource": "repo://build.sh#L26-L39",
+          "version": "repo-lines-v1:sha256:7c2cfd8d34b46bf73d7adb2433660ccec5563444149dae2cd1d756aede1fc066:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjZjFhZWE2MTIyODFiY2ZmYzk5NTYxZGI3ZjQ1MGQ0NmZhZTZjZDA0NDhiMDc0ZjQ1YThmNzRjNmVjNTFjOGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhZmJhMDUyN2MzOTUzYzRiNmUwZTViNTczOWJhODM2MTJmODA1M2JjZGM5NDY2NzMwMTkzY2QxZDU5MGI0MDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEzMWIyMzEyMmRhNTQwNzhmOWNkZGUzNDlmZDU1NDUxMzc4YzRmMmFhNWE4MjZlNmViMWQ1NTVhOTA3NTRkZGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFlMDgxODYzNjU1NWEzYjBkZmFmZGU5YTdhYjM1MGIyZjMyZmVjOTA4MzcwMmYwMDYyYzA5ZjgyNDg0YzRlZjIifQ"
+        },
+        {
+          "resource": "repo://scripts/06-config.sh#L64-L69",
+          "version": "repo-lines-v1:sha256:efb17a8f52853f6e913d7324469abe7c6f542d92ace46b9067a37d625cb56c52:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2QwNDhhMDQyMmUxNGU5NWRlNDNiMWQxNGU2ODA1MWFlZjdhMzY2MjY5ZDIwZWMwN2NmYmNhZjE4NzNjYjc2NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOWFmMmM4MjUwODllOGQ5MjZlMDhkMDMwMmVhNTlmMGI1MGYyMTk3MDgwNWE3YzlkZTczNjY0ZDBmMjgzY2U1NSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWM1NTFkZDYxYTZhMWVjMWEwNTU3ZGY0NWFiMDgxODk4NjY5NjY5ZGMyYzRjY2Q3OTk0ZWRmMGFkMmVmYzk5YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODJlZmJjYWM1NTZjNTA3ZDIyODhkOTRjNzM5YTZlODZhNDM0ODY0ZDg5NTgzOTFlOWI1MTI2ZTNlMTJiMmI0YSJ9"
+        },
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L103-L139",
+          "version": "repo-lines-v1:sha256:29be0e9cb690bba35a9e6ba2ad28c05250c492adc05b6a7d6a51cb91e875e3fc:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY2MDc4ZGM1OGU1NjNmMmZiZTQ1YjIzYmYwNjYxNjc4OTgyNmRlMzcwMjMwYzlmYjk0Njc1ODI2Y2M0NjBjYzMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJjZjg0ZjU2YmI1ZWExNmU5OTIwNzJlZDM5YmI5ODA3ZjMzZWM0NjdlNGZlZGMyOTc1NGZiOWQyMmU3ZjMzNTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjhkOTk0YWEwYTNlMmEwZDY0OTk1NGQ1ZGYzNjRmZjE1NTI1ZGExY2Y2OTIxOTExYzY0MTZmNGIyZDYyMTYwYzAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZiZTYwMTYwNTVlODAwNjljYjgzZWI3YjYxZjg4NjkwZWNlMzNmMzdjZjI4ODZlMDYwZGMxNTAzYjNkYTg1MzUifQ"
+        },
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L183-L185",
+          "version": "repo-lines-v1:sha256:0cbe87c9b81c6ddc23d6557d821305cbf50f57c120400e3fbca36192255e73dd:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmQ3YzYwZTcwYWQ3MDA0YzBjM2UxNDk5ZDBiZTJmMGJjZTVmODY3NmFlYTIxNjMxYWE5ZDgzMGFiNDU5MjI0OSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDc1OTk3ZThjMzRlNGQ0MjQzNGM4ZWRkMWI0NzUzYTZiMTc4MmNmMWUxNGI1MTA0NGVkOWQxNmM3ZTZjYTcxOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDIzMjJlMmQ4YjY3ZThmZWIzMjdlZmE0NTVmMjVjZDUxOGM4NzAzNjdmNjM1N2YxM2I3NzczNDIwNzNlMmYwNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        },
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L96-L96",
+          "version": "repo-lines-v1:sha256:3d048a0422e14e95de43b1d14e68051aef7a366269d20ec07cfbcaf1873cb764:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2QwNDhhMDQyMmUxNGU5NWRlNDNiMWQxNGU2ODA1MWFlZjdhMzY2MjY5ZDIwZWMwN2NmYmNhZjE4NzNjYjc2NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiM2QwNDhhMDQyMmUxNGU5NWRlNDNiMWQxNGU2ODA1MWFlZjdhMzY2MjY5ZDIwZWMwN2NmYmNhZjE4NzNjYjc2NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZWJhYjA3ODc0ZDQ0ZTBlYzcyYTM2MjY4NDI5ZWIzYjhiNjdiODcxN2I4OGIyMGFkODYxMzI2YjgzZTYxNzIzNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODFkOGM3ODY2YmRkOTQ5YWY2MzA5MjNlMjFjNDYzZTQ3OTY3YThhOTI4YTVkZmY1MjljMDFjNWU4OTQ1YzE4ZSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_78a5e3c9beea479083f086aa941077dc",
+      "statement": "阶段 08 的 initramfs 不带任何文件系统模块也能挂 btrfs 根：作者内核把 btrfs 内建、busybox 的 findfs 也认得 btrfs，因此 rootfstype= 只被原样交给 mount -t；08 自己拷进 initramfs 的模块（ufs-qcom / phy-qcom-qmp-ufs / scsi_common / ext4）服务的是根块设备与兜底，与 rootfs 布局无关，这正是改布局不必动阶段 08 的机制原因。",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L109-L110",
+          "version": "repo-lines-v1:sha256:eee7f447b663d444e37c95fcfb052340060f62d94e74ea525ea668e64905c2da:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZGI3YjUzZmE4NDFhZWU0YjBkZWFjMjI1ODBiZDY2ZThiMjk5ZmUxZjY2Yjc4NjU3MjY5OTFkYThlMTAyZDdiZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYzlkMmIzNDliZmFiOGYzNzg1YTRhNTI4MjRkMWQ2YjczOWJhZTc2YjRjZGQ4MTIwOGFhZjcyNTUwNTE3MTY2MiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTM2NmRmMmJjMjE1YTc4YjFlYWZhOGQyNjUyMjQxNWVkODZhNTA5MDhkMTc4ZGJmNmQyOTZmYjVhMGNlNTljMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDVjYTc1ZjllZTJjYjczYWIyNTdiODIzMDcxMTQyYWJiOWU3YzZlZjc1N2EyNjdhOWFiNjI0M2I0NGY1MDM0ZSJ9"
+        },
+        {
+          "resource": "repo://scripts/08-initramfs.sh#L152-L159",
+          "version": "repo-lines-v1:sha256:4a7d05edc9ceca00ca631bcd64df17f91de778f8c232c864c5656c8aede67919:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmFlNTJmYzdmZDhjZjM1MGJiMTBmNzJkZTI0MjNmM2Q4NzNmNWM4MTU4Y2EwMDU5NjM4OGQ1NmE1M2EwNDdhMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzc2OWQyMzdjZDQyMGI5ZDM4Yjk4MWEwYTRmNjc3MDE5MGE0YTgzZGNhMWZlNTZjNGY1YmExZTJjYmMwZWY3NiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzI2MGIyZjhkMmU5OWRkYTY4M2MzOWVhZWU3OTc2N2UzYWQxMGE1OGNhMjM1ZmY1NjQyMmFjZTI5NjRiNTY0OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTQ3YmYyYTkyNGNkNzRmMGVkZmE0NmQ5Y2M4ZTI2OTMyMzBkYTg5OWQwMmE1MmE4ZjcyOWJmNmUxOTc1NjI5MSJ9"
+        },
+        {
+          "resource": "repo://scripts/08-initramfs.sh#L50-L63",
+          "version": "repo-lines-v1:sha256:6750e1d4eb98a793a30fbac4151543654ffb90130b1f515317514e156ce5d01f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA1MjZmYjkzZDU4MWY1ZjU0ZGQ5ZTNiZTliMzMxMzQ5Yzk0MDcyNDc5MzAxMmE4MWI2MjAxYTdkYjgxYmY2MDciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdlNzM4NjU4ZGVhMDUwNzJhMGU4MzM2MDQ4NzViZTIzMzAwMjJmZjc0MmI4MTQ4M2MzZDlmMWY2OGMxY2YxODIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijc5ODJjMGZmZGExZTc3YjkxNjI3ZjNjMDQxOGZiNTljZWQ1MTdiMjIyMDQ3NWNiNGEzNGVjMDAxNDk3NzJmNWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAzNGMzMjZkMWJiZTllYTUyNzllYTEzY2Q5YTc5MWRkNDczNWM4ODk1NmU0OTYwYjliYmVjNWQ3MmVkOGJhNzUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0e532c1f40c04d1882bc96466aaa0da1",
+      "statement": "首启动交换文件脚本 raphael-swapfile.sh 与 raphael-swapfile.service 是否生成只取决于 BTRFS_SWAP_SIZE 是否为 0，与 rootfs 布局无关：btrfs-flat / ext4 的镜像里同样带着它们，只是首启动因 /swap 未挂载而立即退出。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/06-config.sh#L418-L419",
+          "version": "repo-lines-v1:sha256:9b8224de2abec76d6d032cdab39c7fbdcc14dd2a6c8564020bae5d474c747054:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzg4N2MxNTY1NjY0NDE0ZDdiZDc1Njk0NGI0OGJjMWI3MjAwNjdjYTExNjNjYzA1ODI1OTMwNDc3ZmRiZjlkOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmM0MjJiM2E1Njk1NTBlNTRjMzQyYTczODk1ODIxOWEwNTM2MmI0ZDc3ZWU4MTAyMDhjNGM3NTEwODE1YmIyNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjAyNmU2ZTQzMjIzNjEyZjUwNThkOTdhNGRjZTU3ZjE2M2FjZTJhZjJhMzAwMTA4M2JmNTk3MzJiZTRhYTg0YiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTEwZTk2OGYzZmE4YjcyMzI0NjQ5ZGI0NDM1OTVkYTUxN2U0Y2NkOWUyODIxY2NkZGMyYjcxZDQ4ODhmZWRlOSJ9"
+        },
+        {
+          "resource": "repo://scripts/06-config.sh#L424-L425",
+          "version": "repo-lines-v1:sha256:7bd606a932098d767efbdbce4e1a2d2e35852761163aef9ba47d87be95bb4150:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTY0MzY2NjllZjZhYzRlZWVhNzgzNWE4OTVjMjBlNzgzOTJkOTY3YzBiNTIyMmMxNTA4ZjFlZDRjY2UyOWU2ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNmViYjNkNDc4MzNjNzhjMzI0ZDI4MDA2NmE3MDFlYWUzMGFiOTkxMzUzMGYwMjM4N2UyODQ3MmEyZDcwYTYyMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjYwMTEzMTE3MDg3MWNlMTVkMGE0M2E1MDUyYjAxMzA2MmVlYjBiMzY2OGEzNmJhNzRjMTYzZWQ0ZTU2YzViYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjM4NjgyY2RkOTgxMjI2MWNlZjA0YTNkNjBlMmZiNTU3NTMzMWMyNDRkZTAzOTY0MmU5Yzg1NzE3MjFjNTk5NCJ9"
+        },
+        {
+          "resource": "repo://scripts/06-config.sh#L441-L446",
+          "version": "repo-lines-v1:sha256:fee023b2d7931c69c118c54d33f1e1195684e0c4d01830901f83efe9dc396f6e:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2ZjNmZhOTJlN2Q1ZGZiMWM1OGQ2Y2U4OTVmZjUwNTQ1YjA4Mzc5ZDVlM2QzYzllNmJhNGMyNTEzMjllOTI1NiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNGVlYzhhYzY3NjE0NzJiZDkxMGI2ZTljYjVkZGU0NmZiODc0YzM3NDBhY2Q2YjU3OTVhZDFmYzdlZTg1ZjJkNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDYzNGYzMDUxNDJmYzFhYzdhYTVlNWViOGExM2I5MzQyMTg1MWI2ZDdhOWYzYzUzZTViYTVjMjY1ZWQyNmViMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmJlOWU0OWRkZGVmYjhkOGY1ZTNkYjY4NTNlNTY2ZTZjYmJkZjg0Mzg5ZTFiZjVkMGI5ZGQzNTg4YzJjNDNlNCJ9"
         }
       ]
     }

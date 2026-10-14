@@ -221,7 +221,8 @@
           "任何\"文档这么说、代码那么做\"的条目都要给出代码位置，不要替代码改口径。",
           "保留\"硬失败闸门一览\"与\"症状 → 根因\"两个索引表，它们是最常用的检索入口。"
         ],
-        "status": "pending"
+        "status": "complete",
+        "completedBy": "openwiki/0.7.2"
       },
       {
         "id": "42738a97-162f-4a01-ae6d-5264dbd78f5f",
@@ -245,7 +246,8 @@
           "强调\"回退分支必须先改写 fstab 再 mkfs\"这类顺序约束，并说明为什么它曾经造出开不了机的镜像。",
           "用一张 mermaid 图表达一个决策点 → 四个消费方的关系。"
         ],
-        "status": "pending"
+        "status": "complete",
+        "completedBy": "openwiki/0.7.2"
       },
       {
         "id": "6ab93815-e0af-43b2-8917-2444cf18bbe8",

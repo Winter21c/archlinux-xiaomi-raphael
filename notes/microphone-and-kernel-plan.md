@@ -425,3 +425,66 @@ MCLK 依赖、DTB 恢复 5 条 dai-link、UCM、顺序）都已经做过且验�
    采集拓扑（ADM COPP/TOPOLOGY 的 ID）是否需要在设备树/驱动里显式给出；
 3. 用带调试的自编译内核打开 q6adm/q6asm 的 verbose 日志（项目
    `notes/microphone-and-kernel-plan.md` 开头提到的"自编译内核"计划）。
+
+
+---
+
+## 2026-10-15 第五轮：发现设备树里两处**悬空 DAI 引用**（但补上后仍不通）
+
+### 1. 一个真实的设备树不一致
+
+排查 ADM 报错时逐个核对了 dai-link 引用的 phandle：
+
+```
+q6afe (phandle 0xff, apr-service@4/dais) 下**只有** dai@22 (reg=0x16)
+q6asm (phandle 0xfe, apr-service@7/dais) 下有 dai@0 / dai@1
+
+sound 节点里的链路引用:
+  speaker       cpu = <0xff 0x16>   → DAI 22 ✓ 存在（所以扬声器一直能用）
+  slimcap       cpu = <0xff 0x03>   → DAI 3  ✗ 设备树里没有这个节点
+  slim-playback cpu = <0xff 0x02>   → DAI 2  ✗ 设备树里没有这个节点
+```
+
+也就是说**上游作者自己的 DTB 里，耳机/采集两条链路引用的是不存在的 DAI 节点**。
+（对照组：6.16.9 那份 DTS 用的是 DAI 13/14，且它把 dai@0..dai@5 都定义了 ——
+两套编号不同，说明 7.2.0 这套的 2/3 就是 slim RX/TX。）
+
+### 2. 补上 dai@2 / dai@3 之后：**没有变化**
+
+用 dtc 反编译 → 在 q6afe 的 dais 容器里插入：
+
+```dts
+dai@2 { reg = <0x02>; };
+dai@3 { reg = <0x03>; };
+```
+
+真机结果：
+* 声卡照常注册（`qcom_snd_parse_of OK: 5 links`、codec 在卡里、扬声器 0 报错）✓
+* 采集**仍然失败**，日志变成：
+  ```
+  q6routing: DSP returned error[2]
+  wcd934x-codec: underflow on TX port 0, value 2      ← 新增信息
+  arecord: pcm_read: read error: Input/output error
+  ```
+
+**结论**：悬空 DAI 引用是真的，但**不是**采集失败的根因 —— ADM 依然返回
+`error[2]`（对应前面的 `ADM_CMD_MATRIX_MAP_ROUTINGS_V5` 被拒）。
+按"不发布未证实改动"的原则，设备树已回滚成作者原版。
+
+### 3. 目前的完整病因链（供内核工作接续）
+
+1. 采集 PCM 能打开（hw params 成功、arecord 打印 Recording WAVE）
+2. ADSP 的 **ADM 拒绝路由矩阵映射**：`ADM_CMD_MATRIX_MAP_ROUTINGS_V5 (0x10325)` → `error 2`
+   （在 ADSP 错误码里 2 通常是 EBADPARAM）
+3. 随后 codec 的 **TX port 0 欠载**（`underflow on TX port 0`）→ 读数据得到 I/O error
+4. → 样本恒为 0（之前不设路由时是"打不开"）
+
+也就是说：**问题在 ADSP 侧对采集路由参数的接受度**，不在 userspace/设备树能表达的范围内。
+排除过的项：kcontrol 全设对、DTB 5 条链路、audio-routing 的 MCLK 依赖、UCM、打开顺序、
+DSP 会话泄漏（重启清干净后再测）、悬空 DAI 引用（本轮补上）。
+
+**下一步真正需要做的是**：编译带 q6adm/q6routing verbose 日志的内核，
+打印 `q6adm_matrix_map()` 实际发出去的 `matrix_id / session_id / copp_list`，
+和 Android 侧 `audio_platform_info.xml` 里 raphael 的采集拓扑对照。
+这件事**必须在设备可恢复（能进 fastboot）的时候做** —— 刷坏内核而进不去 fastboot
+会直接变砖，所以在用户不在场时不应尝试。

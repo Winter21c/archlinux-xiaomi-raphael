@@ -23,11 +23,11 @@
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/repository-layout-and-entrypoints.md": {
+      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
+      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7",
       "pageVersion": "sha256:a4d7e4601edbc62f1003f92e89bd83e9c1eab428de91a6e7b23d543eb465c099",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
-      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
-      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7"
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/rootless-build-runtime.md": {
       "gitHead": "67b70d9a47a94259506e779d8188ede91aecaf99",
@@ -44,18 +44,18 @@
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/concepts/failure-modes-and-invariants.md": {
-      "gitHead": "67b70d9a47a94259506e779d8188ede91aecaf99",
-      "sourceFingerprint": "sha256:8b3de184b3c000512ddb17eafd5adc3aed6533162af1ea406be7a91a41ceb878",
-      "pageVersion": "sha256:ec140653499fba5e5a5602e645b44235693255b81342a05ab3d7d7fc2e0fe7c1",
+      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
+      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7",
+      "pageVersion": "sha256:b5f781d73fdfd37e1730ae6de965fd9b4d905aecfeaf2146db80b27afd2027d9",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/concepts/rootfs-layout-and-fstab.md": {
-      "gitHead": "67b70d9a47a94259506e779d8188ede91aecaf99",
-      "sourceFingerprint": "sha256:8b3de184b3c000512ddb17eafd5adc3aed6533162af1ea406be7a91a41ceb878",
-      "pageVersion": "sha256:fef931a1f1c807c3acb3ea7c601871be96e38a1006be4c6bcc5daee16a994f35",
+      "pageVersion": "sha256:a144bc709a27ea301aa057266ac45d330966c35166079081d15da063590bd04c",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
+      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
+      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7"
     }
   }
 }

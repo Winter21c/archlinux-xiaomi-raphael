@@ -1,8 +1,11 @@
 ---
 type: concept
 title: rootfs 布局决策与 fstab/引导参数一致性
-description: lib.sh:rootfs_layout() 如何三选一（ext4 / btrfs-subvol / btrfs-flat）并把结果粘在 work/rootfs-layout，write_root_fstab() 作为 fstab 唯一生成点如何与 rootfs_uuid() 同源，阶段 06 fstab、阶段 09 成像、阶段 10 的 rootfstype=/rootflags= 三处必须如何对齐，以及阶段 09 loop 回退时「先重写 fstab 再 mkfs -r」的硬顺序与违反四条不变量的具体症状。
+description: lib.sh:rootfs_layout() 如何三选一（ext4 / btrfs-subvol / btrfs-flat）并把结果粘在 work/rootfs-layout，write_root_fstab() 如何作为唯一 fstab 生成点与 rootfs_uuid() 同源，以及阶段 06 的 fstab、阶段 09 实际造出的文件系统、阶段 10 的 rootfstype=/rootflags= 和运行时 initramfs 的 cmdline 解析如何被这一份决策牵住。含阶段 09 loop 回退时「先重写 fstab 再 mkfs -r」的硬顺序、四条不变量、/home 双写与 /swap 子卷、首启动 growfs 的原因。
 tags: [rootfs, btrfs, fstab, subvolume, boot-parameters, image-build]
+verified:
+  - by: openwiki/0.7.2
+    at: 2026-10-10T11:58:54.634Z
 ---
 
 # rootfs 布局决策与 fstab/引导参数一致性
@@ -41,6 +44,8 @@ tags: [rootfs, btrfs, fstab, subvolume, boot-parameters, image-build]
 1. fstab 只有 `write_root_fstab()` 一个生成器，阶段 06 与 09 各写一次，两次都是 `> "$ROOT/etc/fstab"` 的幂等覆盖，所以不存在「谁先写谁赢」的歧义（[`scripts/06-config.sh`](../../scripts/06-config.sh#L55-L70)）。
 2. 阶段 09 的回退分支**必须先重写 fstab、再 `mkfs -r`**——晚一步改就来不及了（[`scripts/09-image-rootfs.sh`](../../scripts/09-image-rootfs.sh#L137-L146)）。
 3. 阶段 09 末尾把最终布局写回 `work/rootfs-layout`，让阶段 10 生成匹配的 `rootflags=`（[`scripts/09-image-rootfs.sh`](../../scripts/09-image-rootfs.sh#L183-L185)）；同时在 `btrfs-subvol` 布局里把 `@` 设为**默认子卷**（[`scripts/09-image-rootfs.sh`](../../scripts/09-image-rootfs.sh#L131-L133)），即使引导参数里的 `subvol=` 整个丢了，内核挂到的也还是 `@` 的内容——这是第二道保险。
+
+[HANDOVER.md](../../HANDOVER.md#L445-L449) 的「雷区」一节把它列为第 2 条（「别在 user namespace 里造 btrfs 子卷」），并给出排障动作：构建日志里出现「回退单子卷布局」时，要确认 fstab 也已经对齐了。
 
 回退时日志里会留下 `warn "loop 挂载失败 (容器缺 /dev/loop*?) -> 回退单子卷布局"` 这行。构建「成功」但出现它，意味着这次产出的不是子卷布局（snapper 随后也会在设备上自动跳过）。
 
@@ -81,7 +86,7 @@ flowchart TD
 
 ### 缓存是粘性的
 
-结果写在 `work/rootfs-layout`（`WORK="$PROJ/work"`，见 [`scripts/lib.sh`](../../scripts/lib.sh#L15-L23)）。只要该文件非空且没设 `RAPHAEL_FORCE_LAYOUT`，函数就 `cat` 它并直接返回，**不会重新探测**（[`scripts/lib.sh`](../../scripts/lib.sh#L317-L320)）。由此得到几条操作事实：
+结果写在 `work/rootfs-layout`（`WORK="$PROJ/work"`，见 [`scripts/lib.sh`](../../scripts/lib.sh#L15-L23)）。只要该文件非空且没设 `RAPHAEL_FORCE_LAYOUT`，函数就 `cat` 它并直接返回，**不会重新探测**（[`scripts/lib.sh`](../../scripts/lib.sh#L317-L320)）。在全量构建里阶段 06 是第一个调用者（[`scripts/06-config.sh`](../../scripts/06-config.sh#L64-L69)），所以缓存通常由 06 那次调用落地；09 与 10 只读它，09 中途唯一改写它的地方是 loop 回退分支，末尾再把最终值写回一次（正常路径下就是同一个值）。由此得到几条操作事实：
 
 - 一次无 root 构建落下的 `btrfs-flat` 会一直粘着，之后即使用 `sudo ./build.sh` 也不会自动升级成 `@` / `@home` 布局——要换布局必须删掉 `work/rootfs-layout`，或显式 `RAPHAEL_FORCE_LAYOUT=btrfs-subvol`。
 - 反过来，强制值本身也会被写回缓存（[`scripts/lib.sh`](../../scripts/lib.sh#L351-L353)），所以「临时强制一次」实际上会持久化，之后的阶段（甚至之后的构建）都会读到它。`build.sh --only` / `--from` 的部分重建同样继续读 `work/` 里的旧值（[`build.sh`](../../build.sh#L51-L75)）。
@@ -130,7 +135,7 @@ sequenceDiagram
 - **阶段 09 末尾把最终 `LAYOUT` 与 UUID 写回 `work/`**（[`scripts/09-image-rootfs.sh`](../../scripts/09-image-rootfs.sh#L183-L185)），于是成套构建时**阶段 10 读到的必然是修正后的布局**。
 - **同一布局决定 loader 参数**：阶段 10 按布局算出 `rootfstype=`，`btrfs-subvol` 额外把 `btrfs_opts "@"` 作为 `rootflags=`，`btrfs-flat` 用不带 `subvol=` 的 `btrfs_opts`，`ext4` 干脆不写 `rootflags=`（[`scripts/10-image-boot.sh`](../../scripts/10-image-boot.sh#L95-L118)）。fstab 里的 btrfs 选项和这里的 `rootflags=` 来自**同一个** `btrfs_opts()`（[`scripts/lib.sh`](../../scripts/lib.sh#L434-L439)），即 `compress=<BTRFS_COMPRESS>,noatime,ssd,discard=async,space_cache=v2`，有子卷时前面再加 `subvol=/<名字>`，所以两者不会各写一套 `compress=` / `noatime`。
 - **initramfs 是唯一的运行时消费者**：它自己解析 `/proc/cmdline` 里的 `root=` / `rootfstype=` / `rootflags=`（再按 `rw` / `ro` 决定读写，缺省当 `rw`），用 `findfs` 或 `by-partlabel` 解析设备、最多轮询 10 秒（40 × 0.25 s），挂到 `/newroot` 后 `switch_root`（[`scripts/08-initramfs.sh`](../../scripts/08-initramfs.sh#L114-L166)）。也就是说 `rootflags=` 是布局进入运行时的第一道门；解析不到设备或挂载失败就落进 `rescue()` 的救援 shell。
-- 一个容易读错的细节：`lib.sh` 的函数头注释把「06 fstab / 08 initramfs / 09 镜像 / 10 引导参数」并列成同一份结果的消费者（[`scripts/lib.sh`](../../scripts/lib.sh#L310-L316)），但阶段 08 **并不调用** `rootfs_layout()`——它产出的 `/init` 只在运行时读命令行。因此改布局不需要动阶段 08，需要动的是 06 / 09 / 10 和 `btrfs_opts()`。
+- 一个容易读错的细节：`lib.sh` 的函数头注释把「06 fstab / 08 initramfs / 09 镜像 / 10 引导参数」并列成同一份结果的消费者（[`scripts/lib.sh`](../../scripts/lib.sh#L310-L316)），但阶段 08 **并不调用** `rootfs_layout()`——它产出的 `/init` 只在运行时读命令行。这也说得通：作者内核把 btrfs 内建（`modinfo btrfs` → `(builtin)`），busybox 的 `findfs` 也认得 btrfs，所以 btrfs 布局不需要任何文件系统模块进 initramfs，`rootfstype=` 只是被原样交给 `mount -t`（[`README.md`](../../README.md#L109-L110)、[`scripts/08-initramfs.sh`](../../scripts/08-initramfs.sh#L152-L159)）。阶段 08 自己带的那几个模块（`ufs-qcom` / `phy-qcom-qmp-ufs` / `scsi_common` / `ext4`）是给根块设备与兜底用的，与布局无关（[`scripts/08-initramfs.sh`](../../scripts/08-initramfs.sh#L50-L63)）。因此改布局不需要动阶段 08，需要动的是 06 / 09 / 10 和 `btrfs_opts()`。
 
 ### 回退分支的落盘顺序
 
@@ -204,7 +209,7 @@ btrfs 上的交换文件有两个硬要求——**不能被压缩**、**必须 n
 
 两类退化行为值得记住：
 
-- 脚本对「`/swap` 没挂上」是安全的：`mountpoint -q /swap || { echo "/swap 未挂载, 跳过交换文件"; exit 0; }`（[`scripts/06-config.sh`](../../scripts/06-config.sh#L424-L425)）。因此 `btrfs-flat` / `ext4` 布局（fstab 里没有 `/swap` 行）下 `/swap` 不会被挂载、交换文件也就不会被创建，系统只剩 `zram-generator` 那个 10 GB `zram0` 交换（[`scripts/06-config.sh`](../../scripts/06-config.sh#L316-L326)）。换句话说，**4 GB 磁盘交换文件只存在于 `btrfs-subvol` 布局**，与 `/home` 双写一样是子卷布局独有的行为。
+- 脚本对「`/swap` 没挂上」是安全的：`mountpoint -q /swap || { echo "/swap 未挂载, 跳过交换文件"; exit 0; }`（[`scripts/06-config.sh`](../../scripts/06-config.sh#L424-L425)）。因此 `btrfs-flat` / `ext4` 布局（fstab 里没有 `/swap` 行）下 `/swap` 不会被挂载、交换文件也就不会被创建，系统只剩 `zram-generator` 那个 10 GB `zram0` 交换（[`scripts/06-config.sh`](../../scripts/06-config.sh#L316-L326)）。换句话说，**4 GB 磁盘交换文件只存在于 `btrfs-subvol` 布局**，与 `/home` 双写一样是子卷布局独有的行为。另外，脚本与单元**生成与否只看 `BTRFS_SWAP_SIZE` 是否为 0，与布局无关**（[`scripts/06-config.sh`](../../scripts/06-config.sh#L418-L419)）：flat / ext4 镜像里它们照样存在，只是首启动一进门就退出。
 - 首启动脚本会**追加**一行到设备上的 `/etc/fstab`；这发生在设备上，与构建期的 `write_root_fstab()` 不冲突，但意味着设备上的 fstab 可能比 `lib.sh` 生成的多一行。
 
 ## 为什么 `/home` 的数据要写两遍
@@ -244,4 +249,4 @@ btrfs 上的交换文件有两个硬要求——**不能被压缩**、**必须 n
 - **调试用敲门砖**：`RAPHAEL_FORCE_LAYOUT=ext4|btrfs-flat|btrfs-subvol` 可跳过探测；注意它会写回缓存（见「缓存是粘性的」），而且它只保证 09 与 10 一致，**不会重写 06 写过的 fstab**（见「残留缺口」）。
 - **改缓存就要成套重跑**：改了 `work/rootfs-layout` 或删了 `work/rootfs.uuid` 之后，至少要从阶段 06 重新跑（fstab 在 06 落盘），且 09/10 必须同一次跑完，否则 UUID 与布局会分散在两个产物里。
 
-相关背景：布局判定与无 root 约束的关系见[构建运行环境与无根构建](../architecture/rootless-build-runtime.md)，布局旋钮的下游效果见[配置模型](./configuration-model.md)，三处不一致在故障语义里的位置见[失败模式与不变量](./failure-modes-and-invariants.md)，`root=` / `rootflags=` 在启动链里的整体位置见[启动链与镜像布局](../architecture/boot-chain-and-image-layout.md)，产物拼装与首启动流程见[镜像打包与引导链](../workflows/image-packaging-and-boot-chain.md)与[首启动与运行时初始化](../workflows/first-boot-and-runtime-provisioning.md)，全景见[系统总览](../architecture/overview.md)。
+相关背景：布局判定与无 root 约束的关系见[构建运行环境与无根构建](../architecture/rootless-build-runtime.md)，布局旋钮的下游效果见[配置模型](./configuration-model.md)，三处不一致在故障语义里的位置见[失败模式与不变量](./failure-modes-and-invariants.md)，`root=` / `rootflags=` 在启动链里的整体位置见[启动链与镜像布局](../architecture/boot-chain-and-image-layout.md)，各阶段契约与子集重建语义见[构建阶段流水线](../architecture/build-pipeline-stages.md)，产物怎么刷到设备上见[刷机与恢复](../operations/flashing-and-recovery.md)，设备起来之后谁负责挂载与扩容见[启动后系统与单元归属](../runtime/boot-sequence-and-service-ownership.md)，手工核对手法见[验证与排障](../testing/verification-and-debugging.md)，全景见[系统总览](../architecture/overview.md)。

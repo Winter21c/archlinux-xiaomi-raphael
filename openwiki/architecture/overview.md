@@ -3,9 +3,6 @@ type: architecture
 title: 架构总览：构建侧与运行时侧的四个阶段群
 description: 一句话定位这个仓库：它是 SM8150（Redmi K20 Pro / raphael）上的 Arch Linux ARM 镜像工厂加设备运行时定制——宿主侧 build.sh 用 00–10 共 12 个阶段把上游 ALARM rootfs、作者内核 deb、固件与 U-Boot 组装成三份刷机产物，设备侧由随镜像发货的 systemd 单元完成首启动初始化与常驻服务。本页给出四个阶段群的关系图、产物到分区的清单，以及「构建期只写静态内容」与「设备上才发生的事」之间的分界。
 tags: [architecture, overview, build-pipeline, boot-chain, raphael, arch-linux-arm]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 架构总览：构建侧与运行时侧的四个阶段群
