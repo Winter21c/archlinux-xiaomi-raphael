@@ -101,7 +101,9 @@ if [ "$AUTOLOGIN" = "true" ] && [ -n "$PRIMARY_SESSION" ]; then
 [Autologin]
 User=$USERNAME
 Session=$PRIMARY_SESSION
-Relogin=false
+# 会话退出/崩溃后**自动重新登录** (手机场景: 用户不该被丢在登录界面;
+# 2026-10-15: 真机遇到过 plasmashell 重启失败, 有 Relogin 至少能自愈)
+Relogin=true
 EOF
   log "  已启用自动登录 -> $USERNAME / $DE_SUMMARY (第一个: $PRIMARY_SESSION)"
 fi
