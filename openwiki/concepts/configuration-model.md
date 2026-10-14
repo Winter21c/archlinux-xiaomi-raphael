@@ -1,53 +1,64 @@
 ---
 type: concept
 title: 配置模型：build.conf、派生标志与环境变量
-description: 这个仓库的配置不是键值解析而是可执行 bash —— config/build.conf 被 build.sh 与 scripts/lib.sh 反复 source，DESKTOPS 在那里被归一化/校验并派生出 HAVE_*/PRIMARY_SESSION/DE_SUMMARY/ALL_PKGS 等标志，RAPHAEL_* 环境变量与 config/local.conf 的覆盖优先级，以及 CI 在运行前对 build.conf 的就地改写。
+description: 这个仓库的配置不是键值解析而是可执行 bash —— config/build.conf 被 build.sh 与 scripts/lib.sh 反复 source，DESKTOPS 在那里被归一化/校验并派生出 HAVE_*/PRIMARY_SESSION/DE_SUMMARY/ALL_PKGS 等标志，RAPHAEL_* 环境变量、阶段级开关与 config/local.conf 的覆盖优先级，以及 CI 在运行前对 build.conf 的就地改写。
 tags: [configuration, build-config, bash, environment-variables, desktop-selection, ci]
 ---
 
 # 配置模型：build.conf、派生标志与环境变量
 
-这个仓库**没有配置解析器**。全部"可调参数"写在 [`config/build.conf`](../../config/build.conf) 里，而它是一段会被 `source` 执行的 bash：里面有 `if` / `case`、函数定义、循环、`sed` 改包列表，还有 `exit 1`。所以它的正确心智模型是"构建逻辑的最前面一层"，而不是一张 INI 表：
+这个仓库**没有配置解析器**。绝大多数"可调参数"写在 [`config/build.conf`](../../config/build.conf) 里，而它是一段会被 `source` 执行的 bash：里面有 `if` / `case`、函数定义、循环、`sed` 改包列表，还有 `exit 1`。所以它的正确心智模型是"构建逻辑的最前面一层"，而不是一张 INI 表：
 
 - 把它当键值文件改，可能得到静默错位（例如把 `DESKTOPS` 写成不存在的桌面）；
 - 想让同一个仓库产出不同镜像，优先走**环境变量**，而不是改文件；
 - 读它的时候要当代码读：`bash -n config/build.conf` 这类检查比"看配置项"更有意义。
+
+另有一小批开关**不在** `build.conf` 里，而是各阶段脚本直接读的环境变量（`SKIP_MS91XX`、`LXGW_WENKAI_VERSION` 等），见下面「阶段脚本自带的开关」一节。
 
 ## 谁读它、什么时候读
 
 | 读取方 | 位置 | 为什么在那里读 |
 |:--|:--|:--|
 | `build.sh` 顶层 | [`build.sh`](../../build.sh#L18-L24) | 只为两件事：提前校验 `DESKTOPS`、拿 `DE_SUMMARY` 打印表头。它在**解析命令行参数之前**执行 |
-| `scripts/lib.sh` | [`scripts/lib.sh`](../../scripts/lib.sh#L11-L13) | 每个阶段脚本第一行都 `source lib.sh`，lib.sh 再 source `build.conf`；于是配置在一次完整构建里被**求值十几次**：`build.sh` 一次，外加 12 个阶段各一次（`03b` 也算一个阶段） |
+| `scripts/lib.sh` | [`scripts/lib.sh`](../../scripts/lib.sh#L11-L13) | 每个阶段脚本第一行都 `source lib.sh`，lib.sh 再 source `build.conf`；于是配置在一次完整构建里被**求值十几次**：`build.sh` 一次，外加 12 个阶段各一次（`03b` 也算一个阶段）；`99-make-release.sh`、`11-flash.sh`、`bt-mac.sh` 这些同样 source `lib.sh` 的辅助脚本还会各自再求值一次 |
 
-由此产生三条读者必须知道的后果：
+由此产生四条读者必须知道的后果：
 
 1. **写错桌面名 = 整个构建入口退出**。`build.conf` 的校验分支直接 `exit 1`（[`config/build.conf`](../../config/build.conf#L79-L86)），而它是被 `source` 进 `build.sh` 的，所以 `exit` 结束的是 `build.sh` 自己 —— 一个阶段都不会跑。`./build.sh --list` / `--help` 也救不了，因为参数解析排在 source 之后（[`build.sh`](../../build.sh#L41-L61)）。阶段脚本里同理：那一次阶段运行整体退出。
 2. **环境变量会自然传播**。`build.sh` 用 `bash "scripts/$name"` 起阶段脚本（[`build.sh`](../../build.sh#L89-L102)），所以 `DESKTOPS="plasma-mobile phosh" ./build.sh` 里的赋值、以及 CI 写进 `$GITHUB_ENV` 的值，对所有阶段都生效，不需要写进文件。
 3. **每次 source 都会重算派生标志**。归一化 `DESKTOPS`、推导 `HAVE_*`、拼装 `ALL_PKGS` 这些工作不是一次性的，而是每个阶段各做一遍；因此任何阶段看到的 `ALL_PKGS` / `PKGS_PRUNE` 都与之独立算出的结果一致（前提是环境变量在各阶段之间没被改）。
+4. **`set -euo pipefail` 已经在生效**。`build.conf` 总是在 `set -euo pipefail` 之后被 source（[`build.sh`](../../build.sh#L16-L24)、[`scripts/lib.sh`](../../scripts/lib.sh#L9-L13)），所以配置里写一个裸的 `$SOME_UNDEFINED` 会让整个构建立刻退出；想引用可能不存在的变量必须写成 `${X:-}` 这种带默认值的形式。
 
 ## 值的来源与优先级
 
 ```mermaid
 flowchart TD
-  A["环境变量: DESKTOPS / SESSION / RAPHAEL_*"] --> B["config/build.conf 被 source"]
+  A["环境变量 DESKTOPS / SESSION"] --> B["config/build.conf 被 source"]
   C["build.conf 里的字面默认值"] --> B
-  D["config/local.conf 在 build.conf 末尾被 source"] --> B
-  B --> E["派生标志: HAVE_* / PRIMARY_DE / PRIMARY_SESSION / DE_SUMMARY / PKGS_* / ALL_PKGS / PKGS_PRUNE"]
-  E --> F["build.sh 与各阶段脚本消费"]
+  D["config/local.conf 在文件末尾被 source"] --> B
+  E["RAPHAEL_* 环境变量 经默认值展开读取"] --> B
+  B --> F["派生标志 HAVE_* / PRIMARY_DE / PRIMARY_SESSION / DE_SUMMARY / PKGS_* / ALL_PKGS / PKGS_PRUNE"]
+  F --> G["build.sh 与各阶段脚本消费"]
+  H["阶段脚本自带的默认值开关 SKIP_MS91XX 等"] --> G
 ```
 
-上图：一次求值里的合并顺序 —— `local.conf` 最后被 source，所以它的赋值压过文件里所有默认值；而 `RAPHAEL_*` 这类"可覆盖默认值"只在变量未设时生效。
+上图：一次求值里的合并顺序 —— `local.conf` 最后被 source，所以它的赋值压过文件里所有默认值；而 `RAPHAEL_*` 这类"可覆盖默认值"只在变量未设时生效。底下那条旁路是阶段级开关：它们不经过 `build.conf`。
 
-三种覆盖手段的性质完全不同：
+四种覆盖手段的性质完全不同：
 
 | 手段 | 生效方式 | 作用范围 | 典型用途 |
 |:--|:--|:--|:--|
 | 环境变量 `RAPHAEL_*` | build.conf 里写成 `${RAPHAEL_X:-默认}`（[`config/build.conf`](../../config/build.conf#L7-L42)） | 一次构建（或一次 CI job） | CI 海外换官方源、临时改压缩级别、注入私密值 |
 | 环境变量 `DESKTOPS` | build.conf 用 `${DESKTOPS+x}` 判断"是否**被设置过**"（[`config/build.conf`](../../config/build.conf#L68-L77)） | 一次构建 | 同一份代码切桌面形态，不碰文件 |
+| 阶段级开关 | 阶段脚本里直接写 `${SKIP_MS91XX:-}` 之类 | 那一次阶段运行 | 跳过投屏驱动编译、换字体版本、指定发布仓库 |
 | `config/local.conf` | build.conf 末尾整体 `source`（[`config/build.conf`](../../config/build.conf#L340-L347)） | 本机所有构建 | 本机唯一的私密值（蓝牙地址、密码） |
 
-`DESKTOPS` 的判定必须用 `${DESKTOPS+x}` 而不能用 `${DESKTOPS:-默认}`：CI 在"纯命令行"时会把 `DESKTOPS=` 写成**空串**（[`.github/workflows/build.yml`](../../.github/workflows/build.yml#L291-L312)），只有"存在性"判断才能把它与"完全没给"区分开，从而让空串短路掉旧的 `SESSION` 回退逻辑。
+**`${DESKTOPS+x}` 与 `${DESKTOPS:-默认}` 的区别是本页最要紧的一处细节**：
+
+- `${DESKTOPS+x}` 问的是"变量**存在**吗"—— 被显式设成空串也算存在，因此 `DESKTOPS=""` 会跳过整个旧写法回退；
+- `${DESKTOPS:-plasma-mobile}` 问的是"变量**非空**吗"—— 它区分不出"没人给"和"显式给空串"，两者都会被替换成 `plasma-mobile`。
+
+CI 的"纯命令行"正是靠空串表达的：复选框全不勾时工作流把它算成空串再写进 `$GITHUB_ENV`（[`.github/workflows/build.yml`](../../.github/workflows/build.yml#L291-L312)）。如果这里用 `:-`，CI 的纯命令行请求会被静默改写成"装 Plasma Mobile"—— 所以这个判断只能用 `+x`。
 
 ## DESKTOPS：归一化、校验与顺序语义
 
@@ -77,16 +88,16 @@ flowchart TD
 
 ## 派生标志：定义位置与消费者
 
-阶段脚本原则上**不再解析 `DESKTOPS` 字符串**，而是读下面这些标志（唯一的例外是 `07` 用 `case "$DESKTOPS" in *" "*)` 判断"是不是装了多个桌面"来打印提示，[L114-L119](../../scripts/07-desktop.sh#L114-L119)）：
+阶段脚本原则上**不再解析 `DESKTOPS` 字符串**，而是读下面这些标志；唯一的例外是 `07` 用 `case "$DESKTOPS" in *" "*)` 判断"是不是装了多个桌面"来打印排序提示（[L114-L119](../../scripts/07-desktop.sh#L114-L119)）：
 
 | 标志 | 定义位置 | 语义 | 谁读它 |
 |:--|:--|:--|:--|
 | `HAVE_PLASMA_MOBILE` / `HAVE_PLASMA_DESKTOP` / `HAVE_PHOSH` / `HAVE_GNOME` | [`build.conf` L104-L107](../../config/build.conf#L104-L107) | 单个桌面是否被选中（由 `de_has` 生成） | `02` 的关键包校验（[L126-L139](../../scripts/02-pacman.sh#L126-L139)）、`07` 的桌面专属配置段 |
 | `HAVE_KDE` | [`build.conf` L108](../../config/build.conf#L108) | 有 Plasma Mobile 或 Plasma 桌面 | `02`、`07`（SDDM 合成器/主题、Plasma 默认配置，多处） |
 | `HAVE_MOBILE_SHELL` | [`build.conf` L110](../../config/build.conf#L110) | Plasma Mobile 或 Phosh（"手机形态"） | **只被 build.conf 自己的选包逻辑用**，阶段脚本不读它 |
-| `HAVE_ANY_DE` | [`build.conf` L111](../../config/build.conf#L111) | `DESKTOPS` 非空 | `02`、`06`（是否装霞鹜文楷字体，[L1056](../../scripts/06-config.sh#L1056)）、`07`（SDDM 段 vs 纯命令行段）、`99`（刷机说明文本） |
+| `HAVE_ANY_DE` | [`build.conf` L111](../../config/build.conf#L111) | `DESKTOPS` 非空 | `02`、`06`（是否下载霞鹜文楷字体，[L1090-L1102](../../scripts/06-config.sh#L1090-L1102)）、`07`（SDDM 段 vs 纯命令行段）、`99`（刷机说明文本，[L110-L111](../../scripts/99-make-release.sh#L110-L111)） |
 | `PRIMARY_DE` / `PRIMARY_SESSION` | [`build.conf` L113-L114](../../config/build.conf#L113-L114) + `de_session_name` [L96-L103](../../config/build.conf#L96-L103) | 第一个桌面 / 对应 `wayland-sessions` 名（`plasma-desktop` → `plasma`） | `07` 写 SDDM `[Autologin] Session=`、`build.sh`/`99` 打印提示 |
-| `DE_SUMMARY` | [`build.conf` L116-L127](../../config/build.conf#L116-L127) | 人话摘要（`Plasma Mobile + Phosh`），空选择显示 `纯命令行` | `build.sh` 表头、`02` 日志、`07` 日志、`10` 引导项 `title`、`99` 发布说明 |
+| `DE_SUMMARY` | [`build.conf` L116-L127](../../config/build.conf#L116-L127) | 人话摘要（`Plasma Mobile + Phosh`），空选择显示 `纯命令行` | `build.sh` 表头、`02` 日志、`07` 日志、`10` 引导项 `title`、`99` 发布说明、`11-flash.sh` 的兜底提示（它优先显示镜像里实际写入的 `Session=`，[L120-L123](../../scripts/11-flash.sh#L120-L123)） |
 | `PKGS_PRUNE` | [`build.conf` L293-L315](../../config/build.conf#L293-L315)（`drop_pkgs`） | "同功能只留一个"时被去掉的包名 | `02` 用 `-Rdd` 显式从树里删掉（增量重建残留，[L173-L183](../../scripts/02-pacman.sh#L173-L183)） |
 | `ALL_PKGS` | [`build.conf` L332-L338](../../config/build.conf#L332-L338) | 所有 `PKGS_*` 组按 `HAVE_*` 拼装，再用 `awk '!seen[$0]++'` 去重 | `02` 的**唯一**安装清单（[L109-L145](../../scripts/02-pacman.sh#L109-L145)） |
 | `PKGS_DEDUPED` | [`build.conf` L299-L315](../../config/build.conf#L299-L315) | 去重动作的人话说明 | 目前没有消费者（只供人看/调试），改它不会影响构建 |
@@ -96,6 +107,16 @@ flowchart TD
 - **不是所有标志都有消费者**。`HAVE_MOBILE_SHELL` 和 `PKGS_DEDUPED` 只在 `build.conf` 内部使用；想让某个阶段区分"手机形态"，要么读 `HAVE_*`，要么在 `build.conf` 里新增一个阶段会读的标志。
 - **包列表是条件化生成的结果，不是静态清单**。非手机形态会用 `sed` 把 `flatpak`/`kdeconnect` 从 `PKGS_BASE` 里抠掉、对"有桌面"的形态再抠掉 `man-pages`/`vim` 并换掉 AUR 助手组（[`config/build.conf`](../../config/build.conf#L265-L281)）；中文输入法 `PKGS_IME` 只在装了 Plasma 桌面时才非空（[L317-L330](../../config/build.conf#L317-L330)）。
 - **选中的桌面缺关键包会让构建硬失败**：`02` 在包校验里为选中的桌面构造 `DE_CRIT`（`sddm`、`plasma-desktop`+`plasma-keyboard`、`plasma-mobile`、`phosh`+`phoc`+`squeekboard`、`gnome-shell`+`gnome-session`+`nautilus`），命中缺失就直接 `die`，拒绝产出"能刷但进不去桌面"的镜像（[`scripts/02-pacman.sh`](../../scripts/02-pacman.sh#L126-L139)）。而普通包名写错只 `WARN` 跳过。
+
+## 把它当代码读
+
+改 `build.conf` 之前，下面这几条能省掉大部分返工：
+
+- **先过语法**：`bash -n config/build.conf`（改动大时连带 `bash -n scripts/*.sh`）比逐行"看配置项"更有意义 —— 这个文件里真正的错误是语法错误和没定义的变量，而不是"值写得不合格式"。
+- **派生标志只在文件里算**：`HAVE_*`、`PRIMARY_SESSION`、`DE_SUMMARY`、`ALL_PKGS` 这类结果集中由 `build.conf` 推导，阶段脚本只读结果。**不要在阶段脚本里重新解析 `DESKTOPS` 字符串**（现有唯一例外是 `07` 打印多桌面提示的那处 `case`），否则同一个语义会有两份实现，早晚分叉。
+- **新增可覆盖开关必须写成 `${RAPHAEL_X:-默认}` 并放在文件顶部区域**；直接写死字面量就等于永久放弃环境变量覆盖这条路径。
+- **影响面由消费者决定，不由声明处决定**：改一个变量前先 `grep -rn '变量名' scripts/ build.sh`。`HAVE_MOBILE_SHELL`、`PKGS_DEDUPED` 就是"看起来很重要、其实没有阶段读"的例子；反过来 `USERNAME` 的消费者散布在 `06`/`02`/`07` 与 `lib.sh` 的属主归一化里。
+- **别假设"多写一行无害"**：文件里每一行都会被执行。放一个裸的未定义变量引用进去，构建会在入口处 `unbound variable` 直接退出。
 
 ## 环境变量覆盖清单
 
@@ -108,11 +129,22 @@ flowchart TD
 | `RAPHAEL_WIFI_COUNTRY` | [`build.conf` L42](../../config/build.conf#L42) | `CN` | `10` 写进引导项的内核参数 `cfg80211.ieee80211_regdom=`（决定 5 GHz 能否用） |
 | `RAPHAEL_FORCE_LAYOUT` | [`lib.sh` L316-L324](../../scripts/lib.sh#L316-L324) | 空 | 直接指定布局，跳过探测；结果会**写回缓存** |
 | `RAPHAEL_RELEASE_ZSTD_LEVEL` | [`99-make-release.sh` L26-L28](../../scripts/99-make-release.sh#L26-L28) | `19` | 发布包压缩级别（CI 用 `6` 换时间） |
-| `RAPHAEL_BT_MAC` | [`10-image-boot.sh` L55-L78](../../scripts/10-image-boot.sh#L55-L78)、[`11-flash.sh` L88-L104](../../scripts/11-flash.sh#L88-L104) | 空 | 构建/刷机时注入的蓝牙地址（见下节） |
+| `RAPHAEL_BT_MAC` | [`10-image-boot.sh` L55-L78](../../scripts/10-image-boot.sh#L55-L78)、[`11-flash.sh` L101-L103](../../scripts/11-flash.sh#L101-L103) | 空 | 构建/刷机时注入的蓝牙地址（见下节） |
 | `RAPHAEL_NS` | [`lib.sh` L44-L58](../../scripts/lib.sh#L44-L58) | `0` | **内部重入标记**：`require_ns()` 用它判断"是否已经进过 namespace"。手动设置会跳过 namespace 自举，会得到一份 setuid 全坏的镜像 |
 | `DESKTOPS` / `SESSION` | [`build.conf` L68-L77](../../config/build.conf#L68-L77) | `plasma-mobile` | 桌面形态与自动登录顺序 |
 
-`RAPHAEL_USER` 不是构建开关：它是 `07` 写进 systemd 单元 `Environment=` 的运行时变量（[`scripts/07-desktop.sh`](../../scripts/07-desktop.sh#L523-L533)），别与上面这批混用。
+`RAPHAEL_USER` 不是构建开关：它是 `07` 写进 systemd 单元 `Environment=` 的运行时变量，由设备上的 `raphael-power-key.py` 读取（[`scripts/07-desktop.sh`](../../scripts/07-desktop.sh#L389-L391)、[L526-L541](../../scripts/07-desktop.sh#L526-L541)）。构建期设置它没有任何效果，别与上面这批混用。
+
+### 阶段脚本自带的开关（不在 `build.conf` 里）
+
+| 变量 | 读取位置 | 默认值 | 作用 |
+|:--|:--|:--|:--|
+| `SKIP_MS91XX` | [`03b-ms91xx.sh` L28-L29](../../scripts/03b-ms91xx.sh#L28-L29) | 空 | 非空即跳过 MS91xx 投屏驱动编译（`03b` 立刻 exit 0） |
+| `LXGW_WENKAI_VERSION` | [`06-config.sh` L1090-L1093](../../scripts/06-config.sh#L1090-L1093) | `v1.522` | 霞鹜文楷字体的 release tag（只在有桌面时下载） |
+| `GH_REPO` / `GITHUB_REPOSITORY` | [`99-make-release.sh` L122-L131](../../scripts/99-make-release.sh#L122-L131) | 空（回退到 git remote） | `gh release create` 用哪个仓库 |
+| `RAPHAEL_BT_MAC` | [`11-flash.sh` L101-L103](../../scripts/11-flash.sh#L101-L103) | 空 | 刷机脚本里**只影响提示**：设了它就不再打印"蓝牙不可用"；真正注入靠 `--bt-mac` |
+
+这类开关是隐式的：仓库里没有集中声明它们的地方，也没有任何"参数清单"能告诉你它们存在，只能通读脚本（`grep -rn ':-' scripts/`）发现。它们同样可以写进 `config/local.conf` —— 该文件是被 `build.conf` source 的，变量会留在阶段脚本的同一个 shell 里。
 
 ## 私密值：三种注入路径与优先级
 
@@ -120,11 +152,17 @@ flowchart TD
 
 蓝牙地址是**每台设备唯一**的（产线写在 dtbo 分区，刷机会清掉），公开镜像不带任何人的真实地址。三条路径，优先级从高到低：
 
-1. **构建期环境变量 `RAPHAEL_BT_MAC`** —— 阶段 10 第一句就是 `BT_MAC="${RAPHAEL_BT_MAC:-}"`（[L57](../../scripts/10-image-boot.sh#L57)）。CI 用仓库 Secret `IMAGE_BT_MAC` 喂它（[`.github/workflows/build.yml`](../../.github/workflows/build.yml#L122-L124)）。
-2. **构建期 `config/local.conf` 的 `BT_MAC="aa bb cc dd ee ff"`** —— 阶段 10 用 `sed -n 's/^BT_MAC="\(.*\)".*/\1/p'` 抽取（[L58-L59](../../scripts/10-image-boot.sh#L58-L59)）。**格式约束来自这条 sed**：必须顶格、双引号形式；写成单引号或无引号会抽不到，构建不失败，只是镜像蓝牙不可用（WARN）。示例文件 [`config/local.conf.example`](../../config/local.conf.example) 里就是这行假值。
-3. **刷机/后处理期注入** —— `scripts/11-flash.sh --bt-mac '11 22 33 44 55 66'` 会把公开镜像复制一份、把地址写进其中的设备树再刷（[L91-L104](../../scripts/11-flash.sh#L91-L104)）；`scripts/bt-mac.sh set <boot-cache.img> <地址>` 用于同一目的（[`scripts/bt-mac.sh`](../../scripts/bt-mac.sh#L11-L18)）。这条路径不需要重新构建，也不需要任何 secret。
+1. **构建期环境变量 `RAPHAEL_BT_MAC`** —— 阶段 10 第一句就是 `BT_MAC="${RAPHAEL_BT_MAC:-}"`（[L56](../../scripts/10-image-boot.sh#L56)）。CI 用仓库 Secret `IMAGE_BT_MAC` 喂它（[`.github/workflows/build.yml`](../../.github/workflows/build.yml#L122-L124)）。
+2. **构建期 `config/local.conf` 的 `BT_MAC="aa bb cc dd ee ff"`** —— 阶段 10 用 `sed -n 's/^BT_MAC="\(.*\)".*/\1/p'` 抽取（[L57-L59](../../scripts/10-image-boot.sh#L57-L59)）。**格式约束来自这条 sed**：必须顶格、双引号形式；写成单引号或无引号会抽不到，构建不失败，只是镜像蓝牙不可用（WARN）。示例文件 [`config/local.conf.example`](../../config/local.conf.example) 里就是这行假值。
+3. **刷机/后处理期注入** —— `scripts/11-flash.sh --bt-mac '11 22 33 44 55 66'` 会把公开镜像复制一份、把地址写进其中的设备树再刷（[L91-L104](../../scripts/11-flash.sh#L91-L104)）；`scripts/bt-mac.sh set <boot-cache.img> <地址>` 用于同一目的（[`scripts/bt-mac.sh`](../../scripts/bt-mac.sh#L47-L56)）。这条路径不需要重新构建，也不需要任何 secret。
 
-地址接受 `11:22:33:44:55:66`、`11-22-33-44-55-66`、`112233445566`、`"11 22 33 44 55 66"` 四种写法，归一化会剔除其它字符（CI 上就踩过 Secret 里混进引号/冒号的情况，[`lib.sh`](../../scripts/lib.sh#L366-L374)）。写法是**设备树字节序**，与 `bluetoothctl` 显示的相反。
+三处代码细节值得先知道，否则容易被误导：
+
+- **注释和实现相反**。阶段 10 上方的注释写着"优先 `config/local.conf`，其次环境变量"，但代码是先取 `RAPHAEL_BT_MAC`、为空时才去读文件（[L54-L59](../../scripts/10-image-boot.sh#L54-L59)）—— 以代码为准，环境变量更高。
+- **格式错误的提示不可信**。那条 `WARN` 把位数取自 `BT_MAC_HEX`，而这个变量在仓库里从未被赋值（[L72-L74](../../scripts/10-image-boot.sh#L72-L74)）；判断地址是否合法要看 `normalize_bt_mac` 的规则，而不是提示里的数字。
+- CI 那行环境变量末尾多了一个引号（`RAPHAEL_BT_MAC: ${{ secrets.IMAGE_BT_MAC }}"`，[L124](../../.github/workflows/build.yml#L124)）。整行没有被引号包住，所以这个 `"` 属于值本身 —— 也就是说 CI 传进来的地址后面总跟着一个尾随引号，这正是归一化必须剔除杂字符的原因；本地手动设置时不会有这个尾巴。
+
+地址接受 `11:22:33:44:55:66`、`11-22-33-44-55-66`、`112233445566`、`"11 22 33 44 55 66"` 四种写法，归一化会剔除其它字符（CI 上就踩过 Secret 里混进引号/冒号的情况，[`lib.sh`](../../scripts/lib.sh#L369-L374)）。写法是**设备树字节序**，与 `bluetoothctl` 显示的相反。
 
 ### 账号与密码
 

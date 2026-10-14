@@ -1,45 +1,59 @@
 {
   "schemaVersion": 1,
   "pages": {
-    "/openwiki/architecture/overview.md": {
-      "gitHead": "68d72b1899da7e430dd86bb8cd0d7a8d9fe77324",
-      "sourceFingerprint": "sha256:5a4eb02f9af02ff7155ebd8bbafb46ab507659adb6bbe15dae6b22af54a40520",
-      "pageVersion": "sha256:f2f666f1ac3c880d29aefafd550829c5174e1ad2a0a555eeeb67d592fa8fc1c5",
+    "/openwiki/architecture/boot-chain-and-image-layout.md": {
+      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
+      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7",
+      "pageVersion": "sha256:58db52851e183425705ec2389601874e9c35b65f399cde118771dfe360efb27e",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
-    "/openwiki/architecture/repository-layout-and-entrypoints.md": {
-      "pageVersion": "sha256:43854a732f094faca238f32d23beed8f5ae696e7867f16d4ab51ab78e06f2075",
+    "/openwiki/architecture/build-pipeline-stages.md": {
+      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
+      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7",
+      "pageVersion": "sha256:57d451d121d73133b954097a2dc1ca2efa154a33024976b2dbb65af2e1d8c911",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+    },
+    "/openwiki/architecture/overview.md": {
+      "pageVersion": "sha256:e63ac7db652776e43e1237fd50f9e61452da5770764f63fac5c5811d4463f77e",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
+      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
+      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7"
+    },
+    "/openwiki/architecture/repository-layout-and-entrypoints.md": {
       "gitHead": "67b70d9a47a94259506e779d8188ede91aecaf99",
-      "sourceFingerprint": "sha256:8b3de184b3c000512ddb17eafd5adc3aed6533162af1ea406be7a91a41ceb878"
+      "sourceFingerprint": "sha256:8b3de184b3c000512ddb17eafd5adc3aed6533162af1ea406be7a91a41ceb878",
+      "pageVersion": "sha256:43854a732f094faca238f32d23beed8f5ae696e7867f16d4ab51ab78e06f2075",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/rootless-build-runtime.md": {
-      "gitHead": "68d72b1899da7e430dd86bb8cd0d7a8d9fe77324",
-      "sourceFingerprint": "sha256:5a4eb02f9af02ff7155ebd8bbafb46ab507659adb6bbe15dae6b22af54a40520",
-      "pageVersion": "sha256:dd2cf4e5504e51f52b4d319914686b29fb23fe2e1c07ab02f03f87189c20e321",
+      "gitHead": "67b70d9a47a94259506e779d8188ede91aecaf99",
+      "sourceFingerprint": "sha256:8b3de184b3c000512ddb17eafd5adc3aed6533162af1ea406be7a91a41ceb878",
+      "pageVersion": "sha256:ce7b8a6d2f34342ed149d0a39f9e4cb36f887a0dec65d57d675d2bd2abdb9400",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/concepts/configuration-model.md": {
-      "gitHead": "997149c63348c0ed7ee8beb86093c6e0e7524b05",
-      "sourceFingerprint": "sha256:b6d8cee18acb74464249c8257587a0d4a450afb4508a6a0ffeb8c651ed8b2ef8",
-      "pageVersion": "sha256:cc6cc169da54e075bf01b44847a43ff6c9347b712b879dcc9b1f0c282e0466af",
+      "gitHead": "67b70d9a47a94259506e779d8188ede91aecaf99",
+      "sourceFingerprint": "sha256:8b3de184b3c000512ddb17eafd5adc3aed6533162af1ea406be7a91a41ceb878",
+      "pageVersion": "sha256:ff1bd433c4cb165f774b3142feacd0254335ca04165e0d7ef04beff114694f41",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/concepts/failure-modes-and-invariants.md": {
-      "gitHead": "68d72b1899da7e430dd86bb8cd0d7a8d9fe77324",
-      "sourceFingerprint": "sha256:5a4eb02f9af02ff7155ebd8bbafb46ab507659adb6bbe15dae6b22af54a40520",
-      "pageVersion": "sha256:59416fd2167218c7d4fdef014046a380221bb7d8218169aa423ce4b30794fc00",
+      "gitHead": "67b70d9a47a94259506e779d8188ede91aecaf99",
+      "sourceFingerprint": "sha256:8b3de184b3c000512ddb17eafd5adc3aed6533162af1ea406be7a91a41ceb878",
+      "pageVersion": "sha256:ec140653499fba5e5a5602e645b44235693255b81342a05ab3d7d7fc2e0fe7c1",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/concepts/rootfs-layout-and-fstab.md": {
-      "gitHead": "68d72b1899da7e430dd86bb8cd0d7a8d9fe77324",
-      "sourceFingerprint": "sha256:5a4eb02f9af02ff7155ebd8bbafb46ab507659adb6bbe15dae6b22af54a40520",
-      "pageVersion": "sha256:53e1b564aea47920a437194cf406a8682fe345d3db11bde2830b6a14fb272ae0",
+      "gitHead": "67b70d9a47a94259506e779d8188ede91aecaf99",
+      "sourceFingerprint": "sha256:8b3de184b3c000512ddb17eafd5adc3aed6533162af1ea406be7a91a41ceb878",
+      "pageVersion": "sha256:fef931a1f1c807c3acb3ea7c601871be96e38a1006be4c6bcc5daee16a994f35",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     }

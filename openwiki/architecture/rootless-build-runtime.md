@@ -27,6 +27,8 @@ ns_mount                # 或 setup_qemu_shim / setup_mtools
 
 - `require_ns()` 用 `RAPHAEL_NS=1` 作哨兵把**当前脚本重入一遍**：第一次调用时执行 `exec unshare … env RAPHAEL_NS=1 PROJ="$PROJ" bash "$0" "$@"`，第二次（已在命名空间内）直接返回（[`scripts/lib.sh`](../../scripts/lib.sh#L44-L59)）。重入靠的是 `$0` 与哨兵：`lib.sh` 会从 `BASH_SOURCE[0]` 重新推导 `PROJ`（顺带传进去的 `PROJ=` 不是必需），因此阶段脚本必须能按相对当前工作目录的 `$0` 找到自己——这正是 `build.sh` 先 `cd` 到仓库根、并以相对路径启动阶段的原因。`exec` 替换的是管道里那个 `bash` 进程，所以重入后的输出仍然进 `logs/build.log`。
 - 由此产生一条必须遵守的规则：**`require_ns` 之前的语句会在宿主上真实执行一次**（那次执行还会再进命名空间重跑一遍），写在那里只能是幂等动作。`lib.sh` 自己就利用了这一点——进命名空间前先 `mkdir -p "$ROOT/proc"`，因为 `--mount-proc` 的目标路径必须先在父命名空间里存在。
+- 同一条规则也管着 `lib.sh` 的**顶层代码**：`PROJ` 推导、`source config/build.conf`、`mkdir -p "$WORK" "$DL" "$OUT" "$LOGS" "$TOOLS" "$WORK/logs" "$WORK/empty-hooks"`、以及 `KVER="$(ls "$ROOT/usr/lib/modules" …)"` 都在 `source` 的那一刻执行（[`scripts/lib.sh`](../../scripts/lib.sh#L11-L25)、[`scripts/lib.sh`](../../scripts/lib.sh#L168)），也就是在**没有 root 的宿主那一遍**就已经跑过（此时 `KVER` 通常为空，因为 `work/root` 还没解包或还是上一轮的树）；改这些顶层语句时同样要保证幂等。
+- `exec unshare … env RAPHAEL_NS=1 PROJ="$PROJ" bash "$0" "$@"` 是**追加**这两个变量而不是净化环境（`env` 不带 `-i`），其余环境变量原样继承：`DESKTOPS="plasma-mobile" ./build.sh`、`RAPHAEL_FORCE_LAYOUT=…`、`RAPHAEL_BT_MAC=…` 这类覆盖在命名空间内的那一遍照旧生效（[`config/build.conf`](../../config/build.conf#L8-L11) 里的 `${RAPHAEL_…:-默认值}` 就是这么读的）。
 - 反向的坑：`RAPHAEL_NS` 是全局哨兵，外部环境里预设 `RAPHAEL_NS=1` 会让 `require_ns()` 直接返回而不自举，阶段随即在宿主环境里跑 `ns_mount()`——第一句 `mount --bind "$ROOT" "$ROOT"` 就会以非零退出、被 `set -e` 中止。这个变量只应存在于 `require_ns()` 内部。
 
 ## 速查：helper 与它补上的能力
@@ -208,7 +210,7 @@ sequenceDiagram
 
 - **userns 产物没有构建期断言**。默认（无 `sudo`）跑一遍得到的 `rootfs.img` / `rootfs.sparse.img` 不会因为属主问题而失败。
 - 源码里对这个后果有**两种视角**，值得区分而不是简单信任其一：`lib.sh` 的事故复盘说"userns 里生成/改动的文件在宿主上属主是 uid 1000，带进镜像会让 setuid 程序失效"（[`scripts/lib.sh`](../../scripts/lib.sh#L241-L249)）；阶段 09 的头部注释则说"在 user namespace 内执行 `mke2fs -d`，这样镜像里的文件属主是 uid 0（namespace 内所有文件都映射为 root）"（[`scripts/09-image-rootfs.sh`](../../scripts/09-image-rootfs.sh#L5-L12)）。两者描述的其实是不同环节：镜像里最终记下的 uid 取决于**树里文件在宿主侧的属主**与**mkfs 当时所处的命名空间**——宿主 uid 1000 的文件在命名空间里看起来就是 0，而命名空间里没有被映射的属主（例如曾经被真 root 跑过一遍留下的 `root` 文件）会以 overflow uid 的形式落进镜像。
-- 操作结论：**要发布的镜像用 `sudo ./build.sh` 重新构建**（那条路径有断言，错了会 `die`），或者挂载产物自己检查 `stat -c '%u:%g %a' usr/bin/mount` 之类。别用"构建日志没报错"推断属主正确。
+- 操作结论：**要发布的镜像用 `sudo ./build.sh` 重新构建**（那条路径有断言，错了会 `die`），或者挂载产物自己检查 `stat -c '%u:%g %a' usr/bin/mount` 之类。别用"构建日志没报错"推断属主正确。可用的构建期自检手段（`verify_qemu`、阶段 02 的烟雾测试、CI 的 `mdir` 与 `sha256sum -c` 复核）见[构建期验证与烟雾测试](../testing/verification-and-smoke-tests.md)；"日志正常但镜像不可用"这一整类陷阱的归类见[故障模式与不变量](../concepts/failure-modes-and-invariants.md)。
 - 顺带记住：`normalize_ownership`、`rootfs_layout` 的布局退化、阶段 09 用兜底 DNS 覆盖宿主的 `/etc/resolv.conf` 等，都会在日志里留显式提示——**"构建成功"≠"镜像可用"**，这几行提示必须看。
 
 一个操作层面的推论：**CI 跑的是真 root 模式**。GitHub Actions 的容器步骤以 root 执行（工作流里 `pacman -Syu` 直接调用、没有 `sudo`），`--privileged` 又放开了 `unshare`/`mount` 的 seccomp 限制，所以 `require_ns` 走 `id -u = 0` 分支、`normalize_ownership()` 真的生效、阶段 09 的 loop 探测也能成功（工作流甚至专门 `mknod` 补 `/dev/loop*` 并自检一次 loop 挂载）。换句话说，"userns 下 setuid 失效"这类坑是**本地默认构建**才会遇到的，CI 不会替你暴露。
@@ -229,7 +231,8 @@ sequenceDiagram
 
 ## 不变量与失败语义
 
-- **`require_ns` 之前的代码在宿主上真跑一次**：那一段必须幂等（例如 `mkdir -p`）。
+- **`require_ns` 之前的代码在宿主上真跑一次**：那一段必须幂等（例如 `mkdir -p`）；`lib.sh` 的顶层语句（`PROJ`、`source config`、`mkdir`、`KVER`）同理，它们同样先在没有 root 的宿主上执行。
+- **环境变量跨重入是继承的**：`exec … env` 只追加 `RAPHAEL_NS=1` 与 `PROJ`，所以在调用 `build.sh` 时设的覆盖（`DESKTOPS`、`RAPHAEL_FORCE_LAYOUT`、`RAPHAEL_BT_MAC`…）在命名空间内的那一遍依然有效。
 - **`RAPHAEL_NS` 只属于 `require_ns` 内部**：外部预设它等于跳过自举，阶段会在宿主环境里跑 `ns_mount` 并因 `mount --bind` 失败而中止。
 - **挂载内容不进镜像**：成像前必须卸载 `proc`/`sys`/`dev`，镜像里只留空目录。
 - **垫片不进镜像**：`$ROOT/.raphael-build` 在阶段 09 被删掉；重跑更早的阶段时要重新 `setup_qemu_shim`。

@@ -583,51 +583,38 @@ while [ $i -lt 80 ] && [ ! -e /sys/bus/slimbus/devices/217:250:1:0/driver ]; do
   i=$((i+1)); sleep 0.5
 done
 [ $i -ge 80 ] && echo "raphael-audio: 等 codec 超时(40s), 仍加载声卡(将只有扬声器)"
-modprobe snd_soc_sm8150 2>/dev/null
-# codec 进卡后, 把耳机模拟通路拉起来(WCD9340 HPHL/HPHR)。不上电就打开
-# SLIMBUS_0_RX 路由会让播放**卡住**(实测), 上电后才正常。
-sleep 2
-for c in "SLIM RX0 MUX AIF1_PB" "SLIM RX1 MUX AIF1_PB" \
-         "RX INT1_1 MIX1 INP0 RX0" "RX INT2_1 MIX1 INP0 RX1" \
-         "COMP1 Switch 1" "COMP2 Switch 1" \
-         "RX INT1 DEM MUX CLSH_DSM_OUT" "RX INT2 DEM MUX CLSH_DSM_OUT"; do
-  amixer -c 0 cset "name='${c% *}'" "${c##* }" >/dev/null 2>&1
+# ★ 模块依赖(snd_soc_wcd934x/q6afe 等)可能还没就绪, 失败必须重试。
+#   2026-10-15 真机踩到: 开机时这一次 modprobe 静默失败 -> **整块声卡没注册**,
+#   PipeWire 只剩 auto_null 空设备(播放"成功"但一点声音都没有)。
+n=0
+while [ $n -lt 20 ]; do
+  modprobe snd_soc_sm8150 2>/dev/null
+  sleep 1
+  aplay -l 2>/dev/null | grep -q "^card 0" && break
+  n=$((n+1))
 done
-amixer -c 0 cset "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
-
+[ $n -ge 20 ] && echo "raphael-audio: 声卡加载失败(重试 20 次)" || echo "raphael-audio: 声卡已加载"
 i=0; while [ $i -lt 40 ] && ! have_card; do i=$((i+1)); sleep 0.5; done
 have_card || { echo "raphael-audio: 无声卡"; exit 0; }
 echo "raphael-audio: 声卡就绪"
 
+# 幂等写 mixer: 只在值不同时才写 —— 无条件 cset 会打断正在播放的流
+# (2026-10-15 实测: 会导致 pw-play/paplay 挂住不返回、sink-input 一直挂着)
+set_if_diff() {
+  cur=$(amixer -c 0 cget "name=$1" 2>/dev/null | tail -1 | grep -oE "[0-9]+$")
+  [ "$cur" = "$2" ] && return 0
+  amixer -c 0 cset "name=$1" "$2" >/dev/null 2>&1
+}
+
 apply() {
-  # MultiMedia1 就是 ALSA 的 hw:0,0, 也是裸 aplay 的默认设备; 不给它接后端就会报
-  # "ASoC: no backend DAIs enabled for MultiMedia1" 而且一点声音都没有。
-  # SLIMBUS_0_RX: 耳机(WCD9340)的通路。2026-10-15 起 DTB 里恢复了 slim 链路、
-#   codec 也进了声卡, 所以这条要开; 但**必须先保证 codec 的 HPH 通路已上电**,
-#   否则播放会卡住 —— 下面每次都会重新补 DAPM 设置(幂等)。
-for c in "SLIM RX0 MUX AIF1_PB" "SLIM RX1 MUX AIF1_PB" \
-         "RX INT1_1 MIX1 INP0 RX0" "RX INT2_1 MIX1 INP0 RX1" \
-         "COMP1 Switch 1" "COMP2 Switch 1" \
-         "RX INT1 DEM MUX CLSH_DSM_OUT" "RX INT2 DEM MUX CLSH_DSM_OUT"; do
-  amixer -c 0 cset "name='${c% *}'" "${c##* }" >/dev/null 2>&1
-done
-# 历史遗留说明(已过时, 保留备查): 从前 slim-*-dai-link 被删掉时这条控件不存在
-  # 真正干活的是两条 QUAT_MI2S_RX (底部扬声器 TFA9874):
-  #   MultiMedia1 -> QUAT_MI2S_RX  (aplay / 原生 ALSA, 即 hw:0,0)
-  #   MultiMedia2 -> QUAT_MI2S_RX  (PipeWire 的 pro-output-1, KDE 走这条)
-  amixer -c 0 cset "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
-  amixer -c 0 cset "name=QUAT_MI2S_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
-  amixer -c 0 cset "name=QUAT_MI2S_RX Audio Mixer MultiMedia2" 1 >/dev/null 2>&1
-  amixer -c 0 cset "name=SLIM RX0 MUX" AIF1_PB >/dev/null 2>&1
-  amixer -c 0 cset "name=SLIM RX1 MUX" AIF1_PB >/dev/null 2>&1
-  amixer -c 0 cset "name=RX INT1_1 MIX1 INP0" RX0 >/dev/null 2>&1
-  amixer -c 0 cset "name=RX INT2_1 MIX1 INP0" RX1 >/dev/null 2>&1
-  amixer -c 0 cset "name=COMP1 Switch" 1 >/dev/null 2>&1
-  amixer -c 0 cset "name=COMP2 Switch" 1 >/dev/null 2>&1
-  amixer -c 0 cset "name=RX INT1 DEM MUX" CLSH_DSM_OUT >/dev/null 2>&1
-  amixer -c 0 cset "name=RX INT2 DEM MUX" CLSH_DSM_OUT >/dev/null 2>&1
-  amixer -c 0 cset "name=RX1 Digital Volume" 68 >/dev/null 2>&1
-  amixer -c 0 cset "name=RX2 Digital Volume" 68 >/dev/null 2>&1
+  # 只保留**稳定可用**的后端: 底部扬声器 TFA9874 走 QUAT_MI2S。
+  #   MultiMedia1 -> QUAT_MI2S_RX  (裸 aplay, hw:0,0)
+  #   MultiMedia2 -> QUAT_MI2S_RX  (PipeWire/KDE, hw:0,1)
+  # ⚠️ 不要把 SLIMBUS_0_RX(耳机) 挂到 MultiMedia1: 实测音频会同时走 codec 后端,
+  #    播放稳定卡死(连测 3/3 超时)。耳机通路因此停用, 详见
+  #    notes/microphone-and-kernel-plan.md。
+  set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia1" 1
+  set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia2" 1
 }
 
 for i in $(seq 1 60); do
@@ -642,7 +629,7 @@ as_user pactl set-card-profile alsa_card.platform-sound output:stereo-fallback >
 sleep 2
 
 apply   # 后续由 raphael-audio-routing.timer 每 20 秒兜底
-echo "raphael-audio: $(amixer -c 0 cget "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 2>/dev/null | tail -1)"
+echo "raphael-audio: 完成"
 exit 0
 AEOF
 sed -i "s/@USER@/$USERNAME/g" "$ROOT/usr/local/sbin/raphael-audio-init.sh"
@@ -686,53 +673,38 @@ enable_unit raphael-audio-init.timer
 # ---------------------------------------------------------------------------
 cat > "$ROOT/usr/local/sbin/raphael-audio-routing.sh" <<'REOF'
 #!/bin/bash
+# Raphael 音频路由兜底 (每 20 秒由 raphael-audio-routing.timer 调用)
+#
+# 2026-10-15 真机结论(三条都是实测踩出来的):
+#  1) 只在**值确实不同**时才写 mixer。原来无条件 cset, 会在播放进行中触发
+#     DAPM 更新, 把正在播的流卡死(pw-play/paplay 永远不返回、sink-input 挂住)。
+#  2) **不要**把 SLIMBUS_0_RX(WCD9340 耳机)挂到 MultiMedia1: 一旦挂上, 音频会
+#     同时走 codec 后端, 播放**稳定卡死**(连测 3/3 超时)。因此耳机通路停用。
+#  3) 底部扬声器(TFA9874, 走 QUAT_MI2S)是目前唯一稳定的播放后端 —— 两个
+#     MultiMedia 都要接上它(裸 aplay 走 MultiMedia1, PipeWire 走 MultiMedia2)。
 set +u
-aplay -l 2>/dev/null | grep -q '^card 0' || exit 0
+aplay -l 2>/dev/null | grep -q "^card 0" || exit 0
 
-# ---------------------------------------------------------------------------
-# 声卡 profile 兜底 (2026-10-15 真机定位到"没声音"的真凶)
-#   pro-audio profile 打开 PCM 时的参数让 Q6 AFE 端口使能失败:
-#     qcom-q6afe: AFE enable for port 0x1006 failed -110/-22
-#   结果完全没声音 (连裸 aplay 都失败)。实测换成普通的立体声 profile 后:
-#     PCM state=RUNNING, dmesg 零报错, 有声音。
-#   这里每 20 秒检查一次, 发现是 pro-audio 就切回来 (幂等, 卡没插好也不影响)。
-# ---------------------------------------------------------------------------
-as_user() { sudo -u @USER@ env XDG_RUNTIME_DIR=/run/user/1000 "$@"; }
-CARD=alsa_card.platform-sound
-if as_user pactl list cards >/dev/null 2>&1; then
-  CUR="$(as_user pactl list cards 2>/dev/null | awk -v c="$CARD" '$0 ~ c {f=1} f && /Active Profile/ {print $NF; exit}')"
+set_if_diff() {  # set_if_diff <control> <value>
+  cur=$(amixer -c 0 cget "name=$1" 2>/dev/null | tail -1 | grep -oE "[0-9]+$")
+  [ "$cur" = "$2" ] && return 0
+  amixer -c 0 cset "name=$1" "$2" >/dev/null 2>&1
+}
+
+set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia1" 1
+set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia2" 1
+
+# 声卡 profile 兜底: pro-audio 会让 Q6 AFE 使能失败(-110/-22) -> 完全没声音;
+# off 则连 sink 都没有。发现这两种就切回能工作的立体声 profile。
+if command -v pactl >/dev/null 2>&1; then
+  as_user() { sudo -u @USER@ env XDG_RUNTIME_DIR=/run/user/1000 "$@"; }
+  CUR="$(as_user pactl list cards 2>/dev/null | awk '/Active Profile/{print $NF; exit}')"
   if [ "$CUR" = "pro-audio" ] || [ "$CUR" = "off" ] || [ -z "$CUR" ]; then
-    # 优先 UCM 的 HiFi; 没有就用 ACP 的立体声兜底 profile
-    for p in HiFi output:stereo-fallback; do
-      if as_user pactl set-card-profile "$CARD" "$p" 2>/dev/null; then
-        echo "raphael-audio: 已把声卡 profile 从 pro-audio 切到 $p"
-        break
-      fi
-    done
+    as_user pactl set-card-profile alsa_card.platform-sound output:stereo-fallback >/dev/null 2>&1
   fi
 fi
-# MultiMedia1 就是 ALSA 的 hw:0,0, 也是裸 aplay 的默认设备; 不给它接后端就会报
-# "ASoC: no backend DAIs enabled for MultiMedia1" 而且一点声音都没有。
-# 下面 SLIMBUS_0_RX 那条是历史遗留 (slim-*-dai-link 已从 DTB 删掉, 控件不存在),
-# 真正干活的是两条 QUAT_MI2S_RX (底部扬声器 TFA9874):
-#   MultiMedia1 -> QUAT_MI2S_RX  (aplay / 原生 ALSA, 即 hw:0,0)
-#   MultiMedia2 -> QUAT_MI2S_RX  (PipeWire 的 pro-output-1, KDE 走这条)
-amixer -c 0 cset "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
-amixer -c 0 cset "name=QUAT_MI2S_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
-amixer -c 0 cset "name=QUAT_MI2S_RX Audio Mixer MultiMedia2" 1 >/dev/null 2>&1
-amixer -c 0 cset "name=SLIM RX0 MUX" AIF1_PB >/dev/null 2>&1
-amixer -c 0 cset "name=SLIM RX1 MUX" AIF1_PB >/dev/null 2>&1
-amixer -c 0 cset "name=RX INT1_1 MIX1 INP0" RX0 >/dev/null 2>&1
-amixer -c 0 cset "name=RX INT2_1 MIX1 INP0" RX1 >/dev/null 2>&1
-amixer -c 0 cset "name=COMP1 Switch" 1 >/dev/null 2>&1
-amixer -c 0 cset "name=COMP2 Switch" 1 >/dev/null 2>&1
-amixer -c 0 cset "name=RX INT1 DEM MUX" CLSH_DSM_OUT >/dev/null 2>&1
-amixer -c 0 cset "name=RX INT2 DEM MUX" CLSH_DSM_OUT >/dev/null 2>&1
-amixer -c 0 cset "name=RX1 Digital Volume" 68 >/dev/null 2>&1
-amixer -c 0 cset "name=RX2 Digital Volume" 68 >/dev/null 2>&1
-exit 0
 REOF
-chmod 755 "$ROOT/usr/local/sbin/raphael-audio-routing.sh"
+sed -i "s/@USER@/$USERNAME/g" "$ROOT/usr/local/sbin/raphael-audio-routing.sh"
 cat > "$ROOT/etc/systemd/system/raphael-audio-routing.service" <<'REOF'
 [Unit]
 Description=Re-assert Raphael Q6 audio routing (ACP 会把它复位)

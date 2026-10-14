@@ -118,7 +118,7 @@ flowchart TD
 
 | 位置 | 只告警的原因 | 风险 |
 |:--|:--|:--|
-| `lib.sh:patch_wlroots_layer_shell()` | 二进制补丁带版本特征校验，找不到唯一的指令序列时**不能**乱改（会打断非 phosh 的构建），只提示"wlroots 升级了? 补丁需要重写" | 升级 wlroots 后 phosh 会话起不来；[`README.md`](../../README.md) §8.17 有完整证据链 |
+| `lib.sh:patch_wlroots_layer_shell()` | 二进制补丁带版本特征校验，找不到唯一的指令序列时**不能**乱改（会打断非 phosh 的构建），只提示"wlroots 升级了? 补丁需要重写"；没找到 `libwlroots-*.so` 时同样只告警 | 升级 wlroots 后 phosh 会话起不来（症状是登录界面闪一下又回去）；完整证据链见 [`README.md`](../../README.md) §8.17 与 [`notes/desktop-environments.md`](../../notes/desktop-environments.md) §7 |
 | `10-image-boot.sh` 缺 `dtb/raphael-redmi-k20pro.dtb` | 设备树是修好的产物，缺失时构建不该整体失败 | 蓝牙与麦克风静默不可用 |
 | `03-kernel.sh` `depmod` 失败 | 沿用 deb 内自带的 `modules.dep` | 新模块可能加载不到 |
 | `06-config.sh` `locale-gen` / `07-desktop.sh` `dconf update` / `set-default` 失败 | 都不影响开机，且首次开机/登录能自愈 | 界面语言、屏幕键盘默认值可能不生效 |
@@ -224,8 +224,9 @@ flowchart TD
 - 阶段 09 在灌镜像前**再查一次** `*.wants/` 里有没有 `systemd-networkd*` / `systemd-resolved*` 软链，有就 `die`——因为 CI 上出现过"日志说 disable 了、镜像里 9 个软链还在"（mtime 还是 tarball 的）。
 - 反过来，"用户级"服务必须由脚本**显式 enable**：`pipewire.socket` / `pipewire-pulse.socket` / `wireplumber.service` 的软链由 `07-desktop.sh` 手工建，否则症状是"有声音选项但一个声音设备都没有"（[`README.md`](../../README.md) §8.8）。
 - 同类：`/etc/dconf/profile/user` 必须自己建，否则 `system-db:local` 根本不会被读取——GNOME/Phosh 的"自动弹屏幕键盘"设置会**静默失效**（[`scripts/07-desktop.sh`](../../scripts/07-desktop.sh)）。
+- 同类（登录链路本身也要显式声明）：阶段 07 把用户默认 shell 改成 zsh（`chsh` 失败只 warn），因此 **`/usr/bin/zsh` 必须追加进 `/etc/shells`**。pam_shells（SDDM 自动登录走 `sddm-autologin` 栈）会拒绝不在 `/etc/shells` 里的 shell，日志是 `User has an invalid shell` → `Autologin failed`，手机上表现为**永远停在登录界面**——没有实体键盘，等于进不去系统（[`scripts/07-desktop.sh`](../../scripts/07-desktop.sh)）。
 
-不变量可以概括成一句：**镜像里每个单元的存在、启用、屏蔽状态都必须由阶段脚本显式声明**，因为没有任何 preset 会替你决定。
+不变量可以概括成一句：**镜像里每个单元的存在、启用、屏蔽状态、以及登录链路的合法性（shell、profile、软链）都必须由阶段脚本显式声明**，因为没有任何 preset 会替你决定。
 
 ### 3.9 电源与重启：看门狗、挂起、单一 power-key owner
 
@@ -316,7 +317,8 @@ flowchart LR
 | 蓝牙没有控制器 / `btmgmt` 报 `Invalid Index` | DT 缺 `local-bd-address`（或地址字节序写反）＋ 通用 NVM 不匹配 | §3.11、§3.7 | [`README.md`](../../README.md) §8.9、[`HANDOVER.md`](../../HANDOVER.md) §5.7 |
 | `systemctl reboot` 卡在 `Fail to set watchdog hardware timeout` | PM8150 不支持 10 分钟看门狗超时 | §3.9 | [`README.md`](../../README.md) §8.2、[`HANDOVER.md`](../../HANDOVER.md) §5.6 |
 | 屏幕键盘弹得出来但字打不进去 / 关不掉 | 输入法变量作用域错了，或有两个输入法来源 | §3.10 | [`HANDOVER.md`](../../HANDOVER.md) §5.5、[`README.md`](../../README.md) §8.16 |
-| 登录界面闪一下回到登录界面（Phosh） | atomic 提交 / 用户服务看不到 `WAYLAND_DISPLAY` / layer-shell 校验 | §2.7 | [`README.md`](../../README.md) §8.17、[`HANDOVER.md`](../../HANDOVER.md) §5.10 |
+| 登录界面闪一下回到登录界面（Phosh） | atomic 提交 / 用户服务看不到 `WAYLAND_DISPLAY` / layer-shell 校验 | §2.7 | [`README.md`](../../README.md) §8.17、[`notes/desktop-environments.md`](../../notes/desktop-environments.md) §7 |
+| 已经选好桌面，但一直停在登录界面，日志 `User has an invalid shell` | 用户默认 shell 是 zsh，而 zsh 不在 `/etc/shells` 里，pam_shells 拒绝登录 | §3.8 | [`HANDOVER.md`](../../HANDOVER.md) §5.10 |
 | 每次开机多一个 failed 单元（`systemd-networkd-wait-online`） | networkd/resolved 的 `*.wants` 软链残留在镜像里 | §3.8 | [`HANDOVER.md`](../../HANDOVER.md) §2.2 阶段 09、[`README.md`](../../README.md) §8.16 |
 
 ## 5. 改这里的守则
