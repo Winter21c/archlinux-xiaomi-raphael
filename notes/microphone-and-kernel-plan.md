@@ -272,3 +272,47 @@ fdtput -t s <dtb> /sound audio-routing \
   1. 用 `debugfs` 看采集时 ADM/ASM 的会话是否真的建立（`q6asm` 的 `MM_UL1` 端口）；
   2. 对照 Android 的 `mixer_paths.xml` 检查 AMIC 的 micbias 电压/时钟档位；
   3. 抓 codec 寄存器（`wcd934x` 的 ADC/AMIC 寄存器）看在录音时有没有被真正打开。
+
+
+### 4. 补充证据（同一轮稍后）：DAPM 图里采集通路**从未上电**
+
+关键控件的真实语义（别再猜了）：
+
+```
+$ amixer -c 0 cget "name='AMIC MUX0'"
+  ; type=ENUMERATED,values=1,items=5
+  ; Item #0 'ZERO'  #1 'ADC1'  #2 'ADC2'  #3 'ADC3'  #4 'ADC4'
+  : values=1        ← 当前 = ADC1（主麦 AMIC1 那一路）
+```
+
+也就是说 §8.10 里 `cset name='AMIC MUX0' 1` 是对的（`1` = ADC1），不是这里的问题。
+
+再看 DAPM 部件的真实状态（挂载后直接读 debugfs）：
+
+```
+AMIC1    AMIC1: Off  in 1 out 0
+ADC1     ADC1: Off  in 1 out 0 - R1550(0x60e) mask 0x80
+MCLK     MCLK: On  in 0 out 0          ← 时钟在（audio-routing 起效了）
+```
+
+`out 0` = 这两个部件的**输出端没有任何激活的下游** —— 采集通路没有形成一条
+"源(AMIC1) → 汇(DAI)" 的完整激活路径，所以 DAPM 压根不给它上电。
+而它上不了电的原因又回到同一件事：**采集 PCM 打不开**（EINVAL），没有流就没有
+DAPM 触发；打不开又可能和路由 mixer 未就位有关 —— 这次实测到的规律是：
+
+* 先设好 `AMIC MUX0=ADC1` + `CDC_IF TX0 MUX=DEC0` + `AIF1_CAP Mixer SLIM TX0=1`
+  + `MultiMedia1 Mixer SLIMBUS_0_TX=1`，**再** arecord → 能打开（表现为 Recording WAVE）
+* 顺序反了、或中间被 ACP 复位 → EINVAL
+* 即便打开了，样本也**精确为 0**（峰值 0 / RMS 0.0 / 非零样本 0）
+
+所以采集这条链现在有三层，一层比一层深：
+
+1. **打开 PCM** —— 顺序敏感，能过（需要把路由 mixer 在打开前设好并防 ACP 复位）
+2. **DAPM 上电** —— 从没观察到 `AMIC1/ADC1` 变 On（`out 0`），说明软件侧的
+   DAPM 图没把采集通路接起来
+3. **模拟前端出信号** —— 即便前两层都过了也还是 0，卡在 codec AMIC/MIC BIAS/ADC
+   或 ADSP 的采集会话（`q6asm` 的 MM_UL 端口）
+
+下一步具体建议：录音时读 `wcd934x` 的寄存器（`/sys/kernel/debug/regmap/*/registers`
+或 codec 的 `codec_reg`），比对 ADC1/AMIC1/MIC BIAS 那几位的实际值 ——
+能直接判定是"寄存器没开"还是"开了但没信号"。
