@@ -111,6 +111,8 @@ case "$ROOTFS_LAYOUT" in
 esac
 ROOTOPTS="root=UUID=$UUID rootfstype=$ROOTFSTYPE"
 [ -n "$ROOTFLAGS" ] && ROOTOPTS="$ROOTOPTS rootflags=$ROOTFLAGS"
+# 无线管制域: 不设的话是"世界域", 很多 5GHz 信道被禁用 (连不上 5G Wi-Fi)
+[ -n "${WIFI_COUNTRY:-}" ] && ROOTOPTS="$ROOTOPTS cfg80211.ieee80211_regdom=$WIFI_COUNTRY"
 ROOTOPTS="$ROOTOPTS rw rootwait console=tty0"
 log "root 参数: $ROOTOPTS"
 log "  (布局 $ROOTFS_LAYOUT; initramfs 里 btrfs 无需模块, 内核内建)"

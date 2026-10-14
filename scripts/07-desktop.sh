@@ -124,12 +124,25 @@ esac
 if [ "$HAVE_KDE" = 1 ]; then
 log "写入 Plasma 默认配置 ($HOME_DIR)"
 mkdir -p "$USERDIR/.config"
-# 不自动锁屏 (手机上没有密码键盘时会很尴尬)
-cat > "$USERDIR/.config/kscreenlockerrc" <<'EOF'
+# 锁屏策略按形态区分:
+#   * 手机形态: 不自动锁屏 (没物理键盘时会把自己锁在外面, 真机踩过)
+#   * 桌面形态: **开启**自动锁屏 (当电脑用需要), 10 分钟无操作锁屏
+#   注: Timeout 的单位是**分钟** (KDE「安全 -> 屏幕锁定」里的那个)
+if [ "$HAVE_PLASMA_DESKTOP" = 1 ]; then
+  cat > "$USERDIR/.config/kscreenlockerrc" <<'EOF'
+[Daemon]
+Autolock=true
+Timeout=10
+LockOnResume=true
+EOF
+  log "  锁屏: 桌面形态已开启自动锁屏 (10 分钟)"
+else
+  cat > "$USERDIR/.config/kscreenlockerrc" <<'EOF'
 [Daemon]
 Autolock=false
 LockOnResume=false
 EOF
+fi
 # 关闭 PowerDevil 的自动挂起 (sm8150 主线只有 s2idle, 挂起不可靠);
 # 键名取自 PowerDevilProfileSettings.kcfg (6.7.5):
 #   [<Profile>][SuspendAndShutdown] AutoSuspendAction / AutoSuspendIdleTimeoutSec / PowerButtonAction
@@ -779,6 +792,78 @@ if [ -f "$ROOT/usr/share/applications/org.kde.plasma.keyboard.desktop" ] && [ -f
   fi
   log "  虚拟键盘: Plasma 键盘 (真机验证可用)"
 fi
+
+# ---------------------------------------------------------------------------
+# 13.8b 桌面形态的中文输入法: fcitx5 + Rime (中州韵)
+#   手机形态继续用 plasma-keyboard (上面那套, 真机验证可用); **桌面形态有物理
+#   键盘**, 按用户要求换成 fcitx5 + Rime。
+#   两者不能并存: 镜像里有 fcitx5 时 KWin 会去拉它当虚拟键盘, 和 plasma-keyboard
+#   抢输入法 (真机实测触屏键盘闪退), 所以桌面形态把 KWin 的虚拟键盘关掉。
+# ---------------------------------------------------------------------------
+if [ "$HAVE_PLASMA_DESKTOP" = 1 ]; then
+  # 1) KWin 不再托管虚拟键盘
+  KWINRC="$H/.config/kwinrc"
+  if [ -f "$KWINRC" ]; then
+    if grep -q '^InputMethod\[\$e\]=' "$KWINRC"; then
+      sed -i 's|^InputMethod\[\$e\]=.*|InputMethod[$e]=|' "$KWINRC"
+    else
+      sed -i '/^\[Wayland\]/a InputMethod[$e]=' "$KWINRC"
+    fi
+    log "  虚拟键盘: 桌面形态已关闭 KWin 虚拟键盘 (改用 fcitx5)"
+  fi
+  # plasma-keyboard 的 kwin_wayland drop-in 只给手机形态用
+  rm -rf "$H/.config/systemd/user/plasma-kwin_wayland.service.d"
+  # 2) 应用侧输入法环境 (fcitx5)
+  if [ -f "$ROOT/etc/environment" ]; then
+    sed -i '/^\(GTK_IM_MODULE\|QT_IM_MODULE\|XMODIFIERS\|SDL_IM_MODULE\)=/d' "$ROOT/etc/environment"
+    cat >> "$ROOT/etc/environment" <<'ENVEOF'
+GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+XMODIFIERS=@im=fcitx
+SDL_IM_MODULE=fcitx
+ENVEOF
+    log "  输入法环境: GTK_IM_MODULE/QT_IM_MODULE/XMODIFIERS/SDL_IM_MODULE = fcitx"
+  fi
+  # 3) 默认输入法 = Rime (中州韵): 写进 skel + 现有用户家目录
+  RIME_PROFILE='[Groups/0]
+Name=Default
+Default Layout=us
+DefaultIM=rime
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Layout=
+
+[Groups/0/Items/1]
+Name=rime
+Layout=
+
+[GroupOrder]
+0=Default'
+  install -d "$ROOT/etc/skel/.config/fcitx5"
+  printf '%s\n' "$RIME_PROFILE" > "$ROOT/etc/skel/.config/fcitx5/profile"
+  if [ -d "$H" ]; then
+    install -d "$H/.config/fcitx5"
+    printf '%s\n' "$RIME_PROFILE" > "$H/.config/fcitx5/profile"
+    chown -R "$(stat -c %u:%g "$H")" "$H/.config/fcitx5" 2>/dev/null || true
+  fi
+  log "  默认输入法: Rime (中州韵), 首次登录自动部署词库"
+  # 4) 自启动 (fcitx5 包自带 autostart 就不重复写)
+  if [ ! -f "$ROOT/etc/xdg/autostart/org.fcitx.Fcitx5.desktop" ]; then
+    install -d "$ROOT/etc/xdg/autostart"
+    cat > "$ROOT/etc/xdg/autostart/org.fcitx.Fcitx5.desktop" <<'DEOF'
+[Desktop Entry]
+Type=Application
+Name=Fcitx 5
+Comment=Start fcitx5 input method
+Exec=fcitx5 -d
+Icon=fcitx
+Terminal=false
+Categories=System;Utility;
+DEOF
+    log "  已补 fcitx5 自启动项"
+  fi
+fi
 # 中英文都要, 两个地方都得设:
 #  (a) plasma-keyboard 自己的语言列表 —— 它在 QML 里用
 #        VirtualKeyboardSettings.activeLocales = PlasmaKeyboardSettings.enabledLocales
@@ -847,8 +932,11 @@ done
 #   现在镜像**不装 fcitx5** (见 config/build.conf), 这些东西写出来只会让 KWin
 #   误以为有 fcitx5 可用而反复切过去 -> 屏幕键盘闪退, 所以整段去掉。
 #   想用中州韵的用户自己装 fcitx5 后, 这些配置可以按上游文档重新加。
-rm -f "$H/.config/autostart/fcitx5.desktop" 2>/dev/null || true
-rm -rf "$H/.config/fcitx5" "$H/.local/share/fcitx5" 2>/dev/null || true
+# 桌面形态装了 fcitx5+Rime, 这些"清残留"的动作必须跳过
+if [ "$HAVE_PLASMA_DESKTOP" != 1 ]; then
+  rm -f "$H/.config/autostart/fcitx5.desktop" 2>/dev/null || true
+  rm -rf "$H/.config/fcitx5" "$H/.local/share/fcitx5" 2>/dev/null || true
+fi
 
 # 13.9 修复 home 属主 (07 阶段新建的文件)
 chown -R 1000:1000 "$H" 2>/dev/null || true
@@ -879,10 +967,13 @@ rm -f "$H/.config/kwineffectsrc" 2>/dev/null || true
 rm -f "$H/.config/kwinrc"
 if [ "$HAVE_KDE" = 1 ]; then
   mkdir -p "$H/.config"
-  cat > "$H/.config/kwinrc" <<'KEOF'
-[Wayland]
-InputMethod[$e]=/usr/share/applications/org.kde.plasma.keyboard.desktop
-KEOF
+  # 桌面形态用 fcitx5 -> KWin 不托管虚拟键盘 (留空); 手机形态仍指向 plasma-keyboard
+  if [ "$HAVE_PLASMA_DESKTOP" = 1 ]; then
+    _ime_line='InputMethod[$e]='
+  else
+    _ime_line='InputMethod[$e]=/usr/share/applications/org.kde.plasma.keyboard.desktop'
+  fi
+  printf '[Wayland]\n%s\n' "$_ime_line" > "$H/.config/kwinrc"
 fi
 # 3) oh-my-zsh / oh-my-bash 主题: 换朴素 rc (先备份成 .shorin-bak 便于用户自己找回来)
 for rc in .zshrc .bashrc; do
@@ -903,11 +994,63 @@ alias ls='ls --color=auto'
 alias ll='ls -lh'
 BEOF
 # 4) fcitx5: 镜像里已经不装了, 这里只做残留清理 (老镜像升级上来的情况)
-rm -f "$H/.config/autostart/fcitx5.desktop" 2>/dev/null || true
-rm -f "$H/.config/autostart/fcitx5.desktop.disabled" 2>/dev/null || true
+if [ "$HAVE_PLASMA_DESKTOP" != 1 ]; then
+  rm -f "$H/.config/autostart/fcitx5.desktop" 2>/dev/null || true
+  rm -f "$H/.config/autostart/fcitx5.desktop.disabled" 2>/dev/null || true
+fi
 # 5) 息屏自动变暗也关掉 (花屏最容易复现的路径), 见 raphael-display-nopm.service
 kwriteconfig6 --file powerdevilrc --group AC --group DimDisplay --key idleTime --delete 2>/dev/null || true
 # 6) GTK/fcitx 那套输入法环境 (会和触屏键盘抢输入)
 rm -f "$H/.gtkrc-2.0" "$H/.config/gtk-3.0/settings.ini" "$H/.config/gtk-4.0/settings.ini"
 chown -R 1000:1000 "$H/.config" "$H/.local" 2>/dev/null || true
 log "Shorin 个性化已撤销 (包未卸载)"
+
+# ---------------------------------------------------------------------------
+# 13.11 收尾: 桌面形态的 fcitx5 + Rime 必须放在**所有"撤销个性化"动作之后**
+#   (13.10 会 rm -rf 家目录里的 fcitx5 配置、重写 kwinrc —— 之前踩过: 写在前面
+#    会被它清掉, 镜像里只剩 /etc/skel 那份)
+# ---------------------------------------------------------------------------
+if [ "$HAVE_PLASMA_DESKTOP" = 1 ]; then
+  _rime='[Groups/0]
+Name=Default
+Default Layout=us
+DefaultIM=rime
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Layout=
+
+[Groups/0/Items/1]
+Name=rime
+Layout=
+
+[GroupOrder]
+0=Default'
+  install -d "$ROOT/etc/skel/.config/fcitx5"
+  printf '%s\n' "$_rime" > "$ROOT/etc/skel/.config/fcitx5/profile"
+  if [ -d "$H" ]; then
+    install -d "$H/.config/fcitx5"
+    printf '%s\n' "$_rime" > "$H/.config/fcitx5/profile"
+  fi
+  # KWin 虚拟键盘留空 (fcitx5 接管)
+  if [ "$HAVE_KDE" = 1 ] && [ -d "$H" ]; then
+    mkdir -p "$H/.config"
+    printf '[Wayland]\nInputMethod[$e]=\n' > "$H/.config/kwinrc"
+  fi
+  # fcitx5 自启动 (包自带就跳过)
+  if [ ! -f "$ROOT/etc/xdg/autostart/org.fcitx.Fcitx5.desktop" ]; then
+    install -d "$ROOT/etc/xdg/autostart"
+    cat > "$ROOT/etc/xdg/autostart/org.fcitx.Fcitx5.desktop" <<'FEOF'
+[Desktop Entry]
+Type=Application
+Name=Fcitx 5
+Comment=Start fcitx5 input method
+Exec=fcitx5 -d
+Icon=fcitx
+Terminal=false
+Categories=System;Utility;
+FEOF
+  fi
+  chown -R 1000:1000 "$H/.config" 2>/dev/null || true
+  log "  收尾: Rime 配置 + KWin 虚拟键盘留空 + fcitx5 自启动 已就位"
+fi

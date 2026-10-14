@@ -396,6 +396,54 @@ EOF
 enable_unit raphael-firstboot.service
 
 # ---------------------------------------------------------------------------
+# btrfs 交换文件 (@swap 子卷 -> /swap/swapfile, 由 fstab 挂载 /swap)
+#   btrfs 上放交换文件有两个硬要求: **不能被压缩** 且 **nocow** (chattr +C),
+#   所以单独开一个子卷按 nodatacow,compress=no 挂载 (见 lib.sh 的 fstab)。
+#   文件在首启动创建 (镜像里不预置, 免得镜像白胖 4G), 之后写进 fstab 常驻。
+# ---------------------------------------------------------------------------
+if [ "${BTRFS_SWAP_SIZE:-4G}" != "0" ]; then
+  cat > "$ROOT/usr/local/sbin/raphael-swapfile.sh" <<SWAPEOF
+#!/bin/bash
+# 首启动创建 btrfs 交换文件 (大小: ${BTRFS_SWAP_SIZE})
+set -e
+SIZE="${BTRFS_SWAP_SIZE}"
+mountpoint -q /swap || { echo "/swap 未挂载, 跳过交换文件"; exit 0; }
+[ -f /swap/swapfile ] && exit 0
+cd /swap
+# 先建成 nocow 再写数据 (顺序不能反, 否则整文件已经 cow 了)
+: > swapfile
+chattr +C swapfile 2>/dev/null || true
+fallocate -l "\$SIZE" swapfile 2>/dev/null || \
+  dd if=/dev/zero of=swapfile bs=1M count=\$(numfmt --from=iec "\$SIZE" 2>/dev/null | awk '{print int(\$1/1048576)}') status=none
+chmod 600 swapfile
+mkswap swapfile >/dev/null
+# 写进 fstab, 以后每次开机自动启用 (幂等)
+grep -q '^/swap/swapfile' /etc/fstab || echo '/swap/swapfile none swap defaults 0 0' >> /etc/fstab
+swapon /swap/swapfile 2>/dev/null || true
+echo "交换文件就绪: \$(swapon --show=NAME,SIZE --noheadings 2>/dev/null | tr '\n' ' ')"
+systemctl disable raphael-swapfile.service >/dev/null 2>&1 || true
+SWAPEOF
+  chmod 755 "$ROOT/usr/local/sbin/raphael-swapfile.sh"
+  cat > "$ROOT/etc/systemd/system/raphael-swapfile.service" <<'EOF'
+[Unit]
+Description=raphael btrfs swapfile (@swap)
+ConditionPathExists=!/swap/swapfile
+RequiresMountsFor=/swap
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/raphael-swapfile.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  enable_unit raphael-swapfile.service
+  log "  交换文件: 首启动在 @swap 上创建 ${BTRFS_SWAP_SIZE} (btrfs 交换文件必须 nocow)"
+fi
+
+# ---------------------------------------------------------------------------
 # 11b. UCM: 声卡 driver 名在不同内核构建下可能是 sm8150 / sm8150_raphael
 #      (实测: 官方内核 sm8150_raphael, 自建同源码内核 sm8150)。
 #      alsa-ucm2 按 conf.d/<driver>/<cardname|longname>.conf 查找, 名字都补上。

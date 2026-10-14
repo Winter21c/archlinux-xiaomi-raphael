@@ -116,6 +116,8 @@ case "$LAYOUT" in
       if mount -o "loop,compress=$BTRFS_COMPRESS" "$IMG" "$MNT" 2>/dev/null; then
         btrfs subvolume create "$MNT/$BTRFS_SUBVOL_ROOT" >/dev/null
         btrfs subvolume create "$MNT/$BTRFS_SUBVOL_HOME" >/dev/null
+        # @swap: 交换文件专用子卷 (空着, 首启动在里面建 /swap/swapfile)
+        btrfs subvolume create "$MNT/$BTRFS_SUBVOL_SWAP" >/dev/null
         log "  复制 rootfs -> /$BTRFS_SUBVOL_ROOT (压缩写入, 需要几分钟)"
         cp -a "$ROOT/." "$MNT/$BTRFS_SUBVOL_ROOT/"
         mkdir -p "$MNT/$BTRFS_SUBVOL_HOME"
@@ -131,7 +133,7 @@ case "$LAYOUT" in
         [ -n "$SVID" ] && btrfs subvolume set-default "$SVID" "$MNT" 2>/dev/null || true
         log "  压缩情况: $(btrfs filesystem usage -b "$MNT" 2>/dev/null | awk '/Free \\(estimated\\)|Used:/{print $0}' | head -2 | tr '\n' ' ')"
         umount "$MNT"
-        log "  子卷完成: /$BTRFS_SUBVOL_ROOT (默认子卷) + /$BTRFS_SUBVOL_HOME (/home)"
+        log "  子卷完成: /$BTRFS_SUBVOL_ROOT (默认子卷) + /$BTRFS_SUBVOL_HOME (/home) + /$BTRFS_SUBVOL_SWAP (/swap)"
       else
         warn "loop 挂载失败 (容器缺 /dev/loop*?) -> 回退单子卷布局"
         LAYOUT="btrfs-flat"; echo "$LAYOUT" > "$WORK/rootfs-layout"

@@ -410,8 +410,14 @@ write_root_fstab() {   # write_root_fstab [layout] [uuid]
         # 注意: / 这一行**不要**加 nofail —— 加了 systemd 可能跳过"把根重挂成 rw",
         # 结果根一直只读, sshd(生成主机密钥)/usb-ncm(写 configfs) 等全失败。
         printf 'UUID=%-42s /       btrfs   rw,%s,x-systemd.growfs  0      1\n' "$uuid" "$(btrfs_opts "$BTRFS_SUBVOL_ROOT")"
-        # /home **不单独挂载**: 数据本来就在 @/home 里 (@home 只是副本)。实测单独挂
-        # @home 会让 user@1000 会话 "Dependency failed" -> SDDM respawn 循环。
+        # /home 单独挂 @home (2026-10-11 用户要求: 快照/回滚时家目录分开)。
+        #   ★ 必须 nofail: 万一 @home 挂不上, 系统仍然能起来并使用 @/home 里的那份
+        #     副本 (镜像里两份都灌了数据), 不会掉进 emergency mode。
+        #   ★ 之前实测单独挂 @home 出现 user@1000 "Dependency failed" -> SDDM respawn
+        #     循环, 那次是因为 @home 里没有家目录; 现在镜像里已经灌好数据。
+        printf 'UUID=%-42s /home   btrfs   rw,%s,nofail,x-systemd.device-timeout=10  0      0\n' "$uuid" "$(btrfs_opts "$BTRFS_SUBVOL_HOME")"
+        # /swap: 交换文件专用子卷 (btrfs 上交换文件必须 nocow + 不压缩)
+        printf 'UUID=%-42s /swap   btrfs   rw,%s,nodatacow,compress=no,nofail,x-systemd.device-timeout=10  0      0\n' "$uuid" "$(btrfs_opts "$BTRFS_SUBVOL_SWAP")"
         ;;
       btrfs-flat)
         printf 'UUID=%-42s /       btrfs   rw,%s,x-systemd.growfs  0      1\n' "$uuid" "$(btrfs_opts)"
