@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:43854a732f094faca238f32d23beed8f5ae696e7867f16d4ab51ab78e06f2075",
+  "pageVersion": "sha256:a4d7e4601edbc62f1003f92e89bd83e9c1eab428de91a6e7b23d543eb465c099",
   "claims": [
     {
       "id": "claim_3e2f38bb0f2e4005908977d10c9b07e1",
@@ -449,7 +449,7 @@
           "version": "repo-lines-v1:sha256:fcd3021ba39b10a6c64064edae0c722226aabcc3358143bc9432de5d1331c64d:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTMyMzgzMjE0MjRlZTNjOTQ4NzFmM2MxOWZmODM1YTZhZWViYTAzYzQyOWFjMDEzMmY1ZjhlZTIxYzEyODgzMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzc2OWQyMzdjZDQyMGI5ZDM4Yjk4MWEwYTRmNjc3MDE5MGE0YTgzZGNhMWZlNTZjNGY1YmExZTJjYmMwZWY3NiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzBkYWU3MGFlNjQ4NGY0NTY3YjMwNWZlYTU1MTA3ZmYwMzQxZGExMjdiY2M3YzdhZmNkZDllZmJjNWIxYjQ2MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZWY0MTNlYjQ1MjQ2ZGFhY2VlYjdmNmY2ZmZlNmJhM2ZkMzVmYjJjMDIxOTE0ODZkNjM3ZDNkMTkyYTAyZDViYiJ9"
         },
         {
-          "resource": "repo://scripts/06-config.sh#L1090-L1098",
+          "resource": "repo://scripts/06-config.sh#L1089-L1097",
           "version": "repo-lines-v1:sha256:e2b0e8066a8cd19d7cc8270243ef831b2177a6537c983e5aa516fe1487ecb8d0:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTU1ZTc1MWQ1ZGE5NDEyZTg2NzdlNjc5YWE2M2ViY2RhZmVhMmUyMDEwMzFhMDU1YWQ1MjMyYzM1YWIwMTk1YyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTM1N2VkMWNhZWY1MWRlZWVmMGJjMGM0MTBhY2IzYjljYjU5YTRjMDk2ZWI2MmFmMDI3NTA2MmQ0ZTNhZTdlMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTgwMzJjMTlhNDA1NDc2NWRmMDc4NTU4ZjQyNmZhYWE0OTNiYWQ4MjIwOTg3YjI0MDhlNzdjYTU3OTA4MmEwYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjdiZTU0NzM1NWQ0YTkxMGE2ZmQ2MzUyNDBmZWU0YjE3MjhjM2EwMmRiMzNhNzAwNTg3MjExMzU0MWU1ODYzZCJ9"
         },
         {
@@ -521,6 +521,88 @@
         {
           "resource": "repo://scripts/lib.sh#L310-L354",
           "version": "repo-lines-v1:sha256:244e0f3c0859ff52bb5389f0835055c734c19d3636358b2acb04f267fef5f14a:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2ZjhhMDc5YTQ4NzJmYjY5YzVkMDI0MTdjM2Q2ZjUzN2U0N2Q2OTcwZmI5ZmRhNjVjYmRlYWQ1NmQwNjU2ZWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI3MTY1Y2M5YTQyNzBiNjcwOTMxZjY5ZWY0ZGQ3Y2RiMWI1NGYxYzZkYjZlOTViNWZkOWFhNjg4Y2FkNTYyYWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMxZDQ4MTNiNDM4Nzg1MDVkNWJlNTk2N2VlNDE0Mzg2N2E5MjAyMDYwOTQ1OWYzODczYjgwZWI4Yzg3MjJiYzYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5dd68cf7a5f3457290cad896e3230284",
+      "statement": "`work/` 是有状态的增量构建树，其中残留会改变下一次构建行为：阶段 01 只要看到 `work/root/usr/bin/bash` 与 `usr/bin/pacman` 就整段跳过解包，阶段 02 只装不删（下架的包必须显式 `-Rdd`）并复用 `work/pkgcache`；而 CI 只缓存 `dl/` 与 `work/pkgcache`，`work/root` 每次都是全新环境。",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/build.yml#L211-L233",
+          "version": "repo-lines-v1:sha256:789a9952ba8c55037b3bde59d990c25562324eade52d9ddaadc26cc31b37de1a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZkMTRkZDczZTcyMDg2ZTcyZmY0YjBhYWQ2ZDkyZmFjYWEwMDAxZTNmNDZhOWUyYmIyOWExZWNhZTZlMTFjNDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyOTRjMTcyZGY5M2Q3NDc5ODA2MTI1OGMwYTBhNjRiNzVjZGY3OTY0YjY4OWFjOWVmOTM2ZGNjMTY0MTY1NWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjllMjE0MDUxODFjYjFkMzMxMDZhZDBiZWViMTU2YTc5ODg0YTU1ZDQwZDIxNjIzMGViNWU5ZmM4MTM1MzY1ZjYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk1N2JiNTlkYjU2YmY0ZDgxNWRhYzA0ZTczYmE2Y2M2ZjBjYjlmOGJhOGNkNjZmMWIwZDYwZDBjMzNjZDY4YWYifQ"
+        },
+        {
+          "resource": "repo://scripts/01-rootfs.sh#L19-L21",
+          "version": "repo-lines-v1:sha256:65b7c36a7a389aab365c0a6a5f3932799de1942d9b991ea05430b445cea5ecd3:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjJmZDkzMDZkNDVhZTI2Y2U4MDcyZjhhNGQ5YWYwYmI1ZjhiMjg3NjY2OGJjMDhlNjNmMGYwZDVkODU3ZDg4ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMjM1ZGYzZjcyOWRmYTdlZWU2ZjkxNzY3ZDA0NWI5NmI2ZDNhYTNjMjgzYTE4NGNjMzg5ZGJhNDY5NmRlMTRlMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzIxNTBmMzYwZTMzZDAzNDRmNjI4ZTg4ODEyNTI0NjA5OTc0MmZjNmNmYjA1NGRlYjI5NDYzZGIxNDllMTc2NyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiM2U4Zjg3NjcyODU0MDYyZmU2OGM1ZWI0NjA0MWY3YzVmOTM5ZmI4ZjNlOWNlMjQxYjQ4ZWIwMTgxYTVkYzVhNiJ9"
+        },
+        {
+          "resource": "repo://scripts/02-pacman.sh#L150-L162",
+          "version": "repo-lines-v1:sha256:24e8e31eb32654d05955429432028c63064d3d1529c25ac13daf3ccfb68c8290:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyZGRhNDRiZWM0ZTIxYzM3MmE0OThiYjFjMzRkMjJmOWY4NWYyYmYwODBhODU5OGNkYTc4ZjUxODM1MTgwNGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxZjdmZGIyODRlMDU0YmZiMmRhZTM5OWRjNmQxYTFkYTJlMTEyM2Q0ZmJiMDBlMzM4OGFmNDVjYjBlY2RlZWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRjMzA0YWNmODBjYTNiYjk2OTljMjAzM2JmNDEwOTY5NTE4NThhMjhlYmFkZjg1NjhiOTc5MDgwOWZiODUxZGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA1OGJkMjQ1MDI1OTkzNzk2MDQ2ODM2NTJlYTdhZTU1M2Y1ZTQwMGNmYTY0Mzg3OWMxNDMzMmVmMTg5NmFkY2YifQ"
+        },
+        {
+          "resource": "repo://scripts/02-pacman.sh#L173-L183",
+          "version": "repo-lines-v1:sha256:2a0c542c05ce7c9a43c69d653fe0be2af5c44117b34059fb42626b0f337f1a50:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlMDJhNzE5NWMxNWFiNTU0NDJiMDVkN2VhMWY4NDEwZjA3NTFkOWMzZmY1YzIyOTJhMzZiZjAwNzY5NTgyM2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ3NmRiZDVjYmU1ZTgyYmQwMTU0NjNiODUxNWVkYzExMTJlOWIyYWM4MzViMzIyNzgyYmU1YmJiZmQ5ODBkZTgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8b7f811591f84981818992342d6752bd",
+      "statement": "阶段 05 的 `libqrtr.so` 软链只补在它自己生成的暂存目录里，本地构建时 rootfs 里上一轮留下的 `/usr/lib/libqrtr.so` 会被 clang 的 sysroot 搜索路径兜住，因此 `-lqrtr` 找不到库、后续 rmtfs/pd-mapper/tqftpserv 全部链接失败这一故障只在全新 rootfs（CI）上暴露——这是“本地能过、CI 全挂”的具体成因。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/05-qcom.sh#L85-L92",
+          "version": "repo-lines-v1:sha256:efc3f8669a5681a522d22c9197e7ddc00640b7a194452a5f107fd7ac457a7e16:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzJjMzBhYWYwNjgwZjY1MDk1NTUxOTc1Y2U3NTRkMTU4ODRiNWMxNDQzOTBlN2E2YzEwODY3NmYyNzJhNDAxNiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzc2OWQyMzdjZDQyMGI5ZDM4Yjk4MWEwYTRmNjc3MDE5MGE0YTgzZGNhMWZlNTZjNGY1YmExZTJjYmMwZWY3NiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTgxMmI1NmI2NjMzNzVmYmFiNjJhOWZkNTUxNmM4MmQyYzNkYTczYjRkZjI0ZmM2MDFjNTQ3MzQ1MTc1ODNiOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTMyNzRlNjRlZmFkNzhjNjhkNmFmMWEwMmVjMzA1MjIzMjc0Y2U3YWZmNDFkZDY0YTEzNjZlODJkZjA4NzFjNCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_4fe2a30758104991aa32af4d874eeb99",
+      "statement": "增量残留必须由脚本自己清理，说明它真实存在：`03-kernel.sh` 显式删掉上一版内核模块与头文件（`cp` 只覆盖同名目录，不清就会把上一版内核留在镜像里），`07-desktop.sh` 的“撤销 Shorin 个性化”段对所有桌面形态都跑、专门清理增量重建留下的旧配置，`09-image-rootfs.sh` 在灌镜像前清掉 `.raphael-build`、pacman 包缓存、`machine-id`、宿主 ssh host key 并把 `resolv.conf` 换成兜底 DNS。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/03-kernel.sh#L37-L55",
+          "version": "repo-lines-v1:sha256:8154b7eada0c5bac9fe9e6e72e60bd91e0b69a98351aa71d711304fd178d8cb7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU2NDc0NmZmZGFlMjYxOWY0NWIwNTFiNTQ3Yjc0Njg0OTk3MTZmMGRhNThiODFmMGQ3NTA2ZjMyODE2NzRjNmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVlODQzYWYzYzYzMGEzMTQyMjA4NzZmN2YzMDg5YjY4MWNkMzliNmNiMWJjYjA3ZTMyYjU1ZWRkMTNhOTI4YWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5YTdlZThjMmI4ZGQzODJjNTEwMmQ1OWMyOTM3NGZlNWYzNTM5OWY3ZmNjNzAyZDllNDU0YWUxNzNkNGE1MmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUwZTU1MjcyOThlNDgwZDFhNDMzN2FlYjgxN2JhYzQ1Yjk0ZDdkOGU4Njk4ZmRiMzViMjk4OGYzZDZmMzc2NjQifQ"
+        },
+        {
+          "resource": "repo://scripts/07-desktop.sh#L971-L985",
+          "version": "repo-lines-v1:sha256:a58fcdaf92b0be9e6c2a7d4efced9df34a3b9bbc323c8b780083a58b76d73e9a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBiMWI5MDMxYjJmZWYwMGI4MTAyZTM4MmEzMWRiOTAyOWQ0YTRmYjQ2ZjA0ZTVhNGNmNDg1ZTNjNGU1ZWEyYzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNlNDA5ZTYxNWE0MjM2MDdmZWVhZjljZDViZmEyNmJhY2JiN2M4ZGNmZjAyZWUzMDA0MzRhYmE4NzI0ODlhOTEifQ"
+        },
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L23-L41",
+          "version": "repo-lines-v1:sha256:1df54f45c84f4bd7cd88aaeee55166d778dea96e74c8e6333947bf1b521088a9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ5NGRlZjY5MGY1MTM5NzA3ZWE1OTgyMDdhNmQyMGIyZGY2MmUxNTdmNzdjOTI1NzRhODE2MTE2YWZlNTQxZDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFlZmQ0MzQ0ODRlODNhYjg3ODUyYjFlMDEzODFkZWY4NzQwZTJjZWJhMzc0Y2ZjZTA0ZmFmYzViZmZmMGM4YTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcyYzBlYWI5YWJhZDY0YWQ1ZjdlMWRmMTAzNWJjZTQ5ZDU2NzNmYTlhOTMxZmMyZWMzYTE5MGY0YWYyZWY0YjAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0421ad2926494a8c942e696f3a277be9",
+      "statement": "`work/` 被 `.gitignore` 整体忽略，因此本地树里可能积累任何手写实验文件（临时脚本、备份、笔记），没有任何机制保证它们与当前 `scripts/` 一致；判断一个 `work/` 文件是否代表系统行为，唯一依据是它在 `scripts/` 里有没有调用者。",
+      "evidence": [
+        {
+          "resource": "repo://.gitignore#L1-L15",
+          "version": "repo-lines-v1:sha256:1ba8a25241b3d4d2ef6b1a98a260c8192595a912a3415d79493f2184b869a156:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MzVhZGU2MDVmYWM2ZGQyYTUwMDNlY2MwNmJkNjg1NDc2NWU0MGYwN2E0NDJkYWM0Zjk3N2YxMTU4NWU5MDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYwNTE2MjNjNDQwNzA5NGJmNmZkMTZlYTE5NmI3N2Y1MWNjNDY0ZDMwOTk3YmQ5YzI5ZjYxNjg2MTU5OWE1YzQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY5Y2YxNTRjMTUzMWI1NjRhOGRiNzExNDAwNmExNjExNzAxN2ZhM2IzMWI5MTA4ZGJkYTRiN2U3NGU4YjYwMGMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3f28fcc6be004bee8b26fd9c361feca9",
+      "statement": "`_recon/` 不是随仓库分发的输入，而是已被忽略的未跟踪上游侦察材料（他项目 README、别人写的构建脚本、拆开的固件与镜像内容）；`notes/porting-checklist.md` 与 `notes/qcom-userspace.md` 把它当作 Source of truth 大量引用，因此这些引用路径在新克隆里并不存在。",
+      "evidence": [
+        {
+          "resource": "repo://.gitignore#L14-L15",
+          "version": "repo-lines-v1:sha256:a81a114eaffe736d44c42f2747b84582ebbd4f94c070e82520ce97a4e1fd9165:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYWIwMzNmZWJhNzRhMmRjZTFjZTUzYzYzZjYzNzVmNWRjY2E0NjAzNWQxNmZlZWViMzkzNjA4YzU2YjMyYzM0OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNjA1MTYyM2M0NDA3MDk0YmY2ZmQxNmVhMTk2Yjc3ZjUxY2M0NjRkMzA5OTdiZDljMjlmNjE2ODYxNTk5YTVjNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTg0MWI3NDFiNDRmZGY1OWYxNDI5ZTNmMTcwZmRiMTYwN2NlNjU3ZTcwZWYzNzJmNDcyZGFiNGI4M2IzODBhYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjljZjE1NGMxNTMxYjU2NGE4ZGI3MTE0MDA2YTE2MTE3MDE3ZmEzYjMxYjkxMDhkYmRhNGI3ZTc0ZThiNjAwYyJ9"
+        },
+        {
+          "resource": "repo://_recon/README-winter.md",
+          "version": "repo-file-v1:sha256:6925e878620e8d657cf1e953ff3e00e9bb611c33f7ab66dd1529c277e753964e"
+        },
+        {
+          "resource": "repo://notes/porting-checklist.md#L1-L8",
+          "version": "repo-lines-v1:sha256:bdfb989e5bbc716db128ced96dc309cfd58ab21e544dc5e02d9de4c230f9db6d:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZTZjZTk1ZmM1NzE4M2UzNWY3NjM1MDcxZjVhNTY5Y2E3ZmZiZjlhM2JiNWU3MmZkZTRkNzczYzYzZDgzZGQ3ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTIyNzA5MDkzOWJlMWNlNGUzMjlhNTJhMDhlYmEwMGY4NTQxMWRhZDY1NGRjZjgzOGJkMzUzNjZlMWI0NDQwOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjAsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        },
+        {
+          "resource": "repo://notes/qcom-userspace.md#L1078-L1084",
+          "version": "repo-lines-v1:sha256:2560f6716d405489b1bcd652efe94562c5a3ce5ea369ad25f7cb056e65086284:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmNkMTM4ZmY5NmUxNDU4NmQwOWZlN2Q0YTEzM2MwODY4ZGRlODk1MWQ2ZDFkNjVhZmZhZjY5NDU4MWM4YzMzMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWU2NTIyMDc4MjBjMTIxNzlkYmVmMWJiMGU4MzZhOWU3MmRiYWE0YWY2YTcxNmU5MmIyM2RkNTkzMGJjNGI2MyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTI2YmQxMzdlYmExMGZlOTM0NjFiMTUyNWZhYzgwOTZmZTM0YmViZTg3MTgzYzJjNzgwYTJhYzUxM2FjOWQ4NCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
         }
       ]
     }

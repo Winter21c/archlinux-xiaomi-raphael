@@ -376,3 +376,52 @@ cat /sys/kernel/debug/regmap/217:250:0:0/registers > /tmp/reg-idle.txt
 **结论（可作为后续内核工作的起点）**：软件侧能配的都配了，缺的是**内核 DAPM 把
 采集通路接起来并上电**（wcd934x 的 capture DAPM 图 / q6asm 的 MM_UL 采集会话）。
 这已经不是发行版/配置层面的问题。
+
+
+---
+
+## 2026-10-15 第四轮：病因锁定到 ADM 命令（DSP 拒绝采集路由）
+
+### 1. 先排掉一个干扰项：DSP 会话泄漏
+
+反复失败的录音/被 kill 的播放器会在 DSP 里**留下没释放的 client**，之后所有
+采集都会报：
+
+```
+q6asm-dai: Audio Client already active
+q6asm-dai: q6asm_dai_prepare: q6asm_open_write failed     (DSP error 9)
+ASoC error (-22): at snd_soc_pcm_component_prepare()
+```
+
+**这不是麦克风本身的病因**，而是我自己调试留下的副作用（重启即清）。
+它同时解释了之前"播放偶发卡死"的一部分现象 —— 新会话被泄漏的 client 堵住。
+**排查建议：每次做采集实验都先重启，或者先确认没有残留的 client。**
+
+### 2. 干净 DSP 下的真实病因（决定性证据）
+
+重启后、停掉 PipeWire、设好全部采集路由，再录音：
+
+```
+arecord: Recording WAVE '/tmp/cm.wav' : Signed 16 bit Little Endian, Rate 48000 Hz, Stereo
+arecord: pcm_read:2285: read error: Input/output error          ← 打开成功, 读失败
+内核:
+  qcom-q6adm aprsvc:apr-service:4:8: cmd = 0x10325 return error = 0x2   ← ★ ADM 命令被拒
+  q6routing 17300000...apr-service@8:routing: DSP returned error[2]
+  wcd934x-codec wcd934x-codec.1.auto: Port Closed TX port 0
+```
+
+**结论**：采集 PCM **能打开**（hw params 成功），但 ADSP 的 **ADM（Audio Device
+Manager）拒绝执行采集路由命令**（`cmd = 0x10325`, `error = 0x2`），随后 codec 的
+TX port 0 被关闭 —— 所以读数据时拿到 I/O error、样本恒为 0。
+
+这是**内核/DSP 层**的问题：ADM 的上行（uplink）路由/拓扑在这块设备上没有被正确
+配置或不被固件接受。userspace 能做的（kcontrol 全设对、DT 里补 audio-routing 的
+MCLK 依赖、DTB 恢复 5 条 dai-link、UCM、顺序）都已经做过且验证无效。
+
+**给后续内核工作的三个起点**：
+1. `drivers/soc/qcom/qdsp6/q6adm.c`（或下游 `sound/soc/qcom/qdsp6/q6adm.c`）里
+   `0x10325` 是哪条命令、`error 0x2` 在 ADSP 错误码里的含义；
+2. 对照 Android 侧 `mixer_paths.xml` + `audio_platform_info.xml`，看 raphael 的
+   采集拓扑（ADM COPP/TOPOLOGY 的 ID）是否需要在设备树/驱动里显式给出；
+3. 用带调试的自编译内核打开 q6adm/q6asm 的 verbose 日志（项目
+   `notes/microphone-and-kernel-plan.md` 开头提到的"自编译内核"计划）。

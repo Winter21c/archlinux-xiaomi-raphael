@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "runId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
   "mode": "init",
-  "phase": "planning",
+  "phase": "generating",
   "startedAt": "2026-10-10T11:58:54.634Z",
   "language": "zh",
   "languageChanged": true,
   "requiredRewritePages": [],
   "initialPages": [],
-  "sourceFingerprint": "sha256:5a873710ce637a8de22cb990b39fd4a647c42aec4b9a5bbc5068bb82b00fb3cd",
-  "targetGitHead": "b45ff4e2e41a477e12ca312c9165076b96250bcb",
+  "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7",
+  "targetGitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
   "actor": {
     "producerActor": "openwiki/0.7.2",
     "metadataModel": "deepseek-flash"
@@ -18,5 +18,545 @@
   "beforeContentSnapshot": "ffa63583dfa6706b87d284b86b0d693a161e4840aad2c5cf6b5d27c3b9621f7d",
   "preparedWiki": {
     "generatedProvenance": []
+  },
+  "plan": {
+    "pages": [
+      {
+        "id": "c72867b8-1b18-4df3-b108-a904985761c3",
+        "path": "/openwiki/architecture/boot-chain-and-image-layout.md",
+        "title": "引导链与镜像/分区布局",
+        "purpose": "从设备上电到 systemd 的完整链路与分区对应关系：boot 分区放 U-Boot、cache 分区（= 运行时 /boot）放 systemd-boot + linux.efi + initramfs + dtb + loader entries、userdata 放根文件系统；三条启动项（arch / arch-direct / arch-debug）各自救什么场；内核、DTB、initramfs 分别来自哪个阶段。",
+        "seedPaths": [
+          "HANDOVER.md",
+          "README.md",
+          "config/build.conf",
+          "dtb/raphael-redmi-k20pro.dtb",
+          "scripts/08-initramfs.sh",
+          "scripts/10-image-boot.sh",
+          "scripts/11-flash.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/build-pipeline-stages.md",
+          "/openwiki/architecture/overview.md",
+          "/openwiki/concepts/rootfs-layout-and-fstab.md",
+          "/openwiki/operations/flashing-and-recovery.md",
+          "/openwiki/runtime/boot-sequence-and-service-ownership.md"
+        ],
+        "instructions": [
+          "引导参数（root=UUID / rootfstype / rootflags / cfg80211.ieee80211_regdom）与 rootfs-layout-and-fstab 页的结论必须一致，不一致处明确指出是本仓库的历史事故来源。",
+          "必须用 mermaid 画引导链与 loader entry → 文件的映射（见 mermaid-diagrams 技能）。",
+          "讲清 /boot 就是 cache 分区带来的迭代捷径（scp 换 initramfs/DTB 无需刷机），这是本仓库最重要的调试事实之一。"
+        ],
+        "status": "complete",
+        "completedBy": "openwiki/0.7.2"
+      },
+      {
+        "id": "8b7d3ed2-b246-4159-a728-53781c40985d",
+        "path": "/openwiki/architecture/build-pipeline-stages.md",
+        "title": "构建流水线：阶段契约与子集重建语义",
+        "purpose": "把 00→11 每个阶段当成一个契约来讲：前置条件、从 dl/ 读取什么、往 work/root 与 work/ 写什么、产出交给谁、哪些步骤幂等、哪些只 warn 不失败；并解释 build.sh 的 --from/--only 子集语义决定了\"跳过某阶段后哪些状态是陈旧的\"。",
+        "seedPaths": [
+          "build.sh",
+          "scripts/00-fetch.sh",
+          "scripts/01-rootfs.sh",
+          "scripts/02-pacman.sh",
+          "scripts/03-kernel.sh",
+          "scripts/03b-ms91xx.sh",
+          "scripts/04-firmware.sh",
+          "scripts/05-qcom.sh",
+          "scripts/06-config.sh",
+          "scripts/07-desktop.sh",
+          "scripts/08-initramfs.sh",
+          "scripts/09-image-rootfs.sh",
+          "scripts/10-image-boot.sh",
+          "scripts/11-flash.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/repository-layout-and-entrypoints.md",
+          "/openwiki/architecture/rootless-build-runtime.md",
+          "/openwiki/concepts/failure-modes-and-invariants.md",
+          "/openwiki/integrations/upstream-sources-and-provenance.md",
+          "/openwiki/workflows/build-and-rebuild-loop.md"
+        ],
+        "instructions": [
+          "把\"硬失败 vs 仅告警\"的判定放在 failure-modes 页展开，这里只标注该阶段是否会中断构建。",
+          "每个阶段必须点明它写下的\"会在设备上生效\"的产物（单元、fstab、UCM、DTB、内核 Image、initramfs、镜像）。",
+          "用一张 mermaid 图画出阶段依赖与文件流（dl → work/root → work → out），不要按源码行号罗列。"
+        ],
+        "status": "complete",
+        "completedBy": "openwiki/0.7.2"
+      },
+      {
+        "id": "b55ef906-f1d8-4eba-9b10-a213a0598d68",
+        "path": "/openwiki/architecture/overview.md",
+        "title": "架构总览：构建侧与运行时侧的四个阶段群",
+        "purpose": "一句话定位这个仓库是什么（SM8150 raphael 上的 Arch Linux ARM 镜像工厂 + 设备运行时定制），把 00–11 阶段归到四个阶段群，并划清\"构建期生成的东西\"与\"设备上运行的东西\"的边界。",
+        "seedPaths": [
+          "HANDOVER.md",
+          "README.md",
+          "build.sh",
+          "config/build.conf",
+          "scripts/lib.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/boot-chain-and-image-layout.md",
+          "/openwiki/architecture/build-pipeline-stages.md",
+          "/openwiki/architecture/repository-layout-and-entrypoints.md",
+          "/openwiki/quickstart.md",
+          "/openwiki/runtime/boot-sequence-and-service-ownership.md"
+        ],
+        "instructions": [
+          "保持\"可迁移机制 vs raphael 专属配置\"的区分，这是本仓库最容易让新读者误判的地方。",
+          "把细节下沉到 build-pipeline-stages / boot-chain-and-image-layout / runtime 各页，本页只保留一张阶段群关系图与产物清单。",
+          "流程图用 mermaid（见 mermaid-diagrams 技能），不要用 ASCII 图。"
+        ],
+        "status": "complete",
+        "completedBy": "openwiki/0.7.2"
+      },
+      {
+        "id": "0e2949b1-0f0b-41c4-8b6f-2b5b13d0535b",
+        "path": "/openwiki/architecture/repository-layout-and-entrypoints.md",
+        "title": "仓库布局与入口点",
+        "purpose": "哪些路径是入口（build.sh、scripts/*、config/*、.github/workflows/build.yml），哪些是随仓库分发的输入（dtb/、vendor/、pkgs/、notes/、_recon/），哪些是生成物（dl/ work/ out/ logs/ release/ tools/），以及没有 clean 入口带来的一直累积的副作用。",
+        "seedPaths": [
+          ".github/workflows/build.yml",
+          "_recon/README-winter.md",
+          "build.sh",
+          "config/build.conf",
+          "dtb/raphael-redmi-k20pro.dtb",
+          "notes/",
+          "pkgs/",
+          "scripts/lib.sh",
+          "vendor/ms91xx/README.md"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/build-pipeline-stages.md",
+          "/openwiki/architecture/overview.md",
+          "/openwiki/integrations/upstream-sources-and-provenance.md",
+          "/openwiki/workflows/build-and-rebuild-loop.md"
+        ],
+        "instructions": [
+          "写清 \"生成目录绝不能当成源码\" 与 \"work/root 残留会改变下一次构建行为\" 这两条，它们是本仓库改动的头号陷阱。",
+          "对 pkgs/ 与 _recon/ 要明确标注：当前 build.sh 不引用 pkgs/（05 阶段直接从 linux-msm 源码交叉编译），_recon/ 是上游侦察材料。"
+        ],
+        "status": "complete",
+        "completedBy": "openwiki/0.7.2"
+      },
+      {
+        "id": "8511ffde-fa61-4417-8cde-d30acc129520",
+        "path": "/openwiki/architecture/rootless-build-runtime.md",
+        "title": "无 root 构建运行时：userns、qemu 垫片、mtools",
+        "purpose": "构建脚本赖以生存的\"假 root\"运行时：require_ns 的重入契约、ns_mount/ns_dev_mount 拼出的 chroot、binfmt 缺失下用显式动态加载器跑 aarch64、mtools 直接读写 FAT 镜像、fetch 缓存，以及这些补偿手段对产物可信度的影响。",
+        "seedPaths": [
+          "build.sh",
+          "scripts/01-rootfs.sh",
+          "scripts/02-pacman.sh",
+          "scripts/09-image-rootfs.sh",
+          "scripts/10-image-boot.sh",
+          "scripts/lib.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/boot-chain-and-image-layout.md",
+          "/openwiki/architecture/build-pipeline-stages.md",
+          "/openwiki/concepts/failure-modes-and-invariants.md",
+          "/openwiki/operations/release-and-ci-publishing.md",
+          "/openwiki/testing/verification-and-debugging.md"
+        ],
+        "instructions": [
+          "保留\"userns 构建成功 ≠ 镜像可用\"这条结论（尤其属主与 setuid），并指向 failure-modes 页的展开。",
+          "每个 helper（require_ns / ns_mount / setup_qemu_shim / gq / enable_unit / rootfs_layout / write_root_fstab）都要给出调用者与失败模式。"
+        ],
+        "status": "skipped"
+      },
+      {
+        "id": "0decf6b5-fec0-4e04-9765-e39e6d4ccba4",
+        "path": "/openwiki/concepts/configuration-model.md",
+        "title": "配置模型：build.conf 的唯一调参入口",
+        "purpose": "谁读配置、什么时候读、值的来源与优先级（默认值 → 环境变量覆盖 → config/local.conf → CI 改写）以及 DESKTOPS 归一化后派生出的 HAVE_* / PRIMARY_SESSION 标志在哪些阶段被消费。",
+        "seedPaths": [
+          ".github/workflows/build.yml",
+          "build.sh",
+          "config/build.conf",
+          "config/local.conf.example",
+          "scripts/07-desktop.sh",
+          "scripts/lib.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/build-pipeline-stages.md",
+          "/openwiki/integrations/upstream-sources-and-provenance.md",
+          "/openwiki/operations/release-and-ci-publishing.md",
+          "/openwiki/workflows/desktop-variants-selection-and-sessions.md"
+        ],
+        "instructions": [
+          "必须说明 config/local.conf 已 gitignore、示例里的蓝牙地址/密码一律是假值：不要写入真实设备唯一值或凭据。",
+          "把\"改哪个开关影响哪些阶段\"整理成表，避免叙述性长文。"
+        ],
+        "status": "skipped"
+      },
+      {
+        "id": "25242195-cafd-413e-98a3-ca28cfdca6e1",
+        "path": "/openwiki/concepts/failure-modes-and-invariants.md",
+        "title": "失败模式与不变量",
+        "purpose": "把\"做错了会开机全挂/静默残废\"的规则集中成清单：属主与 setuid、半升级与符号版本、libqrtr 软链、布局/fstab/引导参数三者一致、initramfs 早期固件与 /lib 软链、单元所有权与失败单元归零、输入法唯一来源、设备唯一值不入库、增量重建拆弹；并标出文档口径与代码现状的偏差。",
+        "seedPaths": [
+          "HANDOVER.md",
+          "README.md",
+          "scripts/02-pacman.sh",
+          "scripts/04-firmware.sh",
+          "scripts/05-qcom.sh",
+          "scripts/06-config.sh",
+          "scripts/08-initramfs.sh",
+          "scripts/09-image-rootfs.sh",
+          "scripts/lib.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/rootless-build-runtime.md",
+          "/openwiki/concepts/rootfs-layout-and-fstab.md",
+          "/openwiki/runtime/audio-pipeline.md",
+          "/openwiki/runtime/qcom-remoteproc-and-qrtr.md",
+          "/openwiki/testing/verification-and-debugging.md"
+        ],
+        "instructions": [
+          "不复制全局 AGENTS.md 的阅读策略到本页；本页只写仓库自身的技术不变量。",
+          "任何\"文档这么说、代码那么做\"的条目都要给出代码位置，不要替代码改口径。",
+          "保留\"硬失败闸门一览\"与\"症状 → 根因\"两个索引表，它们是最常用的检索入口。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "42738a97-162f-4a01-ae6d-5264dbd78f5f",
+        "path": "/openwiki/concepts/rootfs-layout-and-fstab.md",
+        "title": "rootfs 布局、fstab 与扩容",
+        "purpose": "单一决策点 rootfs_layout() 如何裁决 btrfs-subvol / btrfs-flat / ext4，以及这个决策如何被 06（fstab）、08（initramfs）、09（造镜像、可能回退）、10（引导参数）四方一致消费；附带 /home 双写、/swap 子卷与首启动 growfs 的原因。",
+        "seedPaths": [
+          "config/build.conf",
+          "scripts/06-config.sh",
+          "scripts/09-image-rootfs.sh",
+          "scripts/10-image-boot.sh",
+          "scripts/lib.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/boot-chain-and-image-layout.md",
+          "/openwiki/architecture/rootless-build-runtime.md",
+          "/openwiki/concepts/failure-modes-and-invariants.md",
+          "/openwiki/runtime/boot-sequence-and-service-ownership.md"
+        ],
+        "instructions": [
+          "强调\"回退分支必须先改写 fstab 再 mkfs\"这类顺序约束，并说明为什么它曾经造出开不了机的镜像。",
+          "用一张 mermaid 图表达一个决策点 → 四个消费方的关系。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "6ab93815-e0af-43b2-8917-2444cf18bbe8",
+        "path": "/openwiki/integrations/upstream-sources-and-provenance.md",
+        "title": "上游来源与依赖溯源",
+        "purpose": "镜像依赖的全部外部输入及其锁定/验证方式：ALARM rootfs 与镜像源、作者内核 deb（打包布局会变）、U-Boot release 与 boot.img FAT 模板、linux-msm 的 qrtr/rmtfs/pd-mapper/tqftpserv、linux-firmware 拆分包、霞鹜文楷字体、MS91xx vendor 驱动；以及被移植的 Debian 上游（_recon/upstream-scripts）与本仓库阶段脚本的对应关系，并给出\"上游一变就出症状\"的清单。",
+        "seedPaths": [
+          "_recon/README-winter.md",
+          "_recon/upstream-scripts",
+          "config/build.conf",
+          "dtb/raphael-redmi-k20pro.dtb",
+          "notes/porting-checklist.md",
+          "notes/shoria-alignment.md",
+          "pkgs/",
+          "scripts/00-fetch.sh",
+          "scripts/03-kernel.sh",
+          "scripts/03b-ms91xx.sh",
+          "scripts/04-firmware.sh",
+          "scripts/05-qcom.sh",
+          "vendor/ms91xx/README.md"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/build-pipeline-stages.md",
+          "/openwiki/concepts/configuration-model.md",
+          "/openwiki/operations/release-and-ci-publishing.md",
+          "/openwiki/runtime/hardware-enablement-matrix.md",
+          "/openwiki/testing/verification-and-debugging.md"
+        ],
+        "instructions": [
+          "为每个上游给出：锁在哪（脚本/配置位置）、如何验证（自检或校验和）、怎么升级、坏掉时的症状与日志线索。",
+          "明确 _recon/ 与 notes/porting-checklist.md 是研究材料（Debian→Arch 映射依据），不是构建输入。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "b9a6d2cc-9b69-4712-b325-18a9bb13c6d9",
+        "path": "/openwiki/operations/flashing-and-recovery.md",
+        "title": "刷机、备份与救援",
+        "purpose": "把 out/ 的产物落到设备上的完整操作面：前置条件与数据清空语义、擦除与写入顺序、boot/cache/userdata/dtbo 各自接收什么、TWRP 备份路径、蓝牙地址在构建时注入与刷机时注入的两条路及其字节序陷阱、首启动期待与救援手段（arch-direct/arch-debug、长按电源、回退 Android）。",
+        "seedPaths": [
+          "HANDOVER.md",
+          "README.md",
+          "scripts/10-image-boot.sh",
+          "scripts/11-flash.sh",
+          "scripts/99-make-release.sh",
+          "scripts/bt-mac.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/boot-chain-and-image-layout.md",
+          "/openwiki/operations/release-and-ci-publishing.md",
+          "/openwiki/runtime/boot-sequence-and-service-ownership.md",
+          "/openwiki/testing/verification-and-debugging.md"
+        ],
+        "instructions": [
+          "刷机命令需与 11-flash.sh 实际执行序列一致，不要照抄 README 中可能简化的示例。",
+          "用 mermaid 图或表格表达\"镜像文件 → 目标分区 → 由谁写入\"，以及排障决策路径（黑屏 / 卡 bootloader / 进不去系统 分别怎么办）。",
+          "蓝牙地址示例一律使用假值（如 11 22 33 44 55 66），并强调设备树字节序与 bluetoothctl 显示值相反；不要写真实地址。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "1faafe17-0aa3-4014-af16-c8ef9f4d42d0",
+        "path": "/openwiki/operations/release-and-ci-publishing.md",
+        "title": "CI 构建与发布运维",
+        "purpose": "在 CI 上跑这套构建的全部环境前提与发布通道：为什么必须 archlinux 容器 + --privileged + 把大目录软链到大磁盘 + 预建 loop 设备、工具清单审计与缓存键、workflow 输入 / Secrets / 账号改写与打码、Actions 产物与 GitHub Release 的区别、99-make-release 的 zstd 分卷/校验和/刷机说明/gh 上传及其失败模式。",
+        "seedPaths": [
+          ".github/workflows/build.yml",
+          ".github/workflows/openwiki-update.yml",
+          "config/build.conf",
+          "scripts/00-fetch.sh",
+          "scripts/99-make-release.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/rootless-build-runtime.md",
+          "/openwiki/concepts/configuration-model.md",
+          "/openwiki/integrations/upstream-sources-and-provenance.md",
+          "/openwiki/operations/flashing-and-recovery.md",
+          "/openwiki/workflows/build-and-rebuild-loop.md"
+        ],
+        "instructions": [
+          "区分 Actions 产物与 Release 的保留期与可见性，这是发布流程里最常被混淆的一点。",
+          "把\"输入 / Secret / 默认值\"的优先级与打码行为写清楚，并注明公开仓库中不要把真实凭据填进 workflow 输入。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "cc170e37-f3c4-41c3-ba4d-acff3ff58ea9",
+        "path": "/openwiki/runtime/audio-pipeline.md",
+        "title": "音频链路：从 ADSP/DTB 到扬声器与耳机",
+        "purpose": "音频在设备上如何被拼起来：DAI link 与声卡名的关系、slim-ngd 与声卡被 blacklist 后由谁在何时 modprobe、UCM 目录命名/裁剪为何会决定有没有声音、PipeWire+WirePlumber 的 profile 与格式约束、Q6 mixer 路由与 20 秒 keep-alive timer，以及麦克风/耳机通路为何仍然不通。",
+        "seedPaths": [
+          "README.md",
+          "notes/microphone-and-kernel-plan.md",
+          "scripts/04-firmware.sh",
+          "scripts/06-config.sh",
+          "scripts/07-desktop.sh",
+          "scripts/08-initramfs.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/runtime/boot-sequence-and-service-ownership.md",
+          "/openwiki/runtime/hardware-enablement-matrix.md",
+          "/openwiki/runtime/qcom-remoteproc-and-qrtr.md",
+          "/openwiki/testing/verification-and-debugging.md"
+        ],
+        "instructions": [
+          "改动音频的顺序约束（先 profile、再 mixer、最后 WirePlumber 规则）要显式写成注意事项。",
+          "用 mermaid 图表达\"声卡/DAI link → ACP/UCM → profile → mixer 路由 → 物理输出\"的分层，以及两条容易走错的路径（pro-audio vs stereo-fallback、UCM 里一个打不开的 PCM 会让整块 UCM 被放弃）。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "cf5e4757-428b-4204-98b0-b07f279d4a93",
+        "path": "/openwiki/runtime/boot-sequence-and-service-ownership.md",
+        "title": "设备启动时序、服务所有权与首启动初始化",
+        "purpose": "设备侧从 switch_root 到桌面出现之间发生了什么：默认 target 与显示管理器、构建期 enable/mask 的单元与 timer 清单（谁写的、为什么这个顺序）、必须等待的竞态（rmtfs 先于 remoteproc、pd-mapper 枚举 servreg、声卡延后加载、USB UDC 就绪），以及首启动自动完成的扩容/密钥环/家目录属主/交换文件/snapper 与之后的稳定状态。",
+        "seedPaths": [
+          "HANDOVER.md",
+          "README.md",
+          "scripts/06-config.sh",
+          "scripts/07-desktop.sh",
+          "scripts/08-initramfs.sh",
+          "scripts/lib.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/concepts/rootfs-layout-and-fstab.md",
+          "/openwiki/runtime/audio-pipeline.md",
+          "/openwiki/runtime/qcom-remoteproc-and-qrtr.md",
+          "/openwiki/testing/verification-and-debugging.md",
+          "/openwiki/workflows/desktop-variants-selection-and-sessions.md"
+        ],
+        "instructions": [
+          "不要重复 failure-modes 页的不变量分析，改为链接过去。",
+          "把\"单元所有权\"做成表：单元名 → 由哪个阶段写入 → 触发条件 → 失败后的症状。",
+          "用 mermaid 时间线/序列图表达启动顺序与等待关系，不要用长段落罗列 unit。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "5177fefd-4b43-454e-a245-1520e8a673fe",
+        "path": "/openwiki/runtime/hardware-enablement-matrix.md",
+        "title": "硬件使能矩阵：每个外设靠什么才能工作",
+        "purpose": "逐外设（屏/触摸、GPU/freedreno、Wi-Fi WCN3990、蓝牙 WCN3998、扬声器与耳机、调制解调器、USB NCM、闪光灯/相机、USB 投屏与视频硬解）列出：需要哪些固件与内核模块/DT 节点、哪个阶段或运行时服务负责它、当前状态与已知缺口，以及\"没生效\"时最先该看哪里。",
+        "seedPaths": [
+          "HANDOVER.md",
+          "README.md",
+          "dtb/raphael-redmi-k20pro.dtb",
+          "notes/bluetooth.md",
+          "notes/camera.md",
+          "notes/microphone-and-kernel-plan.md",
+          "notes/qcom-userspace.md",
+          "scripts/03b-ms91xx.sh",
+          "scripts/04-firmware.sh",
+          "scripts/06-config.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/boot-chain-and-image-layout.md",
+          "/openwiki/integrations/upstream-sources-and-provenance.md",
+          "/openwiki/runtime/audio-pipeline.md",
+          "/openwiki/runtime/qcom-remoteproc-and-qrtr.md",
+          "/openwiki/testing/verification-and-debugging.md"
+        ],
+        "instructions": [
+          "必须给出\"工作 / 部分工作 / 不可用\"三态，并把不可用项（麦克风、相机、耳机通路、GPU hangcheck、挂起）写成明确结论 + 下一步方向，不要含糊。",
+          "状态判断以仓库证据（脚本自检、README §3/§8、notes/）为准；对未验证项标注 UNVERIFIED 而不是照抄承诺。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "ce1a63d6-97d9-42d9-bd0c-66f70d6ecadb",
+        "path": "/openwiki/runtime/qcom-remoteproc-and-qrtr.md",
+        "title": "Qualcomm 用户态与 QRTR：rmtfs / pd-mapper / tqftpserv",
+        "purpose": "远程处理器（ADSP/CDSP/MPSS）能从用户态获得服务的那条链：qrtr/libqrtr 与三个 daemon 如何被 05 阶段交叉编译进镜像、它们的 unit 与启用策略、内核 qcom_pd_mapper 与用户态 pd-mapper 的分工、固件经 QRTR 投递与 Wi-Fi/modem 服务（WLFW/servreg）出现的因果关系，以及\"它们没跑\"时表现出的连锁故障。",
+        "seedPaths": [
+          "README.md",
+          "notes/qcom-userspace.md",
+          "pkgs/pd-mapper/PKGBUILD",
+          "pkgs/qrtr/PKGBUILD",
+          "pkgs/rmtfs/PKGBUILD",
+          "pkgs/tqftpserv/PKGBUILD",
+          "scripts/05-qcom.sh",
+          "scripts/06-config.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/build-pipeline-stages.md",
+          "/openwiki/concepts/failure-modes-and-invariants.md",
+          "/openwiki/runtime/audio-pipeline.md",
+          "/openwiki/runtime/boot-sequence-and-service-ownership.md",
+          "/openwiki/runtime/hardware-enablement-matrix.md"
+        ],
+        "instructions": [
+          "libqrtr.so 软链与 -lqrtr 的 CI 专属陷阱要作为\"为什么产物校验是硬失败\"的例证出现，细节链接到 failure-modes 页。",
+          "写清 pkgs/ 下的 PKGBUILD 是另一条（当前未被 build.sh 使用的）打包路径，不要把它当成实际构建方式。",
+          "用 mermaid 序列图表达\"daemon 就绪 → remoteproc 服务注册 → 下游子系统（Wi-Fi/音频/调制解调器）上线\"的依赖方向。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "3bbbff0b-7f0c-4e55-99f5-1247bfced7ad",
+        "path": "/openwiki/testing/verification-and-debugging.md",
+        "title": "验证与调试：每一层各自能证明什么",
+        "purpose": "如何在不同层获得证据：构建期自检与硬失败闸门（关键程序烟雾测试、固件自检、qcom 产物校验、networkd 残留检查）、不挂载读 FAT 镜像与拆 initramfs 的检查方法、校验和验证，以及在设备上定位（失败单元、systemd-analyze、qrtr-lookup、aplay/amixer、dmesg 过滤、camera-check）；并说明哪些结论没有真机无法验证。",
+        "seedPaths": [
+          ".github/workflows/build.yml",
+          "HANDOVER.md",
+          "notes/porting-checklist.md",
+          "scripts/02-pacman.sh",
+          "scripts/04-firmware.sh",
+          "scripts/05-qcom.sh",
+          "scripts/09-image-rootfs.sh",
+          "scripts/10-image-boot.sh",
+          "scripts/lib.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/build-pipeline-stages.md",
+          "/openwiki/concepts/failure-modes-and-invariants.md",
+          "/openwiki/operations/flashing-and-recovery.md",
+          "/openwiki/runtime/hardware-enablement-matrix.md",
+          "/openwiki/workflows/build-and-rebuild-loop.md"
+        ],
+        "instructions": [
+          "把\"证据命令\"按层组织（宿主构建层 / 镜像内容层 / 设备运行时层），并注明哪些命令需要 root 或真机。",
+          "明确本仓库没有自动化测试套件：验证 = 构建期自检 + 镜像检查 + 真机观察，不要虚构测试框架或覆盖率。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "8f296372-5900-4e72-a2af-7abc7813dc4a",
+        "path": "/openwiki/workflows/build-and-rebuild-loop.md",
+        "title": "改动与重建回路",
+        "purpose": "面向改代码的人的操作性页面：给定一类改动该跑哪些阶段、dl/work 缓存使哪些重跑安全、增量重建会留下哪些陈旧状态（旧包、旧单元软链、旧内核/DTB、旧个性化文件）、如何在不刷机的情况下把新 initramfs/DTB/内核推到 /boot 验证，以及什么情况下只有 CI 干净环境才能暴露问题。",
+        "seedPaths": [
+          ".github/workflows/build.yml",
+          "HANDOVER.md",
+          "build.sh",
+          "logs/",
+          "scripts/09-image-rootfs.sh",
+          "scripts/10-image-boot.sh",
+          "scripts/lib.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/build-pipeline-stages.md",
+          "/openwiki/architecture/rootless-build-runtime.md",
+          "/openwiki/concepts/failure-modes-and-invariants.md",
+          "/openwiki/operations/release-and-ci-publishing.md",
+          "/openwiki/testing/verification-and-debugging.md"
+        ],
+        "instructions": [
+          "以\"改什么 → 跑什么命令 → 怎么验证\"的表格为主，命令必须与 build.sh 和 HANDOVER §7/§10 的实际参数一致。",
+          "明确写出本地 ≠ CI 的分歧（干净 rootfs、loop 设备、宿主编译器、缓存），并说明为什么改脚本后应跑一次 CI。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "389cb379-ca7e-4f40-b903-4194927e784f",
+        "path": "/openwiki/workflows/desktop-variants-selection-and-sessions.md",
+        "title": "桌面形态：DESKTOPS 选择 → 包拼装 → 会话与输入",
+        "purpose": "一次选择贯穿全流程的端到端说明：DESKTOPS 的归一化与\"顺序 = 自动登录优先级\"语义、按形态拼装/去重/裁剪的包列表、02 阶段对桌面关键包的硬检查、SDDM 的会话列表与合成器选择、各桌面（Plasma Mobile / Plasma / Phosh / GNOME / 纯命令行）的用户级预置与触屏输入归属、以及被有意撤销的个性化与 fcitx5 冲突。",
+        "seedPaths": [
+          ".github/workflows/build.yml",
+          "HANDOVER.md",
+          "README.md",
+          "config/build.conf",
+          "notes/desktop-environments.md",
+          "notes/plasma-mobile.md",
+          "scripts/02-pacman.sh",
+          "scripts/06-config.sh",
+          "scripts/07-desktop.sh"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/build-pipeline-stages.md",
+          "/openwiki/concepts/configuration-model.md",
+          "/openwiki/operations/release-and-ci-publishing.md",
+          "/openwiki/runtime/audio-pipeline.md",
+          "/openwiki/runtime/boot-sequence-and-service-ownership.md"
+        ],
+        "instructions": [
+          "把\"同一功能只留一个\"的去重规则与 PKGS_PRUNE 的删除行为写清楚，说明它同时是幂等清理手段。",
+          "用 mermaid 图表达\"配置 → 包列表 → 镜像内容 → 会话/自动登录 → 用户级配置\"的传导链。",
+          "输入法条目要给出唯一正确写法（合成器侧 QT_IM_MODULES，且不得写进 /etc/environment），这是真机踩坑结论。"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "bb2b5071-fce8-48d1-9095-19b54c4825fa",
+        "path": "/openwiki/quickstart.md",
+        "title": "Quickstart — 按任务路由的阅读地图",
+        "purpose": "Wiki 的总入口与任务路由表：把\"我要改 X\"映射到具体页面（构建流水线 / 设备运行时 / 桌面形态 / 刷机 / 发布 / 验证），并说明本仓库的三条总原则（无 root 构建、源码与真机证据优先于文档、work/out/dl 是生成物不是源码）。必须让读者从这里能走到每一层，而不是直接扎进 7000 行脚本。",
+        "seedPaths": [
+          "AGENTS.md",
+          "HANDOVER.md",
+          "README.md",
+          "build.sh",
+          "config/build.conf"
+        ],
+        "relatedPages": [
+          "/openwiki/architecture/build-pipeline-stages.md",
+          "/openwiki/architecture/overview.md",
+          "/openwiki/architecture/repository-layout-and-entrypoints.md",
+          "/openwiki/operations/flashing-and-recovery.md",
+          "/openwiki/testing/verification-and-debugging.md",
+          "/openwiki/workflows/build-and-rebuild-loop.md"
+        ],
+        "instructions": [
+          "不要在本页复述具体阶段细节或 fstab/service 内容，只做路由与总原则，每条路由都指向一个已存在的页面路径。",
+          "本仓库文档以中文为主、脚本注释为中文：本页保持中文，代码标识符与路径保持原文。",
+          "至少用一张 mermaid 流程图表达\"源码改动 → 阶段子集重建 → 产物 → 刷机/发布\"的整体闭环（见 mermaid-diagrams 技能）。",
+          "这是 init 生成的入口页：先给出一张\"问题 → 页面\"的表格（构建、改包列表、改桌面、改音频、改设备树、改内核、刷机、发布、排障），再给出按目录分组的短清单，最后写清各页面之间如何互相导航。"
+        ],
+        "status": "pending"
+      }
+    ],
+    "deletePages": []
   }
 }

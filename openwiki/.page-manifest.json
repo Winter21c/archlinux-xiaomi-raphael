@@ -16,18 +16,18 @@
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/overview.md": {
+      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
+      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7",
       "pageVersion": "sha256:e63ac7db652776e43e1237fd50f9e61452da5770764f63fac5c5811d4463f77e",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+    },
+    "/openwiki/architecture/repository-layout-and-entrypoints.md": {
+      "pageVersion": "sha256:a4d7e4601edbc62f1003f92e89bd83e9c1eab428de91a6e7b23d543eb465c099",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
       "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
       "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7"
-    },
-    "/openwiki/architecture/repository-layout-and-entrypoints.md": {
-      "gitHead": "67b70d9a47a94259506e779d8188ede91aecaf99",
-      "sourceFingerprint": "sha256:8b3de184b3c000512ddb17eafd5adc3aed6533162af1ea406be7a91a41ceb878",
-      "pageVersion": "sha256:43854a732f094faca238f32d23beed8f5ae696e7867f16d4ab51ab78e06f2075",
-      "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/rootless-build-runtime.md": {
       "gitHead": "67b70d9a47a94259506e779d8188ede91aecaf99",
