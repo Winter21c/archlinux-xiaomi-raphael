@@ -1015,3 +1015,45 @@ SPDX-License-Identifier: GPL-2.0-only
 刷机有风险：可能变砖、丢数据、失去保修。请先备份（至少 `boot`/`dtbo` 分区和 Android 数据）。
 本项目按"现状"提供，不对任何损失负责。默认密码（`user`/`1234`、`root`/`1234`）
 **仅供首次登录使用，刷完请立刻修改**：`passwd && sudo passwd root`。
+
+---
+
+## 真机验证状态（2026-10-15，KDE 桌面形态镜像）
+
+以下都是在这台 Redmi K20 Pro 上**实测**得到的结果，不是推断。
+
+### 可用
+
+| 项目 | 验证方式与结果 |
+|:--|:--|
+| 底部扬声器 | `output:stereo-fallback`（**不用 `pro-audio`**）；静音播放连测 3 次退出码 0、AFE 报错 0 条、`PCM state=RUNNING` |
+| 3.5mm 耳机 | 声卡里有 `wcd934x-codec`，HPHL/HPHR 能上电；routing 脚本按 `iface=CARD,name="Headset Jack"` **自动二选一**（插=走 SLIMBUS_0_RX 并静音扬声器，未插=只走 QUAT_MI2S）。未插分支已连测 3 次干净 |
+| GPU / 花屏 | `FD_MESA_DEBUG=noubwc` 经 KDE systemd 用户单元 drop-in 生效；CCU fault 从 151 降到个位数、hangcheck 0 |
+| Wi-Fi | 连 `ChinaNet_XQP2_5G`（**5GHz**，channel 44 / 5220MHz），拿到 `192.168.31.90`，与本机 `192.168.31.65` 同网段 |
+| pacman | `pacman -Syu` 干净通过（清掉残留的 `linux-aarch64.preset`；`IgnorePkg = linux-firmware` 防止拉进 12 个固件拆分包）|
+| 输入法 | fcitx5 + fcitx5-rime，`DefaultIM=rime`，KWin 虚拟键盘留空不抢 |
+| 账号 | 只有 `winter`（uid 1000），用户/root 密码都是 `031210`（SSH 登录 + sudo 提权实测通过）|
+| 投屏 | `usbdisp_drm.ko` 已移植，`modules-load.d` + USB modalias 双保险；未接硬件，只能验证到"模块可加载" |
+| 子卷 | `@` / `@home` / `@swap` 都在；zram 10G + `/swap/swapfile` 4G |
+
+### 不可用（以及确切卡在哪）
+
+**麦克风**：采集 PCM 能打开（`arecord` 打印 `Recording WAVE`），但 ADSP 的 ADM 拒绝路由矩阵映射：
+
+```
+qcom-q6adm aprsvc:apr-service:4:8: cmd = 0x10325 return error = 0x2
+q6routing: DSP returned error[2]
+wcd934x-codec: underflow on TX port 0
+-> arecord: pcm_read: read error: Input/output error -> 样本恒为 0
+```
+
+`0x10325` = `ADM_CMD_MATRIX_MAP_ROUTINGS_V5`（注意 `ADM_CMD_DEVICE_OPEN_V5` 是**成功**的，
+说明端口本身有效，被拒的是**路由矩阵映射**）。已排除：kcontrol 全部设对、
+`audio-routing` 补 MCLK 依赖、DTB 恢复 5 条 dai-link、悬空 DAI 引用（补 `dai@2`/`dai@3`）、
+UCM、打开顺序、DSP 会话泄漏（重启清干净后复测）。细节与后续内核排查计划见
+[notes/microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md)。
+
+**刷机**：镜像已构建并静态核对，但**刷入需要按住【音量减 + 电源】进 fastboot**。
+软件途径全部验证无效：Android BCB（misc 分区写 `boot-fastboot`/`boot-bootloader`，
+bootloader 不读）、`systemctl reboot bootloader`（systemd 262 无此参数）、
+U-Boot 环境变量（编译进去的，无可写存储）、EFI 启动项（只有固件内部 `csi`/`lkmap`）。
