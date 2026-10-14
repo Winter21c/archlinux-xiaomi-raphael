@@ -103,3 +103,37 @@ DAPM 路由** —— 这是内核/DTS 工作，不是配置工作。
 
 编译 ~20-40 分钟（12 核）、`scp` 到设备 ~10 秒、重启 ~1.5 分钟。
 **每一轮都需要真机反馈 dmesg**，所以这会是多轮的过程。
+
+---
+
+> **2026-10-15 更新：又推进了两步，并确认了当前的确切卡点。**
+>
+> 1. **上游 DTB 里其实有采集/耳机链路的完整定义**（我也一度以为要自己写）：
+>    `slimcap-dai-link`（cpu=q6afe DAI 0x03、"SLIM Capture 1"）、
+>    `slim-playback-dai-link`（cpu=q6afe DAI 0x02、"SLIMBUS_0 Playback"）、
+>    `codec@1,0 { compatible = "slim217,250"; }`（phandle 0xed，SLIMbus 地址 217:250:1:0）。
+>    但 `10-image-boot.sh` 会把这两条链路**删掉**（历史原因：那时 codec DAI 枚举不出来，
+>    缺了就让整块声卡卡在 EPROBE_DEFER）。删掉后声卡永远能注册、扬声器稳定。
+> 2. **实测：现在（新内核 7.2.0-sm8150-ga1573649db08）codec 能稳定枚举了** ——
+>    `217:250:1:0` 绑上了 `wcd934x-slim`，模块 `snd_soc_wcd934x` 等全部加载。
+>    把两条链路**加回设备树**后真机验证：
+>    * 声卡组件里多出 `wcd934x-codec.1.auto` ✓（codec 进卡成功）
+>    * 扬声器**依然正常**（静音播放 PCM RUNNING、AFE 报错 0 条）✓
+>    * `arecord -l` 也能列出采集设备 ✓、codec 的 `AMIC MUX0`/`CDC_IF TX0 MUX` 控件都在 ✓
+>    * 但 **`arecord -D hw:0,0` 仍然 EINVAL**，dmesg 里是
+>      `wcd934x-slim 217:250:1:0: TX timed out:MC:0x21,mt:0x2`
+>      —— **SLIMbus 上行(TX)超时**，和 §1.3 的判断一致：卡在 SLIMbus/ADSP 这条路上。
+>    * 耳机侧同样不通：把 UCM 的 `Headphone`（`PlaybackPCM "hw:0,0"`）加回去后，
+>      ACP 探测这个 PCM 失败 → **整块声卡的 active profile 掉成 `off`**（sink 消失）。
+> 3. 因此**保留了原作者的 DTB**（不删链路的那版会带来风险却没有可见收益），
+>    UCM 也只暴露 Speaker。要真正修好麦克风/耳机，需要解决 **SLIMbus TX
+>    （slim-ngd QMI/ADSP 侧）**，这仍然是内核级工作。
+>
+> 排查中用到的现成手段（下次可直接复用）：
+> * 备份：`/boot/dtbs/qcom/raphael-redmi-k20pro.dtb.safe`（原版）
+> * 打补丁：`dtc -I dtb -O dts` → 在 `sound { }` 里加 `slimcap-dai-link` /
+>   `slim-playback-dai-link`（phandle 用文件里现成的：q6afe=0xff、platform=0x100、
+>   codec=0xed）→ `dtc -I dts -O dtb` → 覆盖回 `/boot/dtbs/qcom/`
+> * 验证：`ls /sys/kernel/debug/asoc/Raphael/`（看有没有 wcd934x-codec）、
+>   `arecord -l`、`arecord -D hw:0,0 ... /tmp/rec.wav` 后看峰值是否非零
+> * 回滚：把 `.safe` 拷回去 + `systemctl reboot`

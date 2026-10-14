@@ -3,9 +3,6 @@ type: concept
 title: 失败模式、不变量与静默退化陷阱
 description: 这套构建里"一碰就炸"与"能刷但残废"两类风险的集中说明：每条不变量为什么存在、谁在守（die 还是 warn）、拿掉后会静默退化成什么，以及文档口径与代码现状不一致的几处。
 tags: [failure-modes, invariants, guardrails, silent-degradation, build-gates, troubleshooting]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 失败模式、不变量与静默退化陷阱

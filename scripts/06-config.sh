@@ -665,7 +665,7 @@ as_user() { sudo -u @USER@ env XDG_RUNTIME_DIR=/run/user/1000 "$@"; }
 CARD=alsa_card.platform-sound
 if as_user pactl list cards >/dev/null 2>&1; then
   CUR="$(as_user pactl list cards 2>/dev/null | awk -v c="$CARD" '$0 ~ c {f=1} f && /Active Profile/ {print $NF; exit}')"
-  if [ "$CUR" = "pro-audio" ]; then
+  if [ "$CUR" = "pro-audio" ] || [ "$CUR" = "off" ] || [ -z "$CUR" ]; then
     # 优先 UCM 的 HiFi; 没有就用 ACP 的立体声兜底 profile
     for p in HiFi output:stereo-fallback; do
       if as_user pactl set-card-profile "$CARD" "$p" 2>/dev/null; then

@@ -15,7 +15,7 @@ verified:
 
 两个入口：
 
-- 构建：`./build.sh`（`--from` / `--only` / `--list`），阶段脚本在 `scripts/`，全部 10 个阶段都跑在 user namespace 里，默认**不需要 root**。
+- 构建：`./build.sh`（`--from` / `--only` / `--list`），阶段脚本在 `scripts/`；[`STAGES`](../../build.sh#L26-L39) 里有 12 个阶段项（阶段号 `00`–`10`，含 `03b-ms91xx.sh`），凡需要 chroot 的阶段都用 `require_ns` 把自己重入 user namespace，所以默认**不需要 root**——唯二例外是还没有 rootfs 的 `00-fetch.sh` 与纯宿主交叉编译的 `03b-ms91xx.sh`。
 - 设备：`./scripts/11-flash.sh --flash` 把产物写进三个分区；之后所有调整都走 `/boot`（就是 cache 分区）或 SSH。
 
 ## 产物与三个目标分区
@@ -86,9 +86,9 @@ flowchart TD
 关键点：
 
 - `bootaa64.efi` 用的是 **rootfs 内那份 systemd-boot**（与镜像里的 systemd 同版本），模板自带的厂商引导器被备份成 `/efi/boot/bootaa64-vendor.efi` 保留；模板里那个必然失败的上游条目（`ubuntu.conf`）被删掉。
-- 内核以 `linux.efi` 命名放在 FAT 根目录，`arch.conf` 用 `devicetree /dtbs/qcom/raphael-redmi-k20pro.dtb` 指向**打过补丁的设备树**（[10-image-boot.sh](../../scripts/10-image-boot.sh) 里对 `dtb/raphael-redmi-k20pro.dtb` 的描述：删掉会把整块声卡拖进 `EPROBE_DEFER` 的 SLIMbus dai-link、删掉会让 ASoC 注册失败的路由、补上 `bluetooth/local-bd-address`）。
+- 内核以 `linux.efi` 命名放在 FAT 根目录，**三个条目都带** `devicetree /dtbs/qcom/raphael-redmi-k20pro.dtb`，指向**打过补丁的设备树**（[10-image-boot.sh](../../scripts/10-image-boot.sh) 里对 `dtb/raphael-redmi-k20pro.dtb` 的描述：删掉会把整块声卡拖进 `EPROBE_DEFER` 的 SLIMbus dai-link、删掉会让 ASoC 注册失败的路由、补上 `bluetooth/local-bd-address`）。
 - 三个条目是**有意的容错设计**：`arch.conf` 正常启动；`arch-direct.conf` 不加载 initramfs、由内核直接挂根（UFS/btrfs/ext4 都内建），initramfs 出问题时的救命项；`arch-debug.conf` 给详细日志 + 单用户救援。
-- initramfs 是手工拼的而不是 mkinitcpio：静态 busybox + 少量模块 + 早期固件（Adreno 的 `a630_sqe.fw`/`a640_gmu.bin`、`a640_zap.mbn`、`ipa_fws.mbn`），挂根失败时给一个救援 shell。里面的 `lib -> usr/lib` 软链是必须的——内核 firmware loader 只认 `/lib/firmware`，少了它 GPU 会在没有 SQE 固件的情况下 probe，表现为开机/熄屏瞬间花屏。
+- initramfs 是手工拼的而不是 mkinitcpio：静态 busybox + 少量模块（UFS/ext4 其实都已内建）+ 早期固件（Adreno 的 `a630_sqe.fw`/`a630_gmu.bin`/`a640_gmu.bin`、`a640_zap.mbn`、`ipa_fws.mbn`，外加 `regulatory.db`），挂根失败时给一个救援 shell。里面的 `lib -> usr/lib` 软链是必须的——内核 firmware loader 只认 `/lib/firmware`，少了它 GPU 会在没有 SQE 固件的情况下 probe，表现为开机/熄屏瞬间花屏。
 
 ## 构建侧：四个阶段群
 
@@ -97,7 +97,7 @@ flowchart TD
 | 群 | 阶段 | 做什么 |
 |:--|:--|:--|
 | 取料 | `00` `01` | 下载上游产物（ALARM rootfs tarball、内核/固件 deb、U-Boot zip、FAT 模板），解包 ALARM rootfs 到 `work/root` |
-| 装系统 | `02` `03` `03b` `04` `05` | 用宿主 pacman `--arch aarch64` 装包与所选桌面；铺定制内核；铺设备固件与 UCM；交叉编译 qcom 用户态（`rmtfs`/`pd-mapper`/`tqftpserv`/`qrtr`） |
+| 装系统 | `02` `03` `03b` `04` `05` | 用宿主 pacman `--arch aarch64` 装包与所选桌面；铺定制内核（`Image` + 模块 + dtb）；用 `vendor/ms91xx` 交叉编译 MS91xx USB 投屏驱动模块；铺设备固件与 UCM；交叉编译 qcom 用户态（`rmtfs`/`pd-mapper`/`tqftpserv`/`qrtr`） |
 | 配置 | `06` `07` `08` | 系统基础配置（locale、fstab、用户、USB NCM、电源、zram、音频路由、各 `raphael-*` 单元）；桌面/会话配置（SDDM、字体、输入法）；手工组装 initramfs |
 | 成像 | `09` `10` | 造根文件系统镜像（含 sparse 版）；造 cache 分区 FAT32 引导镜像并注入蓝牙地址 |
 
@@ -162,6 +162,7 @@ flowchart TD
 
 - [仓库结构与入口](repository-layout-and-entrypoints.md) —— 目录职责与 `build.sh` 的用法。
 - [构建流水线各阶段](../workflows/build-pipeline-stages.md) —— 每个阶段做什么、失败点在哪。
+- [rootfs 布局与 fstab](../concepts/rootfs-layout-and-fstab.md) —— 「布局三处一致」这条不变量的机制、失败路径与历史事故。
 - [镜像打包与引导链](../workflows/image-packaging-and-boot-chain.md) —— 阶段 09/10 的成像细节与 `fastboot` 流程。
 - [配置模型](../concepts/configuration-model.md) —— `build.conf` / 环境变量 / 派生标志。
 - [运行时服务清单](../runtime/service-inventory.md) —— 镜像里启用的单元与它们的关系。

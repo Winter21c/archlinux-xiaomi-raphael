@@ -3,9 +3,6 @@ type: concept
 title: rootfs 布局决策与 fstab/引导参数一致性
 description: 本项目如何用 lib.sh:rootfs_layout() 一次性决定 ext4 / btrfs-subvol / btrfs-flat 布局并缓存，write_root_fstab() 如何在阶段 06 与 09 各写一次 fstab，以及「fstab 挂载选项 == 镜像实际布局 == loader rootflags」这条三处一致不变量的机制与历史事故。
 tags: [rootfs, btrfs, fstab, subvolume, boot-parameters, image-build]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # rootfs 布局决策与 fstab/引导参数一致性

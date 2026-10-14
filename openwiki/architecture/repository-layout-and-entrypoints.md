@@ -3,9 +3,6 @@ type: architecture
 title: 仓库结构、入口与生成目录
 description: 这个仓库的"源码"只有入口 build.sh、阶段脚本 scripts/ 与随仓库分发的输入（config/、dtb/、vendor/、pkgs/、notes/）；本页给出各入口的用法与相互依赖、阶段脚本的调用契约、以及 dl/ work/ out/ logs/ tools/ release/ _recon/ 这些生成或未跟踪目录的语义，说明它们为什么不能被当成源码。
 tags: [architecture, repository-layout, build-entrypoint, build-pipeline, ci]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 仓库结构、入口与生成目录

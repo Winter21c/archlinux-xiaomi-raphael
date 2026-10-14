@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:8ac821783c11fe895d672d74d530e6177b772f40415532a41c154bff0bd497da",
+  "pageVersion": "sha256:5bdc0f5505c010fd546526c50b494f2f8d4c3b46d2cb58ed77d0fcab1ba362ec",
   "claims": [
     {
       "id": "claim_263734fac0004fb5a8022b420c710032",
@@ -22,11 +22,19 @@
     },
     {
       "id": "claim_3a59005349284c3e8f0c62db4332875f",
-      "statement": "所有构建阶段通过 lib.sh 的 require_ns 自举进 user namespace（无 root 时 unshare -r -m -p，已是真 root 时只建 mount/pid namespace），因此默认不需要 root 权限即可产出镜像；只有创建 btrfs 子卷与属主归一化这类操作才真正需要真 root。",
+      "statement": "需要 chroot 的构建阶段都通过 lib.sh 的 require_ns 自举进 user namespace（无 root 时 unshare -r -m -p，已是真 root 时只建 mount/pid namespace），因此默认不需要 root 即可产出镜像；只有创建 btrfs 子卷与属主归一化这类操作才真正需要真 root。不调用 require_ns 的只有两个阶段：还没有 rootfs 的 00-fetch.sh 与纯宿主交叉编译的 03b-ms91xx.sh。",
       "evidence": [
         {
           "resource": "repo://build.sh#L13-L14",
           "version": "repo-lines-v1:sha256:3bdcec5c59b6ed33432e9e8632805f391079184a5040ef553ae2900e4b335eff:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzMwMWU5ZGQyNDNmZjdjZjVkZWFjZTllNWViNTJlYTY1MGRmODk0MDJkYzgyZDMzMWIxM2YwN2I4YjQxNjYxMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiODk3NWFhMGMzYmI4ZTUwMGI4NjQyY2QyMjMxZmJhYjc3OGQ2MWQ2MTcxN2VjYWRiNmNlMmNiNGRiYzlmNmYyOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzVhMzZmOGYyMTQ2YTNhNmRkZjgzMjJmYjZlYTI5NDZhZDNkZjQ2ZWQwODA2ZDM3ODlkOGE5MzljMjU3MTZlYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZmFlYjcxOWUxMmE2ODUxNDRiOGFmMTI5MDViMzc1MWJmZTM1MGM2MTJlOTU0ZjFkMGYzN2RhYjliYzczNTVmZiJ9"
+        },
+        {
+          "resource": "repo://scripts/00-fetch.sh#L7-L10",
+          "version": "repo-lines-v1:sha256:84fab55d330b31931e56c05a8b74ca36155d33d31dece51fad9e05a06e857667:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODhmYzYzMzY2N2QwMzAwNzMxYmRkODQ0NzJkYzQyNGUxZjljNjQxNzVlYTJiYWRiNjY2NDcyZDkxYWViNGVmYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTYzMzYwZWRmMzM3NjVjZTYyMTM0ZjA4MTFlMDQ4ZjY0OWIzNmUxNGY0ZjFhYjc2NjIyZjVlMTMyNjMxYmNhZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzU0YjMwODMwNzk3OGRkMjE0ZjExNDlkMTU5N2UzMGQ1MzEyZGJmOWY2ZTIyOTU2NWRjOTNjZDcxOGU1NjQzNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOWUzMmFhNzhiNzVlZWU4ZWIwNWUxNTJlZjM5YjM0OWQ5NWJkZmI0YzRlZjU1NGE0MTZhYzlkNWM0YjU1Y2ZiYyJ9"
+        },
+        {
+          "resource": "repo://scripts/03b-ms91xx.sh#L25-L36",
+          "version": "repo-lines-v1:sha256:055b89cf8d5f87505ff4feb2ceea87d408ae0cfd6df6195d33b07d1b94f15607:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4ZmM2MzM2NjdkMDMwMDczMWJkZDg0NDcyZGM0MjRlMWY5YzY0MTc1ZWEyYmFkYjY2NjQ3MmQ5MWFlYjRlZmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlkZjcyOTA5NzIzNjQ1MjM4MjA2NmU2NjdmOWY3OTQzZDI1YzljNGYwNjkwNDk2MWNmOTAyNDhkZjc4M2E2ZWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIxODkzMDY5ZmQ0OTEzMjVlZWRlZThjY2RmMmE2OWFhNzc4ODE4ZWIyNmI4YzU0NTMyYjQ5ODY5ZmJjZTU3OWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY0NzFjZTdhZWE5ZDUzNjcxYjVhNDFlOTRkNGIzODMwOGU5NjgzOWIxZWE5YzIyNDUyNTYyYTM2MDMzODUxNjUifQ"
         },
         {
           "resource": "repo://scripts/lib.sh#L42-L59",
@@ -182,19 +190,23 @@
     },
     {
       "id": "claim_d935422f37ba4ae2bad4e169f73a46f4",
-      "statement": "initramfs 由阶段 08 手工组装而非 mkinitcpio：静态 busybox（含 mount/switch_root/findfs）+ 少量 UFS/ext4 模块 + 早期固件（Adreno a630_sqe.fw/a640_gmu.bin、a640_zap.mbn、ipa_fws.mbn）+ init 脚本，挂根失败时进入救援 shell；其中 lib -> usr/lib 软链是必需的，因为内核 firmware loader 只按 /lib/firmware 查找，缺了它 GPU 会在没有 SQE 固件的状态下 probe 并在开机/熄屏瞬间花屏。",
+      "statement": "initramfs 由阶段 08 手工组装而非 mkinitcpio：用 rootfs 里的静态 busybox（先校验它带 mount/umount/switch_root/findfs/modprobe/sh 等 applet）、按需拷入 phy-qcom-qmp-ufs/ufs-qcom/scsi_common/ext4/crc32c_generic 模块、再塞入早期固件（qcom 的 a630_sqe.fw、a630_gmu.bin、a640_gmu.bin、a640_zap.mbn、ipa_fws.mbn 与 regulatory.db），最后 cpio 打包并 zstd 压缩，挂根失败时进入救援 shell。其中 lib -> usr/lib 软链是必需的，因为内核 firmware loader 只按 /lib/firmware 查找，缺了它内建 msm_dpu/adreno 会在没有 SQE 固件的状态下 probe，表现为开机/熄屏瞬间花屏。",
       "evidence": [
         {
-          "resource": "repo://scripts/08-initramfs.sh#L18-L30",
-          "version": "repo-lines-v1:sha256:29fb947d76936e26f922f70efe13589a1df8673485208c039a3be625d22fb02c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBmOTgzYzY1ZDU2MmUzZjRiY2Y1N2Y5MDBiYzA2ZDQ3ZmE2MTkyMzljZjU3NTcwNjRlZDcyNTFhZDY0ZWMzZWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ2NTJmMGI3NmUzM2FhODg0OTRjODA0MjlhNjhjNDRlMTdhMzhjNzZjOGIzMTdmZGJjZDI4MWFlOGYxM2RmYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQzYWZkMjA0MjZlMzcxN2I3OTZjZTdlMjBhMWMyNzk2NjM4MTM1MDYxZTYzMjI3YzNhYWY3N2ZlYWZjOWJhMTIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYxZmMxY2JiZGFhYjUyNDk1ZmI4ZmM0ODVmZDQ2YzcwYjhkNWE0OWUxYzY3ODBhY2JjYzI4NzVkOTRmZWYwNDIifQ"
+          "resource": "repo://scripts/08-initramfs.sh#L114-L167",
+          "version": "repo-lines-v1:sha256:a1943b07f429a0805dd7b20a74bf2e4ba2f608ebbd07de7238f30a798c499c89:eyJzZWxlY3RlZExpbmVDb3VudCI6NTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzYjJkODg4YTc2ZWM2NjNjYzM2MTAxYjg2OWIyYmM1ZmZkMzM2YWU2ODkwMzA1YmZhZDFkM2IxYjIzYWU4NmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRiYzhkOWM4MGMyOWIwMGRhYWRmYmM0MzIxMDJkMTMyMDg3N2RhNWUwZGZmZDU2YTZhM2Y5Y2JhODhkMTc3ZmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYzZTk0YTU0MDVjODViNWZlYmRmNDQ0YWRiM2ZjZTcwMWU2MmYxNDNmM2I0OTRhYmJlZDQ1NGJlMmYyMWNmZjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA0YzYzYmQyYzJkNzYzNTc0Yzk1ZTE5NTg5ODljNGMyYTRlMTRkM2ExNzRlMDgyMWI1ODVlZTc1MWEwY2YwNjkifQ"
         },
         {
-          "resource": "repo://scripts/08-initramfs.sh#L73-L90",
-          "version": "repo-lines-v1:sha256:28ce95d3de1043af9618e671f83337fb8c09e798ca80de9301485a49652aae0d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzYzQ0MDc3NWZiYmExOWQzNGE0MDE0MmFlYjczYzIwY2RlYzlhMWRhMGQ2YzZkZTZmOTcyYjMwYTg4OTExZTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg3OTI1ZjQ0MjU4Mjg2Y2Y1Yjg4ODFmNTgyYjhjMWEwOGYxMzk2MDIwM2YwMTRiYTg4Zjk2MTQwNGUyODg0ZDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkyMTk0MTVmYjIwMTMwNTk0ODkzYjdjOWZhZGNjMzEyNDgyMmQ1MGZjYzYwMWFkMDY2YWI2Y2UzMDEwNDNjZTUifQ"
+          "resource": "repo://scripts/08-initramfs.sh#L170-L173",
+          "version": "repo-lines-v1:sha256:88401ea793e7f5ee2a63049589b28d56a2e57f8197cc74dd31f9428ab017611e:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2Y1ZjU1MTY1MTRhNzcxZmUzYmY5ZmEzNWUyMTc1YmUxZGIyZGRmMTVkNWU3NTQxZGRmMTU3ZmZiNmY5OGY4MyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjFlOTZmOTA4NmEzNDBmMzIyNWVlZmEzMTI1ZjIxODdkZDI2YzkzMzg0ODdiMmRhZDk0MGY0MWRiOGIzMGIwNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjI2MTZmMmRmODM3MzcxNjlmYmI4ZTc4MjMxZTQzODI2OTE1ZWMzZmM0OWRjZjMyNzNjZTg2NjM5NWMyMTMxYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGQwNjE3NzdkZDk5ZTdhYWVlMDkyMjA1NTQ5YjIzYjhkOWZkNGQ5NTY3NDY3NjVjMDQwMDE5NThiMmZjZmIzNiJ9"
         },
         {
-          "resource": "repo://scripts/08-initramfs.sh#L92-L172",
-          "version": "repo-lines-v1:sha256:54b1a27db306ea01d3e26e49cb1b95c844cdc379674fb813263555d1b6701a97:eyJzZWxlY3RlZExpbmVDb3VudCI6ODEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVhMGJhOTI3ZThjOThiYTc3ODM5M2ZiODA5MGY2MDJiN2MwYjgzNDU0NGQwNWYxOGY0YjM1NGYyNWJiOGRhNjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjYxMzIwYjViNmUyMjUzOTc0MzllZjRiNThkNDE2ZGM2ODdkYWIyNmEyMjNmNmNkOTA2YzYzNGY5YjFkMzQwYmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU5MGY3ZjVjN2Q3YmY0NGNlYWJlOThkZTI2NDM1NzZkZDA0YTY0YjliOTE5ZmY1NGM0YTI5MGZiNjg2M2QwMGMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE2ZTBlYWE5M2U5OTUxNDQ3ZDdjM2U5ZTc5MDlhZTI0YzVjNGMwNjU0ODM1MWM5MTEyNTZiZTM5Zjc2MGNjMGMifQ"
+          "resource": "repo://scripts/08-initramfs.sh#L22-L30",
+          "version": "repo-lines-v1:sha256:d220d7b57f951ce77b0a0c701a97eb673de5947442f57669c574bad234d7144c:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTkxNjA4ZjliMDRhMDllZTdlNjgzZTVlN2I5MmFjYzVmOWZkNGI2YzI0MWIxYTcwNmViOWZhNTAwOWNlZjdmZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDY1MmYwYjc2ZTMzYWE4ODQ5NGM4MDQyOWE2OGM0NGUxN2EzOGM3NmM4YjMxN2ZkYmNkMjgxYWU4ZjEzZGZiYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzY4MjcwNTJkMzUzNzIxMDQ0ZjcwODQwMmU3ZWY1YWY3YzZiNGE5NDZjNjA1Y2FiYjMxZjYzYWJlMDE5OTBkMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjFmYzFjYmJkYWFiNTI0OTVmYjhmYzQ4NWZkNDZjNzBiOGQ1YTQ5ZTFjNjc4MGFjYmNjMjg3NWQ5NGZlZjA0MiJ9"
+        },
+        {
+          "resource": "repo://scripts/08-initramfs.sh#L32-L90",
+          "version": "repo-lines-v1:sha256:3e3b8743fa41976357e799bd9589175580412c1872a3934b7d4585d321ff41cc:eyJzZWxlY3RlZExpbmVDb3VudCI6NTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZlZDg5NDgyNjhiMWM2NGIzZTlkMTU3YjVmZjczYzI1NGQ0ZDg2MDJhNGM5ODE5MTcwNTRjZTdlODY2MTc5ZWMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM0NDNkYjhmOWQ2MmY3NzRkZDcwZGY5ZWFhYjA1YTNhNDRiODM2NjFlYzUxNTdiYTYyOTYyNGJhMzM1YjUwNTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkyMTk0MTVmYjIwMTMwNTk0ODkzYjdjOWZhZGNjMzEyNDgyMmQ1MGZjYzYwMWFkMDY2YWI2Y2UzMDEwNDNjZTUifQ"
         }
       ]
     },
@@ -283,15 +295,15 @@
       "statement": "首次开机的一次性动作由带条件的 oneshot 单元承担：raphael-firstboot.service 初始化 pacman keyring（含 archlinuxcn，条件为 pubring.gpg 不存在）、raphael-swapfile.service 在 @swap 子卷上创建 nocow 交换文件并写入 fstab、raphael-bt-firmware.service 从 bluetooth 分区安装原厂 NVM/固件到 /lib/firmware/qca、根扩容由 fstab 的 x-systemd.growfs 完成。",
       "evidence": [
         {
-          "resource": "repo://scripts/06-config.sh#L364-L396",
+          "resource": "repo://scripts/06-config.sh#L378-L410",
           "version": "repo-lines-v1:sha256:2f736ca9efc8e29759891e606fdf0aa84954ce76c18ebc274f8e6ec3aa80d84f:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI5MjRhYjRhZmY5NGM2MDI0YTNlMjNmMmFjYTFmYjNjNzM1NDU1NTQxNTQ2MGZmOTEzMjU3MzU3NmI3MDlhZTkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImMzZDcxZTBiODNiMjdkZGJkODk3OTI0ZWEyYTY0OTRjZGEzZDkwZTQ2NzA3MDE0MThiNTViNmJjZWZlZjlmYjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU0Mzc2OWQzODNhNWU5OTYyYjFmNGU1ZWE2YzEyNzQ4OWEyYjBkYWJkNGY1ZjdhYWEwZmU0Y2JmNTUxMzgxYmUifQ"
         },
         {
-          "resource": "repo://scripts/06-config.sh#L398-L444",
+          "resource": "repo://scripts/06-config.sh#L412-L458",
           "version": "repo-lines-v1:sha256:b0e210154906e19f8761ef045bdc28ce24f0e5af0f49f06331b2e76fce6bee0d:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ0MDJkZDlhYmVmNjI1NWU0MWFmZGUyMGZjZmMxMWIyMjFlMTZjMmVkZmNjZWQ4NTlhOWYyMDE1OTljODJiMWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUwYzRlNmIxNzgxODRkNWZmZGU3NDhkM2Y1ODBmYTE5NTlkYjE5MmRhNGQ4MTljYWE5YzZhYzM4MjhmMzhjODUifQ"
         },
         {
-          "resource": "repo://scripts/06-config.sh#L658-L707",
+          "resource": "repo://scripts/06-config.sh#L723-L772",
           "version": "repo-lines-v1:sha256:0c403c8595c1bdfd9b261ac2716b6ab9cdd15c5bf088a7047dd8ffbf0828bdef:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijc4NTUxNWNjNDdiZWRkNDA3NmZiNTg4Y2EyYzFkZTVmYzA2YTNlZDQ0YzFlOTc2NmQ0MjNlM2I3MjlhNzRlMzIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNlODNkMjUxOWUxZDRhOGVlNDZlYWI4YjZjZjIwYjNiNDJiNTdiZGUwNDA0YTdiMDhlMDUwNjY2MTMzMzAzN2UiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFjYmY1YTU0ZTg1NGY5OWU3Mzc2NTMyMThlMThlNDI2MThjZmZlZjUxYjk1OWE4ZjA1ZTQ5NDk2OThkODFkYjQifQ"
         }
       ]
@@ -301,11 +313,11 @@
       "statement": "音频路由是运行时持续纠偏的：raphael-audio-init.timer 在开机 12 秒后拉起一次音频初始化，raphael-audio-routing.timer 从 25 秒起每 20 秒重设 Q6 mixer，因为 PipeWire 的 ACP 激活 profile 时会把 MultiMedia1/2 等路由开关复位。",
       "evidence": [
         {
-          "resource": "repo://scripts/06-config.sh#L572-L599",
+          "resource": "repo://scripts/06-config.sh#L614-L641",
           "version": "repo-lines-v1:sha256:5db1431e015cd0ba7faca5bb3ceada6dec2d2312141a3d8fcdabae9c03eae6e3:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgyOGFhNjk3ZWFiMmVmNGZkNTY5NjA3NjRhNzBlZWJiNWRlNTMzMGEzMTZlODcyOTJiMmYxOGZmZWMyYzBiNmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIzODZmZjNkNzExMTViZmVmOWQwMDRhMzI4MWQ3ZTY4MWJmMGZmMzgyNTQ5YjFlNmI3YmE4ZDhmOGRiMjYzOWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImE2YmE1ZjMxM2YyMTQ0NDYzYWEzYzZmYTY5MWQ0ZTNkMzYxNmYzNjA0ZTdjMTBmYTNhMzRkZThmYzIzNDM1M2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjExMzdmYWQ2N2NjZGEwMjRjMjVkZGE4NDA2MzcwNTYxMzQzNDdhMTQ1N2U2MjhiMjNhM2I3NjljMmU1NzBhOTcifQ"
         },
         {
-          "resource": "repo://scripts/06-config.sh#L635-L656",
+          "resource": "repo://scripts/06-config.sh#L700-L721",
           "version": "repo-lines-v1:sha256:36377e090de78d728fb13b4643b8725fd5284dee53abccd3fdee126d59deb6ff:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM4N2UyNGI5YjQ3MDI4Zjk3OTE1YTNkYjVkNzk2ODQzZDg2OTFmZDk2NmFiMzE3NjQ5MWQ5ZDIwODQwMTJjZjQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNkMmQ3MGY1ZWE4OGExNGJmYjA1MDRiYzVjMzZjZmRkMTUyZDY3OGQ4MzA1NzM5OWNhYTQzMTNkYzE3N2ZiYTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEwMGVjODQwZWQxZTM4NGI4MTY4Y2QwZTllMjJiYjJkZTYwOWZlMDRjM2RjNTJlMTkzMTc3YTRjYmUyODdjNDciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY1ZjI2NjdiZWY2NjkyYzdhOGM3NGM3MTVkOWFkN2U3OTUzNGQwNzgyNzY4ZmI4MTQ1ZmU5YjkzN2JlOGY3ZWYifQ"
         }
       ]
@@ -371,6 +383,34 @@
         {
           "resource": "repo://scripts/06-config.sh#L359-L360",
           "version": "repo-lines-v1:sha256:78209a10f1acda582b43a1ddf3ac50f10af02469a10899ff4cfe00e7d024f3e1:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOWQzNDFmZmYyYTY5MWI2MzdjMWI5MmIyOGRjNzVjOWJmYmI3MjBlMDBjZDlhMDZjOWRjY2I0M2VkOWM0NWQ3YSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzYzN2ZhOWI4N2YyMDgzYzIwMjdjNjYyNmExY2E3ZGZlZTkzNmJkNTAwZDkwMzIyZTcwM2IxMDk0N2VhOWRjOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTIxYTEyZWQ2ZGM3MmVmMWQ1Zjk1NjhkYTQ2ZDBhNzJjMmE0ODljYzFkZWQzZmFjOGI5N2I2N2EwOWFlMTFiYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzNkNzFlMGI4M2IyN2RkYmQ4OTc5MjRlYTJhNjQ5NGNkYTNkOTBlNDY3MDcwMTQxOGI1NWI2YmNlZmVmOWZiMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_affe43121a6649f7842ecd168af58687",
+      "statement": "build.sh 的阶段清单 STAGES 共 12 项，阶段号覆盖 00–10（其中 03b-ms91xx.sh 是唯一带字母后缀的阶段），这 12 项就是构建期全部阶段；11-flash.sh 只由 --list 额外补印，99-make-release.sh 完全不在这份清单里。",
+      "evidence": [
+        {
+          "resource": "repo://build.sh#L26-L39",
+          "version": "repo-lines-v1:sha256:7c2cfd8d34b46bf73d7adb2433660ccec5563444149dae2cd1d756aede1fc066:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjZjFhZWE2MTIyODFiY2ZmYzk5NTYxZGI3ZjQ1MGQ0NmZhZTZjZDA0NDhiMDc0ZjQ1YThmNzRjNmVjNTFjOGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhZmJhMDUyN2MzOTUzYzRiNmUwZTViNTczOWJhODM2MTJmODA1M2JjZGM5NDY2NzMwMTkzY2QxZDU5MGI0MDgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEzMWIyMzEyMmRhNTQwNzhmOWNkZGUzNDlmZDU1NDUxMzc4YzRmMmFhNWE4MjZlNmViMWQ1NTVhOTA3NTRkZGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjFlMDgxODYzNjU1NWEzYjBkZmFmZGU5YTdhYjM1MGIyZjMyZmVjOTA4MzcwMmYwMDYyYzA5ZjgyNDg0YzRlZjIifQ"
+        },
+        {
+          "resource": "repo://build.sh#L41-L49",
+          "version": "repo-lines-v1:sha256:605411ed8e806052b8b74138aa3461605c0c1374dae2fcdc681c50b03e425ba0:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDI5ZjI5MjllYzhmZjRhYzVlMDY1ZDk5M2Q4M2IxMmJiNGFlOTMzOThjNjE2YWZiZjY3YzlmOWViYTE1YzZjMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMjI4ZTI5ZGY1NDM1YThiOWY2YTRhMGNkYmMyMzMxNTE3NzMwMTU3OWUwN2NlYWY1NTM2MDk0MmI0Y2YzOTY3MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzU2Y2E0ZTYyMzExMzMxOTlmOTIxNWRjMjI3MzE5ZWI4MTA0NTcyYjIzMWU2ZWJmNDMxY2RiMzVjNjllMzZmYiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_d8fe0ca9deaf4173aef2a8e1313644fb",
+      "statement": "阶段 03b-ms91xx.sh 既不进 user namespace 也不 chroot，而是在宿主上用阶段 03 留在 work/kver 与内核头文件树里的信息，把 vendor/ms91xx 的 MacroSilicon MS91xx USB 投屏驱动交叉编译成 aarch64 模块（usbdisp_drm.ko），装到 rootfs 的 /usr/lib/modules/<kver>/updates/msdisp 并执行 depmod -b；缺 work/kver、头文件树或源码树时硬失败，设了 SKIP_MS91XX 则整个阶段跳过。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/03b-ms91xx.sh#L28-L40",
+          "version": "repo-lines-v1:sha256:720e33296f60393e8bb0460c9b5661f4f384af1d2ef8d526a5a74247d191a672:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3Zjk4NTZhNGIzOGNmYmZhMGE3NDc5OGJiODViODliMjk0ZmE5MzI2ZDgwM2IxMGYyY2Y1NmM1NGQwMWI4YjIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFjM2YwNDkyYjVhZTVmNDQ5MDFlZDgxNTdmZjVlN2M3Y2RjNzkwMTBhOTg0MWIyODdiZjllZWZhMTBhNjQwMjIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcwOWUyZjdlYTA4YTdhOTNkYTM3ZmU5YzhmNmM3MGViZjlkYzBmNWM4YTNhZDdmY2NkOGVhY2E0NzY4YjY1NjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcxM2ViNjBmMWNlYTM4YWJhY2JmMGNkY2RkNjljY2NhOTg4ZTJlNjYwNzZjMmRmZjVlNmMwOTQ2NzgyNWVjN2QifQ"
+        },
+        {
+          "resource": "repo://scripts/03b-ms91xx.sh#L87-L115",
+          "version": "repo-lines-v1:sha256:3dbf16685b288c74b3da3d9210a470c647935bf589bff4de7bd30ed725d41a66:eyJzZWxlY3RlZExpbmVDb3VudCI6MjksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1NTlmNzIyOGJiZGE4MTAwN2M3MGZkODE2YzZhY2ZiNjQyMmFhMDI3ZDM1MGE5ZGEwNmJhOGFhYjY0YzcyNDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY3YTZhOTQ0NDdmMTAxMTQzNjU5NGNjNzc5NWM5ZThiNGQ4YjRiZTEzNWRlZGM3MDU1MGEwOWVhMzM1ZTNmZWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZmMGVmYjFmMGVhZjVhZTdhNmZlNWQ3NzAyY2NiMjRhY2Q3NjUyNmMxOTQ3ZWM2MDkzNmZlNzU1ZWVjMTMzZjQifQ"
         }
       ]
     }

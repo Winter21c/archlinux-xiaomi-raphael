@@ -3,9 +3,6 @@ type: architecture
 title: 无 root 构建运行时：userns、qemu 垫片、mtools 与阶段契约
 description: 这套流水线默认以普通用户在 user namespace 里构建：require_ns() 把阶段脚本重入到 unshare 出来的 mount/pid/user namespace，ns_mount()/ns_dev_mount() 用自 bind 与单文件 bind 拼出 chroot，setup_qemu_shim() 加 gq() 在没有 binfmt_misc 的情况下显式执行 aarch64 程序，setup_mtools() 不挂载就读写 FAT 镜像，enable_unit()/mask_unit() 在离线 chroot 里手工建单元软链。本页说明每个 helper 补偿了哪一条内核能力限制、真 root 构建（sudo）会改变哪些行为，以及这些 helper 的失败语义与自检入口。
 tags: [architecture, build-runtime, user-namespace, qemu-user, mtools, systemd-units, rootless-build]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 无 root 构建运行时：userns、qemu 垫片、mtools 与阶段契约

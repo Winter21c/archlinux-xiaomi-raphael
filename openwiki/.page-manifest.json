@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "pages": {
     "/openwiki/architecture/overview.md": {
-      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
-      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445",
-      "pageVersion": "sha256:8ac821783c11fe895d672d74d530e6177b772f40415532a41c154bff0bd497da",
+      "pageVersion": "sha256:5bdc0f5505c010fd546526c50b494f2f8d4c3b46d2cb58ed77d0fcab1ba362ec",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
+      "gitHead": "997149c63348c0ed7ee8beb86093c6e0e7524b05",
+      "sourceFingerprint": "sha256:b6d8cee18acb74464249c8257587a0d4a450afb4508a6a0ffeb8c651ed8b2ef8"
     },
     "/openwiki/architecture/repository-layout-and-entrypoints.md": {
       "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
@@ -30,11 +30,11 @@
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/concepts/rootfs-layout-and-fstab.md": {
+      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
+      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445",
       "pageVersion": "sha256:beab27175417b696bc35816f0fb104a9d6e89e74e7bac5c611ef2f5f9614603d",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
-      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
-      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445"
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     }
   }
 }
