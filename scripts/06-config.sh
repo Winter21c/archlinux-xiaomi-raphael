@@ -673,15 +673,20 @@ enable_unit raphael-audio-init.timer
 # ---------------------------------------------------------------------------
 cat > "$ROOT/usr/local/sbin/raphael-audio-routing.sh" <<'REOF'
 #!/bin/bash
-# Raphael 音频路由兜底 (每 20 秒由 raphael-audio-routing.timer 调用)
+# Raphael 音频路由 / 耳机自动切换 (由 raphael-audio-routing.timer 每 5 秒调用)
 #
 # 2026-10-15 真机结论(三条都是实测踩出来的):
-#  1) 只在**值确实不同**时才写 mixer。原来无条件 cset, 会在播放进行中触发
-#     DAPM 更新, 把正在播的流卡死(pw-play/paplay 永远不返回、sink-input 挂住)。
-#  2) **不要**把 SLIMBUS_0_RX(WCD9340 耳机)挂到 MultiMedia1: 一旦挂上, 音频会
-#     同时走 codec 后端, 播放**稳定卡死**(连测 3/3 超时)。因此耳机通路停用。
-#  3) 底部扬声器(TFA9874, 走 QUAT_MI2S)是目前唯一稳定的播放后端 —— 两个
-#     MultiMedia 都要接上它(裸 aplay 走 MultiMedia1, PipeWire 走 MultiMedia2)。
+#  1) 只在**值确实不同**时才写 mixer —— 无条件 cset 会打断正在播放的流。
+#     实测: routing 每 20 秒无条件写一次, 导致 paplay 卡了 6 分 36 秒(文件才 2 秒),
+#     sink-input 一直挂着不释放。
+#  2) **不能**把 SLIMBUS_0_RX(WCD9340 耳机)和 QUAT_MI2S_RX(TFA9874 扬声器)
+#     同时挂在 MultiMedia1 上: 音频会同时走两个后端, 播放**稳定卡死**
+#     (连测 3/3 返回 124)。
+#  3) 所以按**耳机插入状态**二选一:
+#       插耳机 -> SLIMBUS_0_RX 开(需先给 HPH 通路 DAPM 上电) + 扬声器 mixer 关
+#       没插   -> 只开 QUAT_MI2S_RX(底部扬声器) + 耳机路由关
+#     插入状态读 ALSA 的 CARD 级 jack 控件: iface=CARD,name="Headset Jack"
+#     (驱动是 snd_soc_wcd_mbhc, 另有输入设备 "Raphael Headset Jack" /dev/input/event4)
 set +u
 aplay -l 2>/dev/null | grep -q "^card 0" || exit 0
 
@@ -691,11 +696,33 @@ set_if_diff() {  # set_if_diff <control> <value>
   amixer -c 0 cset "name=$1" "$2" >/dev/null 2>&1
 }
 
-set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia1" 1
-set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia2" 1
+jack_state() {
+  amixer -c 0 -D hw:0 cget iface=CARD,name="Headset Jack" 2>/dev/null | tail -1 | grep -oE "on|off"
+}
+
+if [ "$(jack_state)" = "on" ]; then
+  # --- 耳机已插入: 先给 HPH 通路上电, 再开 SLIMBUS_0_RX 路由, 最后静音扬声器 ---
+  for c in "SLIM RX0 MUX AIF1_PB" "SLIM RX1 MUX AIF1_PB" \
+           "RX INT1_1 MIX1 INP0 RX0" "RX INT2_1 MIX1 INP0 RX1" \
+           "COMP1 Switch 1" "COMP2 Switch 1" \
+           "RX INT1 DEM MUX CLSH_DSM_OUT" "RX INT2 DEM MUX CLSH_DSM_OUT"; do
+    name="${c% *}"; val="${c##* }"
+    cur=$(amixer -c 0 cget "name=$name" 2>/dev/null | tail -1)
+    case "$cur" in *"$val"*) continue;; esac
+    amixer -c 0 cset "name=$name" "$val" >/dev/null 2>&1
+  done
+  set_if_diff "SLIMBUS_0_RX Audio Mixer MultiMedia1" 1
+  set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia1" 0
+  set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia2" 0
+else
+  # --- 没插耳机: 只走底部扬声器(这条路径最稳) ---
+  set_if_diff "SLIMBUS_0_RX Audio Mixer MultiMedia1" 0
+  set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia1" 1
+  set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia2" 1
+fi
 
 # 声卡 profile 兜底: pro-audio 会让 Q6 AFE 使能失败(-110/-22) -> 完全没声音;
-# off 则连 sink 都没有。发现这两种就切回能工作的立体声 profile。
+# off 则连 sink 都没有(auto_null 假播放)。
 if command -v pactl >/dev/null 2>&1; then
   as_user() { sudo -u @USER@ env XDG_RUNTIME_DIR=/run/user/1000 "$@"; }
   CUR="$(as_user pactl list cards 2>/dev/null | awk '/Active Profile/{print $NF; exit}')"
@@ -720,7 +747,7 @@ Description=Keep Raphael audio routing asserted every 20s
 
 [Timer]
 OnBootSec=25s
-OnUnitActiveSec=20s
+OnUnitActiveSec=5s
 AccuracySec=5s
 
 [Install]
