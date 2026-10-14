@@ -3,9 +3,6 @@ type: concept
 title: rootfs 布局决策与 fstab/引导参数一致性
 description: lib.sh:rootfs_layout() 如何三选一（ext4 / btrfs-subvol / btrfs-flat）并把结果粘在 work/rootfs-layout，write_root_fstab() 如何作为唯一 fstab 生成点与 rootfs_uuid() 同源，以及阶段 06 的 fstab、阶段 09 实际造出的文件系统、阶段 10 的 rootfstype=/rootflags= 和运行时 initramfs 的 cmdline 解析如何被这一份决策牵住。含阶段 09 loop 回退时「先重写 fstab 再 mkfs -r」的硬顺序、四条不变量、/home 双写与 /swap 子卷、首启动 growfs 的原因。
 tags: [rootfs, btrfs, fstab, subvolume, boot-parameters, image-build]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # rootfs 布局决策与 fstab/引导参数一致性

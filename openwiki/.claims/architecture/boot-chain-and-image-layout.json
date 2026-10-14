@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:58db52851e183425705ec2389601874e9c35b65f399cde118771dfe360efb27e",
+  "pageVersion": "sha256:ca1fc3c51eb3fc547b1b477fde4a29ede1923f715148b60f7e50c94456342cef",
   "claims": [
     {
       "id": "claim_bcc1421c7ffd428f91ac547bb74fdf96",
@@ -345,6 +345,52 @@
         {
           "resource": "repo://scripts/99-make-release.sh#L40-L45",
           "version": "repo-lines-v1:sha256:1bae0ced16c7e92581f84bc1a3777cd9b9224d68b9421309a40e7f49fde71c02:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmRlNjZkOGYzN2QwM2MzYWU2ODdiZmE3NDE3YzVhNmEzYTZiZDNjOTc0MzkzMTlhZDBmOWEwMWUwZGJkZTIzZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiN2M1NTk2YmMwNTI2ZWRkYzNiOGRmOWE3YzBhYzlmNWMzYTk4OTg4MjhhYjA1MTEwMzdjMGYxOGU4ZGU3NmYwMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGUzMDU1ZGJiN2NlYTEwMTNhMTIwYmFmY2Q3MzkwNWUzMDM0NTAzMWE4YzdmOTRmNTIwZmU3YzVlYWI4YWZiYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMmIxOWNiYWYxOTg2MTA3MTI2ZTRjODM5MzIzNTFhM2E5Y2IzOGEzOGZjMmQ1NDM0NWRlYjY5M2UzNzI2NGEzNiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_d8b2a2ea3cf3422eb1e65943e047da9b",
+      "statement": "仓库分发的 dtb/raphael-redmi-k20pro.dtb 到底改过哪几处，仓库内文档口径互不一致：HANDOVER.md §4.7 记为三处修改（删 slim 链路、删 audio-routing、补 local-bd-address），README §8.10 却说修补版给采集侧补了 MCLK 路由，而 scripts/10-image-boot.sh 的注释又称 slim 链路现在可以保留；因此判断这份 DTB 实际内容只能直接读文件（fdtget -l / dtc -I dtb -O dts），不能只看注释或旧文档。",
+      "evidence": [
+        {
+          "resource": "repo://HANDOVER.md#L263-L277",
+          "version": "repo-lines-v1:sha256:ed13f6f27be05cc1ad1d4aae3580b047574ab984330c42e8417be48bc0677903:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYwZmYzNmVkNGIwNjJlMGY3ZDI0Y2U1MmJkYjM2MGQ4NjM1YTIwYTFlYWI0ZTUzZmZhMWZmNGM2OWU5ZGFmYmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU4YTUwZTkyMDY1OTA2ZTZhNThmZDJiY2ZlNThiMGIyMGJhZjUxZWYzNTdlNzI1YTkwY2M0ZGVhYTU2N2ZlNmYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYxZGVlZWRmNTE1NDJjYjNjZjRhYTAwNjExZDk4ZGMyMjM4Njg4ZWIxMzQzNmIyMmUxYmIwNzVlMmYzMzAxNGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVhY2M2YTI4NDMwNDVmN2Y1NDdkZDhhYmY1MjQzOGNlMWY4OWYwOGNiNDE2MzgyMmI1ZDgyNjIxYTc0MzBjMGUifQ"
+        },
+        {
+          "resource": "repo://README.md#L610-L631",
+          "version": "repo-lines-v1:sha256:e0899931b028af5a91a148945c731d525c12d9e8bce5f48c5f529147aa0278e3:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0Y2ZhOGI2MGU0ZGM4YzFkNzQzYTQ3MmFjODE5ZWJiNDcyZWUxY2YyNTIzZTE2ZDc0MDg0ZjVhODMyNjllNzYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI3NGJjNWE4ZjY0ZDcxMTQ1M2YzMDZlYmNmMjJjMjY3Y2VmYTZmN2EzZTJiYjEwYTJkNDA1YmNiNGM2OTYzOTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdkMTM1ZGNjYTU4NDQ0Zjk4ZDZlZTc5N2IwYjgyOTc5MTYwYzkzNDZhNDM3NDdjNzEyMzQ4ZjQzMjlkNDU5ZjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRmMjA1ZjM0MzIxYzQwODY1NThiZDhjMzExYzU5ZWVhMzhjMzZjOWEyODEwNDllY2RhZjE5MzUzMzE4ODYyNjEifQ"
+        },
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L35-L53",
+          "version": "repo-lines-v1:sha256:4dba9a41aba04d2038e3ea1dc11fa33b23b54a6ded0f39c20abb1b417918e510:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU3NTA5YTc0NGFiYjJkN2VhZTZhMTUzOWE5NWZiNTQ1NGYxOWYwYWU2Y2U3OTUxNDM4NjMwNjMzOTIzODdkM2IiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZjNWRhMTdmZWNkY2ZhNDVmZmY4YjBmNDkwY2I4ZDFkNTM2ZTA5OTZmOTVlMzFhNDM5OGRkZTc1NjA5MTYyNjUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFlZDRlNDBkMTEzYzkwMzRhOGU1YjAzZGQyZWYyZjgxNzA1MzQyNGViOWExMzNjZmNlY2E0OGU5OGQzYWZjNzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdjYTE1YmViZGUyMzQxZmIxYjRhYTBmZjcxNjUzYWUyMjNjZDQ0OWY5NDY2NGVmZDBjMjNlNDg2Y2ViMDI2ZWMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a0e621d9f02d49ba9e7cc0b0c41bc6a9",
+      "statement": "scripts/11-flash.sh 刷完后的排障提示把启动菜单称作「U-Boot 启动菜单」（在「卡在 systemd-boot」一条里让用户去 U-Boot 菜单选 arch-direct.conf），但引导链上 U-Boot 只负责把控制权交给 cache 分区上的 EFI/BOOT/BOOTAA64.EFI，真正弹出条目菜单的是 systemd-boot。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L5-L9",
+          "version": "repo-lines-v1:sha256:9338f73f7e9d24c8f39c9b109a9908cbb9734c31cedb77628a81b36d21f7d464:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYWNjZjAzNmIzYjJhMjY2NzcyZmM2ODhmNGZhODBlNDhkZGI5NzVlY2M0MzU2YTJiODFjMTk0MzllYjA3MGNkNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmM3NGVkYjFlM2I4ZTlhMDY5MzA0Y2NkMTQ3OTI1YTYyZTViYWQ2YWQxZTA2YmY2Yjk5YTM2YjI3N2ZmMzY2ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGUyOTc3MmRhZjc5MmNiOTVkNGZjOWE1NDk4ODM2YjMwZjBjOTAzZDIzMjkxYjQ0NjJkMDJkYjJkNGUwZGNlZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDQ4NzJmMzcxN2IzNmJjN2JiODU4NmIwMjk1MjIzY2E2M2MyNWJlMmMwN2U2YWY5MDMyOWE0NDE2NmU0MDFmZiJ9"
+        },
+        {
+          "resource": "repo://scripts/11-flash.sh#L119-L130",
+          "version": "repo-lines-v1:sha256:7089782afb590107fe41fbdb943d1aa19bb611601827c28a183efc05819b01e5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg2YjBjNWExZTJiNzNiMDhmZDU0YzcyN2Y0NDU4NjQ5ZWQ5ZmUzYWQxYjZlOGFjOTQ2MGMwNzAxMTM1MDlhMWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3MmIzM2RkYTk4MWVlNTU2ZjEzOTIwNDQxMWU4MTk4ZDZmMzYwZmQxYTA0N2VjNzMwNGEzYWY2ZjgwZTcxMTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcyOWY1YjM3NDZiZGI2NTM1YjUwZWM2Yzg0YmNlOWVhZGY5ZGU4ZjU0OGFkMmMzZTExNTdlNTBkMjRjNjVlZWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_76f38c08638043a299bf7fff310df920",
+      "statement": "阶段 09 除 out/rootfs.img 外还用 img2simg 生成 out/rootfs.sparse.img：两者内容是同一个根文件系统的不同打包形式，sparse 版体积与刷写时间都更小，是 fastboot 刷写时推荐使用的那份。",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L77-L81",
+          "version": "repo-lines-v1:sha256:1c26cdc1991639d5ab2420ded77b20cb46f52266bfcba1994cc3a144324a707d:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzk0MDIxYmVkOGE0ZDZlOTRkZWY2YWYwNDAwMTBhYjRmNGIwZTMxODU2OTcyMDkxNmEwNDNhMGFkMTBiY2NiYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzE0Yzc5NTc1MzdjNmI5NjMxOTI4MDc4ZGEzMTEwMGQ5OGYwYjRkMzYzYWRhNjIyZTI4MzQ0OTNkZDRkM2EyMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmY3OThlNGZkY2RiNzJlNTQwZDJlM2VmYWUyYjZjOGYxYjYzNmRkOTFhNDEyYzliOWYwMzM3NWI4Mjg4Mzc4MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiODBiNjI3NGQzYjJmZGU0MDY0YmJkZDlmYzExODE3NGJmNTNhNGE1Yjk0N2ZlOGYxYjRkNTdmMzY3MWQ4MjU4OSJ9"
+        },
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L176-L180",
+          "version": "repo-lines-v1:sha256:d1c0d4d4b4705d3d5424877b6bde2d603a20ebecfedcb67eed43a959f95f7efa:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTUzMjVkNzdlZTYzMTIwNDc5MTRkMDMyY2EzNTJjZGJhZmYwYmRiZWQ0YmMyNTQ1M2E1NTJiMmFiZWZmNjI2YSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiY2M3MGYwYjE4NDQ4N2ZlNzIxMDQ2NzhjZjQxODE2MmQ3MzRkNjE1YjNjMmFiZjQyNWQ3YjU4MTZjNmQxMmE1NCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDNlODk3ZDRhMjI3YWE0NDk5NTkyNjZlMDkzZjY3NzU5MzcwY2ViMDFkYmNkYTVkOTk1MTZmOGU1MDMwZWEzZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzU2YjIxNzY0OGQyZDk1MTdhYjVjMmNhZTk5MDAyZTc5ODU5YzI5OTgyNjBkOGU5ZDhmYWE1ZWIxNjBmYmViNSJ9"
         }
       ]
     }

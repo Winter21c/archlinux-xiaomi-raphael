@@ -3,9 +3,6 @@ type: architecture
 title: 仓库布局与入口点
 description: 这个仓库的"源码"只有入口 build.sh、阶段脚本 scripts/ 与随仓库分发的输入（config/、dtb/、vendor/、notes/、pkgs/）；本页给出各入口的用法与读写关系、阶段脚本的调用契约、build.sh 的字典序阶段过滤语义，并说明 dl/ work/ out/ logs/ tools/ release/ _recon/ 为什么是生成物或调研残留——包括 work/root 残留如何改变下一次构建行为。
 tags: [architecture, repository-layout, build-entrypoint, build-pipeline, ci]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 仓库布局与入口点

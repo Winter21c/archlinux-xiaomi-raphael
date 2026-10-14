@@ -3,9 +3,6 @@ type: concept
 title: 失败模式与不变量
 description: 这套构建「做错了就开不了机 / 能刷但静默残废」的规则清单：每条不变量为什么存在、谁在守（die 还是 warn）、拿掉后是什么症状，以及文档口径与代码现状不一致的几处（固件自检只 warn、非真 root 属主降级、pd-mapper 的禁用与启用、音频根因有两种说法、PKGS_IME 有形态分支）。
 tags: [failure-modes, invariants, guardrails, silent-degradation, build-gates, troubleshooting]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 失败模式与不变量

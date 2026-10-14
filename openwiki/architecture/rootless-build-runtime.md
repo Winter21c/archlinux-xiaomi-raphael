@@ -3,9 +3,6 @@ type: architecture
 title: 无 root 构建运行时：userns、qemu 垫片与 mtools
 description: 这套构建默认以普通用户在 user namespace 里以「假 root」完成：require_ns() 把阶段脚本重入 unshare 出来的命名空间，ns_mount() 用自 bind 与单文件 bind 拼出 chroot，gq() 在没有 binfmt_misc 时显式执行 aarch64 程序，setup_mtools() 不挂载就读写 FAT 镜像。本页说明每个 helper 补偿了哪条内核能力限制、它们的调用顺序与失败语义，以及真 root（sudo）与 userns 两种模式的行为差异与各自产物的可信度。
 tags: [architecture, build-runtime, user-namespace, qemu-user, mtools, rootless-build]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 无 root 构建运行时：userns、qemu 垫片与 mtools

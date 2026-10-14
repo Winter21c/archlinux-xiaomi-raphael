@@ -12,7 +12,7 @@ verified:
 
 本页把两件事合成一条线：**设备是怎么起来的**（上电 → … → `systemd`），以及**镜像里的每个文件落在哪个分区、由哪个阶段产出**。理解了这条线，就能回答这个仓库里最常被问的几个问题：为什么刷机要刷三个分区？为什么 `/boot` 上换一个文件就不用重新刷机？三个启动项分别在什么情况下救命？内核、设备树、initramfs 各自从哪来？
 
-产物与分区的总览见[系统总览](overview.md)，逐步的构建流程见[构建流水线各阶段](build-pipeline-stages.md)。
+产物与分区的总览见[系统总览](overview.md)，逐步的构建流程见[构建流水线各阶段](build-pipeline-stages.md)，内核与固件怎么落进 rootfs 见[内核、设备树、固件与外部模块的交付](firmware-kernel-and-module-delivery.md)。
 
 ## 三份产物与四个分区
 
@@ -20,12 +20,12 @@ verified:
 |:--|:--|:--|:--|
 | `work/uboot/u-boot.img` | 阶段 00 从上游 release 的 zip 里解出（本仓库**不编译** U-Boot） | `boot` | 引导器本体 |
 | `out/boot-cache.img` | 阶段 10，基于上游 256 MiB FAT32 模板原地改写 | `cache` | systemd-boot + 内核 + initramfs + dtb + 三个启动项；运行时挂到 `/boot` |
-| `out/rootfs.img` / `out/rootfs.sparse.img` | 阶段 09 | `userdata` | Arch Linux ARM 根文件系统（默认 btrfs） |
-| —— | —— | `dtbo` | **没有产物**：刷机时被 `fastboot erase dtbo` 清掉 |
+| `out/rootfs.img` / `out/rootfs.sparse.img` | 阶段 09 | `userdata` | Arch Linux ARM 根文件系统（默认 btrfs）；sparse 版只是打包形式不同，供 `fastboot` 更快刷写 |
+| —— | —— | `dtbo` | **没有产物**：刷机时被 `fastboot erase dtbo` 擦掉，查的时候已经是全 0 |
 
 刷机命令的顺序是固定的：先 `erase dtbo boot cache userdata`，再 `flash boot`（U-Boot）、`flash cache`（引导镜像）、`flash userdata`（根文件系统），最后 `reboot`（[`scripts/11-flash.sh`](../../scripts/11-flash.sh#L106-L117)、[`scripts/99-make-release.sh`](../../scripts/99-make-release.sh#L74-L100)）。注意 `boot` 分区上放的**只有 U-Boot**，内核和 initramfs 都在 `cache` 分区里——这是本项目与「boot 分区放内核」的常见直觉最大的差别。
 
-`erase dtbo` 有一个必须提前知道的副作用：每台设备的蓝牙地址是产线写进设备自己 `dtbo` 里的厂商设备树中的，擦掉后就找不回来了（`persist` / `bluetooth` 分区里都没有明文地址），所以刷机前一定要先记下地址或走事后注入，细节见[刷机与恢复](../operations/flashing-and-recovery.md)。
+`erase dtbo` 有一个必须提前知道的副作用：每台设备的蓝牙地址是产线写进设备自己 `dtbo` 里的厂商设备树中的，擦掉后在 `persist`、`bluetooth` 分区里都找不到明文地址（本机实测），等于**永久丢失**——没有地址时内核会因为控制器上报全零 BD_ADDR 直接把蓝牙关掉。所以刷机前一定要先记下地址，或者走事后注入，两条路的全流程（字节序方向、四条注入路径）见[蓝牙与设备树身份](../integrations/bluetooth-and-devicetree-identity.md)，刷机顺序与恢复路径见[刷机与恢复](../workflows/flash-a-device.md)。
 
 ## 上电到 systemd：完整引导链
 
@@ -57,7 +57,7 @@ flowchart TD
 3. **loader 配置与条目**：systemd-boot 读 `loader/loader.conf` 决定默认条目与倒计时，用户在这 3 秒窗口里可以选别的条目（[`scripts/10-image-boot.sh`](../../scripts/10-image-boot.sh#L119-L125)）。
 4. **内核与命令行**：条目里的 `linux /linux.efi` 是内核 Image（EFI stub），`options` 行就是内核命令行——改内核参数要动的是 loader 条目（即 `cache` 分区上的文件），不是 U-Boot。
 5. **initramfs（可选）**：`arch.conf` / `arch-debug.conf` 会先执行 `/init`，它解析命令行里的 `root=` / `rootfstype=` / `rootflags=`、用 `findfs` 解析设备、挂到 `/newroot` 后 `switch_root`；解析不到设备或挂载失败就落进救援 shell（[`scripts/08-initramfs.sh`](../../scripts/08-initramfs.sh#L93-L168)）。
-6. **根文件系统与 systemd**：`root=` 指向 `userdata` 分区，挂载选项与 `/etc/fstab` 同源（下一节详述）。之后就是 systemd 的正常开机路径，服务归属见[运行时的启动顺序与服务归属](../runtime/boot-sequence-and-service-ownership.md)。
+6. **根文件系统与 systemd**：`root=` 指向 `userdata` 分区，挂载选项与 `/etc/fstab` 同源（下一节详述）。之后就是 systemd 的正常开机路径，服务归属见[设备运行时服务](../operations/device-runtime-services.md)。
 
 ## cache 分区 = 运行时 `/boot`：条目到文件的映射
 
@@ -77,7 +77,7 @@ cache 分区 (FAT32, 运行时挂到 /boot)
 ├── efi/boot/bootaa64-vendor.efi           模板自带引导器的备份（没有任何条目引用）
 ├── linux.efi                              内核 Image（EFI stub）
 ├── initramfs                              阶段 08 手工组装的 initramfs
-├── dtbs/qcom/raphael-redmi-k20pro.dtb     条目实际引用的设备树（仓库补丁版）
+├── dtbs/qcom/raphael-redmi-k20pro.dtb     条目实际引用的设备树（仓库分发的修补版）
 ├── dtbs/qcom/sm8150-xiaomi-raphael.dtb    内核 deb 自带，拷进来但没有条目引用
 └── loader/
     ├── loader.conf                        default arch.conf / timeout 3 / editor yes
@@ -141,12 +141,22 @@ flowchart LR
 |:--|:--|:--|:--|
 | `linux.efi` | 阶段 10 复制 `$ROOT/boot/Image` | 阶段 03 解包 `kernel-deb` 的 `vmlinuz-*`（[`scripts/03-kernel.sh`](../../scripts/03-kernel.sh#L65-L72)） | 直接 `die`（提示先跑阶段 03） |
 | `initramfs` | 阶段 10 复制 `work/initramfs.img` | 阶段 08 手工组装（[`scripts/08-initramfs.sh`](../../scripts/08-initramfs.sh#L170-L177)） | 直接 `die`（提示先跑阶段 08） |
-| `dtbs/qcom/raphael-redmi-k20pro.dtb` | 阶段 10 复制仓库 `dtb/` | 从设备导出的 U-Boot DT + 本项目三处修改 | 只 WARN：条目**不写** `devicetree` 行，内核只能用 U-Boot 现场下发的那份 DT，蓝牙地址注入也跳过（症状是蓝牙与麦克风不可用） |
+| `dtbs/qcom/raphael-redmi-k20pro.dtb` | 阶段 10 复制仓库 `dtb/` | 仓库分发的修补版设备树（基线是从运行中的设备导出的 U-Boot DT） | 只 WARN：条目**不写** `devicetree` 行，内核只能用 U-Boot 现场下发的那份 DT，蓝牙地址注入也跳过（症状是蓝牙与麦克风不可用） |
 | `dtbs/qcom/sm8150-xiaomi-raphael.dtb` | 阶段 10 复制 `$ROOT/usr/lib/modules/$KV/dtbs/qcom/` | 内核 deb | 可选，没有条目引用它 |
 | `efi/boot/bootaa64.efi` | 阶段 10 复制 rootfs 里的 systemd-boot | Arch 的 systemd 包 | 只 WARN：保留模板自带引导器 |
 | `loader/loader.conf` 与三个条目 | 阶段 10 现场生成 | 布局、UUID 与 `WIFI_COUNTRY` | —— |
 
-设备树的来源有一处**注释与代码不一致**，排障时要按实际行为理解：脚本头部（2026-10-15 的说明）写着「直接用内核作者 deb 里那份」，但真正决定条目内容的 `DT_LINE` 仍然是：只要仓库里的 `dtb/raphael-redmi-k20pro.dtb` 存在，三个条目就都带 `devicetree /dtbs/qcom/raphael-redmi-k20pro.dtb`（[`scripts/10-image-boot.sh`](../../scripts/10-image-boot.sh#L33-L53)）。也就是说，**内核 deb 那份 DTB 只是被拷进镜像陪跑**，实际加载的是仓库里带补丁的那一份——排查音频、蓝牙、面板问题时以条目里实际出现的路径为准（用 `mdir -i out/boot-cache.img ::/loader/entries/arch.conf` 直接看）。
+设备树的来源处有**两处文档与代码（或文档之间）不一致**，排障时要按实际行为理解：
+
+- 脚本头部的注释（2026-10-15 写的）声称「直接用内核作者 deb 里那份」，但真正决定条目内容的 `DT_LINE` 仍然是：只要仓库里的 `dtb/raphael-redmi-k20pro.dtb` 存在，三个条目就都带 `devicetree /dtbs/qcom/raphael-redmi-k20pro.dtb`（[`scripts/10-image-boot.sh`](../../scripts/10-image-boot.sh#L35-L53)）。也就是说，**内核 deb 那份 DTB 只是被拷进镜像陪跑**，实际加载的是仓库那一份。
+- 「仓库这份到底补了什么」的说法也不统一：`HANDOVER.md` §4.7 说三处修改（删 slim 链路、删 `audio-routing`、补 `local-bd-address`），README §8.10 却说给采集侧补了 `MCLK` 路由，脚本注释又说 slim 链路现在可以保留——这些说明写于不同轮次（[`HANDOVER.md`](../../HANDOVER.md#L263-L277)、[`README.md`](../../README.md#L610-L631)）。**唯一可靠的判据是文件本身**：`fdtget -l` / `dtc -I dtb -O dts dtb/raphael-redmi-k20pro.dtb` 看它究竟有什么。
+
+排查音频、蓝牙、面板问题时，一律以条目里实际出现的路径为准——直接读出来看：
+
+```bash
+export MTOOLS_SKIP_CHECK=1 MTOOLSRC=/dev/null
+tools/mtools/usr/bin/mdir -i out/boot-cache.img ::/loader/entries/arch.conf
+```
 
 最后一个容易误解的点：阶段 03 与阶段 08 会把内核和 initramfs 也**写进 rootfs 的 `/boot` 目录**（`$ROOT/boot/Image`、`vmlinuz-<kver>`、`config-<kver>`、`System.map-<kver>`、`initramfs-raphael.img`）。那只是**宿主侧的暂存**——阶段 10 是从这棵树里读文件的（[`scripts/10-image-boot.sh`](../../scripts/10-image-boot.sh#L26-L33)）；而在设备上，运行时 `cache` 分区被挂到 `/boot`，这些文件被挂载遮蔽，真正生效的永远是 FAT 上的 `linux.efi` / `initramfs`。
 
@@ -200,7 +210,7 @@ root=UUID=<work/rootfs.uuid> rootfstype=<btrfs|ext4> [rootflags=<btrfs_opts ...>
 
 ## initramfs：来源、职责与两个硬约束
 
-`initramfs` 不是 mkinitcpio 产物（阶段 06 会把 rootfs 里的 `mkinitcpio` preset 清掉），而是阶段 08 手工拼的 cpio + zstd 归档：静态 `busybox` + 五个模块 + 少量早期固件 + 一个 `/init` 脚本，产到 `work/initramfs.img`（[`scripts/08-initramfs.sh`](../../scripts/08-initramfs.sh#L1-L9)、[`scripts/06-config.sh`](../../scripts/06-config.sh#L366-L374)）。它存在的理由不是「根需要驱动」（UFS/ext4/btrfs 都已内建），而是**挂根失败时给一个救援 shell**，也为将来做全盘加密留接口。
+`initramfs` 不是 mkinitcpio 产物（阶段 06 会把 rootfs 里的 `mkinitcpio` preset 清掉），而是阶段 08 手工拼的 cpio + zstd 归档：静态 `busybox` + 五个模块 + 少量早期固件 + 一个 `/init` 脚本，产到 `work/initramfs.img`（[`scripts/08-initramfs.sh`](../../scripts/08-initramfs.sh#L1-L9)、[`scripts/06-config.sh`](../../scripts/06-config.sh#L363-L372)）。它存在的理由不是「根需要驱动」（UFS/ext4/btrfs 都已内建），而是**挂根失败时给一个救援 shell**，也为将来做全盘加密留接口。
 
 `/init` 的实际行为（[`scripts/08-initramfs.sh`](../../scripts/08-initramfs.sh#L93-L168)）：
 
@@ -252,7 +262,7 @@ ssh user@172.16.42.1 'echo 1234 | sudo -S cp /tmp/raphael-redmi-k20pro.dtb /boot
 - 引导器与 rootfs 的 systemd 版本可能不同步：`pacman -Syu` 只更新 rootfs 里那份，不会更新 `/boot/efi/boot/bootaa64.efi`。要更新引导器就得重新生成并刷 `cache`，**不要在设备上 `pacman -Syu` 之后立刻重启就以为引导器也升级了**（[`HANDOVER.md`](../../HANDOVER.md#L396-L401)、[`HANDOVER.md`](../../HANDOVER.md#L455-L456)）。
 - 手机侧改 `/boot` 不改变宿主上的 `out/boot-cache.img`；验证成功的改动要回写脚本/输入资源（例如 `dtb/`），否则下一次构建又会退回原样。
 
-同一条「只改一个文件」的思路上还有一个**刷机前**的操作：蓝牙地址写的就是 FAT 镜像里那份设备树的 `bluetooth/local-bd-address`，所以公开镜像可以在不改构建的前提下注入地址——`./scripts/bt-mac.sh set boot-cache.img "11 22 33 44 55 66"`（原地改，先留 `.bak`），或 `./scripts/11-flash.sh --flash --bt-mac "..."`（把副本写到 `work/boot-cache-<mac>.img` 再刷）（[`scripts/lib.sh`](../../scripts/lib.sh#L376-L393)、[`scripts/bt-mac.sh`](../../scripts/bt-mac.sh#L49-L56)、[`scripts/11-flash.sh`](../../scripts/11-flash.sh#L88-L104)）。地址写法是**设备树小端字节序**，与 `bluetoothctl` 显示的正好相反；格式不对时阶段 10 **只打印 WARN 不报错**（"该镜像蓝牙不可用"），所以构建日志里那行「已注入…」才是判断依据。
+同一条「只改一个文件」的思路上还有一个**刷机前**的操作：蓝牙地址写的就是 FAT 镜像里那份设备树的 `bluetooth/local-bd-address`，所以公开镜像可以在不改构建的前提下注入地址——`./scripts/bt-mac.sh set boot-cache.img "11 22 33 44 55 66"`（原地改，先留 `.bak`），或 `./scripts/11-flash.sh --flash --bt-mac "..."`（把副本写到 `work/boot-cache-<mac>.img` 再刷）（[`scripts/lib.sh`](../../scripts/lib.sh#L376-L393)、[`scripts/bt-mac.sh`](../../scripts/bt-mac.sh#L49-L56)、[`scripts/11-flash.sh`](../../scripts/11-flash.sh#L88-L104)）。地址写法是**设备树小端字节序**，与 `bluetoothctl` 显示的正好相反；格式不对时阶段 10 **只打印 WARN 不报错**（"该镜像蓝牙不可用"），所以构建日志里那行「已注入…」才是判断依据。字节序与四条注入路径的完整说明见[蓝牙与设备树身份](../integrations/bluetooth-and-devicetree-identity.md)。
 
 ## 失败语义与排查入口
 
@@ -266,12 +276,16 @@ ssh user@172.16.42.1 'echo 1234 | sudo -S cp /tmp/raphael-redmi-k20pro.dtb /boot
 | 蓝牙不可用 | 设备树里的 `local-bd-address` 缺失或格式错 | 构建刷机时注入地址（只 WARN 不报错，去日志里确认）；原厂 NVM 另见 README §8.9 |
 | 5GHz Wi-Fi 连不上 | 引导参数里没有 `cfg80211.ieee80211_regdom` | 在 `config/build.conf` 里设 `WIFI_COUNTRY` 后重跑阶段 10 |
 
+上表用到的一个现场细节：`11-flash.sh` 最后的排障提示把菜单说成「U-Boot 启动菜单」（"卡在 systemd-boot -> 在 U-Boot 菜单里选 arch-direct.conf"），但本项目里 U-Boot 只是把控制权交给 `cache` 上的 `BOOTAA64.EFI`，**真正弹菜单的是 systemd-boot**——按字面去 U-Boot 阶段找菜单会白等（[`scripts/11-flash.sh`](../../scripts/11-flash.sh#L119-L130)）。
+
 ## 相关页面
 
 - [系统总览](overview.md) —— 宿主构建与设备运行时的分工、产物与分区总表。
+- [内核、设备树、固件与外部模块的交付](firmware-kernel-and-module-delivery.md) —— `linux.efi`、DTB 与 initramfs 里那几份固件分别来自哪个阶段、哪个上游包。
 - [仓库结构与入口](repository-layout-and-entrypoints.md) —— 各阶段脚本、`config/`、随仓库分发的 `dtb/` 与生成目录的生命周期。
 - [构建流水线各阶段](build-pipeline-stages.md) —— 阶段 03/08/09/10 的逐步细节与失败点。
 - [rootfs 布局与 fstab](../concepts/rootfs-layout-and-fstab.md) —— `root=`/`rootfstype=`/`rootflags=` 与 fstab 的一致性契约、历史事故与残留缺口。
-- [刷机与恢复](../operations/flashing-and-recovery.md) —— `fastboot` 顺序、备份、`--bt-mac` 与回 Android 的路径。
-- [运行时的启动顺序与服务归属](../runtime/boot-sequence-and-service-ownership.md) —— `switch_root` 之后 systemd 拉起哪些单元。
+- [刷机与恢复](../workflows/flash-a-device.md) —— `fastboot` 顺序、备份、`--bt-mac` 与回 Android 的路径。
+- [蓝牙与设备树身份](../integrations/bluetooth-and-devicetree-identity.md) —— 地址的字节序、四条注入路径与 `dtbo` 被擦除的后果。
+- [设备运行时服务](../operations/device-runtime-services.md) —— `switch_root` 之后 systemd 拉起哪些单元。
 - [失败模式与不变量](../concepts/failure-modes-and-invariants.md) —— 这类「开不了机」问题在全局故障语义里的位置。

@@ -3,9 +3,6 @@ type: concept
 title: 配置模型：build.conf、派生标志与环境变量
 description: 这个仓库的配置不是键值解析而是可执行 bash —— config/build.conf 被 build.sh 与 scripts/lib.sh 反复 source，DESKTOPS 在那里被归一化/校验并派生出 HAVE_*/PRIMARY_SESSION/DE_SUMMARY/ALL_PKGS 等标志，RAPHAEL_* 环境变量、阶段级开关与 config/local.conf 的覆盖优先级，以及 CI 在运行前对 build.conf 的就地改写。
 tags: [configuration, build-config, bash, environment-variables, desktop-selection, ci]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 配置模型：build.conf、派生标志与环境变量

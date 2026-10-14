@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "pages": {
     "/openwiki/architecture/boot-chain-and-image-layout.md": {
-      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
-      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7",
-      "pageVersion": "sha256:58db52851e183425705ec2389601874e9c35b65f399cde118771dfe360efb27e",
+      "gitHead": "5844d17a3969e6a166737c7418bdc2e86b195b39",
+      "sourceFingerprint": "sha256:99c9fdc8ae664bbcdb343d0af86c3fa148aa0c8636f3326eaeead0cae8f80799",
+      "pageVersion": "sha256:ca1fc3c51eb3fc547b1b477fde4a29ede1923f715148b60f7e50c94456342cef",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/build-pipeline-stages.md": {
-      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
-      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7",
-      "pageVersion": "sha256:57d451d121d73133b954097a2dc1ca2efa154a33024976b2dbb65af2e1d8c911",
+      "pageVersion": "sha256:16abe50556e75bb10c04980d8a8f0be62df3771f5a3375e2f13ef02f3bd36dd0",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
+      "gitHead": "5844d17a3969e6a166737c7418bdc2e86b195b39",
+      "sourceFingerprint": "sha256:99c9fdc8ae664bbcdb343d0af86c3fa148aa0c8636f3326eaeead0cae8f80799"
     },
     "/openwiki/architecture/overview.md": {
       "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
@@ -51,11 +51,11 @@
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/concepts/rootfs-layout-and-fstab.md": {
+      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
+      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7",
       "pageVersion": "sha256:a144bc709a27ea301aa057266ac45d330966c35166079081d15da063590bd04c",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
-      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
-      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7"
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     }
   }
 }
