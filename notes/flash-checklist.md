@@ -73,6 +73,15 @@ GPU fault: 138  屏幕: Off        ← 138 是**累计**值; 息屏时**速率**
 期望值：桌面 4 个单元都是 `active`、链路 `OK: 5 links`、卡片 2、失败单元 0。
 （GPU fault 数量会随屏幕活动变化，**息屏时应为 0/分钟**，见 README 的花屏一节。）
 
+## 4.5 出问题时的回退（不用刷机）
+
+引导菜单里有 **known-good** 条目（`arch-good.conf`），指向镜像里另存的一份
+已验证可用的内核 + initramfs + DTB。以后换内核 / 改设备树后如果起不来，
+**开机时在 menu 里选 known-good** 即可回到可用状态。
+
+设备上还有只读健康日志（每 5 分钟一行）：
+`sudo cat /var/log/raphael-health.log | column -t | tail -20`
+
 ## 5. 想回 Android
 
 `fastboot flash boot <备份的boot.img>`，或用小米线刷包恢复（脚本会提示备份路径）。

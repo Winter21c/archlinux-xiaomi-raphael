@@ -35,7 +35,7 @@ ns_mount                # 或 setup_qemu_shim / setup_mtools
 
 | helper | 补的是什么 | 谁在用 |
 |:--|:--|:--|
-| `require_ns()` | 把阶段脚本重入到 `unshare` 出来的命名空间，得到"假 root" | 12 个阶段里除 `00-fetch.sh`、`03b-ms91xx.sh` 外的全部（`11-flash.sh`、`99-make-release.sh`、`bt-mac.sh` 不调用） |
+| `require_ns()` | 把阶段脚本重入到 `unshare` 出来的命名空间，得到"假 root" | `build.sh` 的 12 个阶段里除 `00-fetch.sh`、`03b-ms91xx.sh` 外的 10 个；阶段序列之外的 `11-flash.sh`、`99-make-release.sh`、`bt-mac.sh` 不调用 |
 | `ns_mount()` / `ns_dev_mount()` / `ns_umount()` | 在目标 rootfs 上拼出 `chroot` 可用的 `/proc` 与设备节点 | `01`–`07` `09` `10`（`08` 只 `require_ns`）；`ns_umount()` 无人调用 |
 | `setup_qemu_shim()` / `gq()` / `verify_qemu()` | 在没有 `binfmt_misc` 的前提下执行 aarch64 程序 | `01` `02` `05` `06` `07`，以及 `lib.sh` 的 `enable_unit`/`mask_unit` |
 | `setup_mtools()` / `mrun` / `mtools_*` | 不挂载就读写 FAT 镜像（cache 分区） | `00` `10`、`bt-mac.sh`，以及 `lib.sh:inject_bt_mac_into_boot_img()` |
@@ -47,7 +47,7 @@ ns_mount                # 或 setup_qemu_shim / setup_mtools
 
 | 缺口 | 直接后果 | 补偿手段 |
 |:--|:--|:--|
-| 非特权 userns 里 `chown 0:0` 只是映射回宿主 uid（宿主视角是空操作），`chown` 到非 0 uid（如家目录 `1000:1000`）直接失败 | 树无法在构建期修回 `root:root`，`/home/<user>` 也拿不到 `1000:1000` | `normalize_ownership()` 只在真 root 下工作并断言关键 setuid 程序；家目录属主改由**设备首启动**的 `tmpfiles.d` 与 `raphael-firstboot` 兜底 |
+| 非特权 userns 里 `chown 0:0` 只是映射回宿主 uid（宿主视角是空操作），`chown` 到非 0 uid（如家目录 `1000:1000`）直接失败 | 树无法在构建期修回 `root:root`，`/home/<user>` 也拿不到 `1000:1000` | `normalize_ownership()` 只在真 root 下工作并断言关键 setuid 程序；家目录属主改由**设备首启动**的 `tmpfiles.d` 与 `raphael-firstboot` 兜底（[`scripts/06-config.sh`](../../scripts/06-config.sh#L866-L889)） |
 | 解包可能丢 setuid/setgid 位 | `sudo`/`passwd`/`su` 不可用 | 阶段 01 直接从 tarball 元数据读出 `mode & 0o6000` 的文件并逐个 `chmod` 恢复（[`scripts/01-rootfs.sh`](../../scripts/01-rootfs.sh#L44-L64)） |
 | 宿主 systemd 把 `/proc` `/sys` `/dev` 标成 locked mount，非特权 userns 不能 bind 这些挂载点 | 拼不出可用的 chroot | `/proc` 交给 `unshare --mount-proc="$ROOT/proc"`；`/dev` 里的设备节点**逐个单文件 bind**（单文件 bind 不受 locked 限制） |
 | 没有 `binfmt_misc` | 内核不能直接执行 aarch64 ELF，也不能执行 shebang 指向 aarch64 `/bin/sh` 的脚本 | `setup_qemu_shim()` 把 x86_64 的 qemu 与加载器搬进 rootfs，`gq()` 在 chroot 内显式启动它，且只跑"一次 `exec` 能完成"的命令 |
@@ -79,9 +79,12 @@ flowchart TD
   L --> M["qemu 载入目标 aarch64 ELF 并借用 guest 动态加载器"]
   M --> N["目标程序的 stdout 与退出码原样返回"]
   P --> O["mrun 包装的 mcopy mmd mdel mdir 直接读写 FAT 镜像"]
+  N --> Q["阶段进程退出, 私有 mount namespace 与其中的挂载一起消失"]
+  O --> Q
+  Q -.->|"build.sh 启动下一个阶段"| A
 ```
 
-上图：`require_ns` 的重入与两个分支、它与 `ns_mount` 的先后关系，以及进入命名空间后两条主要执行路径（`gq` 走 chroot+qemu，mtools 纯宿主）。
+上图：一次阶段脚本的生命周期——宿主上启动、`require_ns` 的 `RAPHAEL_NS` 哨兵分支与重入、进入命名空间后的 `ns_mount`、两条主要执行路径（`gq` 走 chroot+qemu，mtools 纯宿主），以及阶段退出时挂载随私有 mount namespace 一起消失、下一个阶段从零开始。
 
 - **真 root 分支**（`id -u` 为 0，即 `sudo ./build.sh`）：只建 mount + pid namespace，**不再套一层 user namespace**。源码注释给出了实测原因：user namespace 内挂载 procfs 受限，`unshare -r` 会直接报 `挂载 .../work/root/proc 失败: 权限不够`，因此真 root 下用 `unshare -m -p -f`。
 - **userns 分支**：`unshare -r -m -p -f`，在里面是 uid 0 的"假 root"（`/proc/self/uid_map` 只有一条 `0 <宿主 uid> 1` 的映射）。
@@ -196,7 +199,7 @@ sequenceDiagram
 |:--|:--|:--|
 | `require_ns` 走哪个分支 | mount + pid namespace，不套 userns | `unshare -r -m -p -f`，假 root |
 | `chown 0:0` | 生效，宿主属主真的变成 root | **空操作**：只是映射回宿主 uid，从宿主角度看没变 |
-| `chown` 到非 0 uid（如家目录 `1000:1000`） | 生效 | 该 uid 不在 uid_map 里，命令失败（调用点多为 `|| true`） |
+| `chown` 到非 0 uid（如家目录 `1000:1000`） | 生效 | 该 uid 不在 uid_map 里，命令失败——调用点几乎都写成 `2>/dev/null || true`，所以是**静默**失败（`07-desktop.sh` 里有多处 `chown -R 1000:1000`，[`scripts/07-desktop.sh`](../../scripts/07-desktop.sh#L344)） |
 | `normalize_ownership()` | 整树归一化 + 恢复 setuid 清单 + 断言 `/usr/bin/mount` 是 `0:0` 且带 s 位，失败即 `die` | 直接告警并返回 1；阶段 09 只 `warn` 后继续，**这条保险不生效** |
 | loop 挂载与 btrfs 子卷 | 可探测 loop（宿主机缺 `/dev/loop*` 时还会 `mknod` 补节点）→ 可能得到 `btrfs-subvol`（`@` / `@home` / `@swap`，并带 `compress` 挂载灌数据） | loop 挂载不可用 → 退化成 `btrfs-flat`（`mkfs.btrfs -r` 单子卷），或按配置走 `ext4` |
 | 家目录属主 | 构建期可修（但代码仍然依赖设备首启动的 `tmpfiles.d`） | 只能靠设备首启动：`Z /home/<user> - 1000 1000 -` 加 `raphael-firstboot.sh` 里的 `chown -R` 兜底 |
@@ -210,17 +213,18 @@ sequenceDiagram
 
 - **userns 产物没有构建期断言**。默认（无 `sudo`）跑一遍得到的 `rootfs.img` / `rootfs.sparse.img` 不会因为属主问题而失败。
 - 源码里对这个后果有**两种视角**，值得区分而不是简单信任其一：`lib.sh` 的事故复盘说"userns 里生成/改动的文件在宿主上属主是 uid 1000，带进镜像会让 setuid 程序失效"（[`scripts/lib.sh`](../../scripts/lib.sh#L241-L249)）；阶段 09 的头部注释则说"在 user namespace 内执行 `mke2fs -d`，这样镜像里的文件属主是 uid 0（namespace 内所有文件都映射为 root）"（[`scripts/09-image-rootfs.sh`](../../scripts/09-image-rootfs.sh#L5-L12)）。两者描述的其实是不同环节：镜像里最终记下的 uid 取决于**树里文件在宿主侧的属主**与**mkfs 当时所处的命名空间**——宿主 uid 1000 的文件在命名空间里看起来就是 0，而命名空间里没有被映射的属主（例如曾经被真 root 跑过一遍留下的 `root` 文件）会以 overflow uid 的形式落进镜像。
-- 操作结论：**要发布的镜像用 `sudo ./build.sh` 重新构建**（那条路径有断言，错了会 `die`），或者挂载产物自己检查 `stat -c '%u:%g %a' usr/bin/mount` 之类。别用"构建日志没报错"推断属主正确。可用的构建期自检手段（`verify_qemu`、阶段 02 的烟雾测试、CI 的 `mdir` 与 `sha256sum -c` 复核）见[构建期验证与烟雾测试](../testing/verification-and-smoke-tests.md)；"日志正常但镜像不可用"这一整类陷阱的归类见[故障模式与不变量](../concepts/failure-modes-and-invariants.md)。
+- 操作结论：**要发布的镜像用 `sudo ./build.sh` 重新构建**（那条路径有断言，错了会 `die`），或者挂载产物自己检查 `stat -c '%u:%g %a' usr/bin/mount` 之类。别用"构建日志没报错"推断属主正确。可用的构建期自检手段（`verify_qemu`、阶段 02 的烟雾测试、CI 的 `mdir` 与 `sha256sum -c` 复核）见[构建期校验与烟雾测试](../testing/build-validation-and-smoke-tests.md)；"日志正常但镜像不可用"这一整类陷阱的归类见[故障模式与不变量](../concepts/failure-modes-and-invariants.md)。
 - 顺带记住：`normalize_ownership`、`rootfs_layout` 的布局退化、阶段 09 用兜底 DNS 覆盖宿主的 `/etc/resolv.conf` 等，都会在日志里留显式提示——**"构建成功"≠"镜像可用"**，这几行提示必须看。
 
 一个操作层面的推论：**CI 跑的是真 root 模式**。GitHub Actions 的容器步骤以 root 执行（工作流里 `pacman -Syu` 直接调用、没有 `sudo`），`--privileged` 又放开了 `unshare`/`mount` 的 seccomp 限制，所以 `require_ns` 走 `id -u = 0` 分支、`normalize_ownership()` 真的生效、阶段 09 的 loop 探测也能成功（工作流甚至专门 `mknod` 补 `/dev/loop*` 并自检一次 loop 挂载）。换句话说，"userns 下 setuid 失效"这类坑是**本地默认构建**才会遇到的，CI 不会替你暴露。
 
 ## 运行前提与调试开关
 
-这套机制不是"任何环境都能跑"，它依赖宿主两项前提（不满足时第一个阶段就失败）：
+这套机制不是"任何环境都能跑"，它依赖三项宿主前提（前两项不满足时连第一个阶段的 `require_ns` 都过不去，第三项会在用到对应工具的阶段暴露）：
 
 - **非特权 user namespace 可用**：宿主内核得允许 `unshare -r -m -p -f`（`user.max_user_namespaces` 不为 0；作者的机器上实测为 126794，见 [`notes/qcom-userspace.md`](../../notes/qcom-userspace.md#L482-L491)）。
 - **`unshare` / `mount` 不被 seccomp 拦掉**：默认配置的容器（Docker 默认 seccomp profile）就会拦，此时连 `require_ns` 都进不去——CI 之所以用 `--privileged` 的 `archlinux` 容器，原因就在这里。
+- **宿主要有这套宿主工具链**：这一策略把大量工作交给宿主工具，也就把宿主的包管理器变成了构建前提——装包靠宿主 `pacman --arch aarch64`（阶段 02）、`gq` 靠宿主 `/usr/bin/qemu-aarch64`、成像靠 `mke2fs` / `mkfs.btrfs` / `img2simg`、解 deb 与 initramfs 靠 `ar` / `7z` / `cpio`。所以构建机实际是 Arch 系：CI 用 `archlinux:latest` 容器而不是 ubuntu runner，理由就写在[`.github/workflows/build.yml`](../../.github/workflows/build.yml#L4-L9) 的头部注释里（"宿主必须是 Arch（pacman 语义 + 包缓存），ubuntu runner 直接跑不了"），依赖清单见[CI 构建工作流](../operations/ci-build-workflow.md)。
 
 几个环境变量与开关值得记住：
 
@@ -248,14 +252,15 @@ sequenceDiagram
 - 阶段 02 的两道：`run_if` 用 `gq` 补跑关键 scriptlet（成功/失败只记日志，不中断），以及 `smoke` 对 `bash` / `dnsmasq` / `nft` / `nmcli` / `iw` / `wpa_supplicant` 做**真实执行**的烟雾测试——只有命中"动态库缺失 / 符号版本 not found"这类输出才计数，任一命中即 `die`。
 - CI 侧：构建前检查 `unshare mount chroot ar depmod curl zstd mke2fs img2simg 7z cpio qemu-aarch64 python3 make clang mkfs.btrfs btrfs` 是否齐全（并特意说明 mcopy/mmd/mdir **不在**清单里，因为阶段 00 的 `setup_mtools` 会自带一份），构建后用 `mdir`（优先系统自带的，没有才回退到 `tools/mtools/usr/bin/mdir`）复核引导镜像内容与 `loader/entries/arch.conf` 的 `devicetree` 行，并对 `release/SHA256SUMS` 做 `sha256sum -c`。
 
-更完整的失败点清单见[故障模式与不变量](../concepts/failure-modes-and-invariants.md)与[构建期验证与烟雾测试](../testing/verification-and-smoke-tests.md)。
+更完整的失败点清单见[故障模式与不变量](../concepts/failure-modes-and-invariants.md)与[构建期校验与烟雾测试](../testing/build-validation-and-smoke-tests.md)。
 
 ## 相关页面
 
 - [仓库结构与入口](repository-layout-and-entrypoints.md) —— `lib.sh` 在仓库里的位置，以及 `dl/` `work/` `out/` `tools/` 这些生成目录的语义。
 - [系统总览](overview.md) —— 构建期与运行时的分工，以及"哪些步骤必须在构建期完成"的成因。
 - [rootfs 布局决策与 fstab/引导参数一致性](../concepts/rootfs-layout-and-fstab.md) —— `rootfs_layout()` 的三选一、缓存粘性，以及 loop 回退时三处对齐的不变量。
-- [构建流水线各阶段](../workflows/build-pipeline-stages.md) —— 每个阶段做什么、失败点在哪。
-- [CI 流水线](../operations/ci-pipeline.md) —— privileged 容器、大磁盘软链与产物归档。
+- [构建流水线各阶段](build-pipeline-stages.md) —— 每个阶段做什么、失败点在哪。
+- [内核、设备树、固件与外部模块的交付](firmware-kernel-and-module-delivery.md) —— 阶段 03 的 `depmod -b`、03b 的宿主 clang 交叉编译等"宿主工具直作用于目标树"的具体做法。
+- [CI 构建工作流](../operations/ci-build-workflow.md) —— privileged 容器、大磁盘软链与产物归档。
 - [故障模式与不变量](../concepts/failure-modes-and-invariants.md) —— 静默降级类陷阱的汇总。
-- [构建期验证与烟雾测试](../testing/verification-and-smoke-tests.md) —— `verify_qemu`、烟雾测试与 CI 校验步骤。
+- [构建期校验与烟雾测试](../testing/build-validation-and-smoke-tests.md) —— `verify_qemu`、烟雾测试与 CI 校验步骤。

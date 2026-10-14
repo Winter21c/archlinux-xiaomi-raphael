@@ -1065,6 +1065,26 @@ routing 脚本**只在值不同时**才写 mixer，并按耳机插入状态二�
 其中音频侧的最终形态是：`blacklist snd_soc_sm8150` + 等 codec 就绪后带重试加载；
 routing 脚本**只在值不同时**才写 mixer，并按耳机插入状态二选一。
 
+### 回退与诊断（2026-10-15 新增）
+
+**引导菜单里的 `known-good` 条目**：镜像在 `/boot` 里额外留了一份**当前已验证可用**的
+内核 + initramfs + DTB 副本（`linux-good.efi` / `initramfs-good` /
+`dtbs/qcom/raphael-redmi-k20pro-good.dtb`），并在 systemd-boot 菜单里注册为
+`arch-good.conf`。原来三个条目用的都是同一个 `/linux.efi` + 同一个 DTB，
+内核或设备树一出问题就全废、只能刷机；现在**开机时在菜单选 known-good 即可回退**。
+
+**健康采样**：`raphael-health.timer` 每 5 分钟往 `/var/log/raphael-health.log` 追加一行
+（只读）：屏幕 DPMS、**近 5 分钟**的 GPU CCU fault / hangcheck / AFE 报错增量、
+声卡数、sink、耳机与路由状态。
+
+```bash
+sudo cat /var/log/raphael-health.log | column -t | tail -20
+```
+
+> ⚠️ 记的是**增量**不是累计值 —— `dmesg` 是环形缓冲，累计值会**回绕下降**，
+> 拿累计值做对比会得出错误结论（本项目真机上就这么误判过一次：
+> 曾以为 `noubwc` 把 fault 从 151 降到个位数，其实是**采样时机**不同）。
+
 ### 不可用（以及确切卡在哪）
 
 **麦克风**：采集 PCM 能打开（`arecord` 打印 `Recording WAVE`），但 ADSP 的 ADM 拒绝路由矩阵映射：

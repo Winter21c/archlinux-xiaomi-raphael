@@ -3,9 +3,6 @@ type: architecture
 title: 仓库布局与入口点
 description: 弄清哪些路径是被跟踪的源、哪些是随时可删的生成物（以 .gitignore 为分界，openwiki/ 是唯一"生成但被提交"的例外），并给出 build.sh、scripts/11-flash.sh、scripts/bt-mac.sh、scripts/99-make-release.sh 各入口的用法与互不重叠的职责边界。
 tags: [architecture, repository-layout, build-entrypoint, build-pipeline, ci]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 仓库布局与入口点

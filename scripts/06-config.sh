@@ -664,6 +664,58 @@ AEOF
 enable_unit raphael-audio-init.timer
 
 # ---------------------------------------------------------------------------
+# 11d. 健康采样 (只读诊断)
+#   每 5 分钟往 /var/log/raphael-health.log 追加一行: 屏幕 DPMS、近 5 分钟的
+#   GPU CCU fault / hangcheck / AFE 报错增量、声卡数、sink、耳机与路由状态。
+#   ⚠️ 记的是**增量**而不是累计值 —— dmesg 是环形缓冲, 累计值会回绕下降,
+#      拿累计值做对比会得出错误结论 (本项目真机上就这么误判过一次)。
+#   这个采样器本身就是排查出来的: 它证明了 CCU fault 只在**屏幕活跃时**产生,
+#   息屏后速率是 0/分钟。
+# ---------------------------------------------------------------------------
+cat > "$ROOT/usr/local/sbin/raphael-health-sample.sh" <<'HEOF'
+#!/bin/bash
+# 只读健康采样 (每 5 分钟由 raphael-health.timer 调用)
+L=/var/log/raphael-health.log
+[ -f "$L" ] || printf 'time\tuptime_s\tscreen\tfault_5min\thangcheck_5min\tafe_err\tcards\tsink\tjack\tslimrx\tquat\n' > "$L"
+up=$(cut -d. -f1 /proc/uptime)
+dpms=$(cat /sys/class/drm/card0-DSI-1/dpms 2>/dev/null)
+fault=$(journalctl -k --since "-5min" --no-pager 2>/dev/null | grep -c "source=CCU")
+hc=$(journalctl -k --since "-5min" --no-pager 2>/dev/null | grep -c "hangcheck recover")
+afe=$(journalctl -k --since "-5min" --no-pager 2>/dev/null | grep -cE "AFE enable|ASoC error")
+cards=$(aplay -l 2>/dev/null | grep -c "^card")
+sink=$(runuser -u @USER@ -- env XDG_RUNTIME_DIR=/run/user/1000 pactl list short sinks 2>/dev/null | head -1 | awk '{print $2}')
+sink=${sink:-none}
+jack=$(amixer -c 0 -D hw:0 cget iface=CARD,name="Headset Jack" 2>/dev/null | tail -1 | grep -oE "on|off")
+slimrx=$(amixer -c 0 cget "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 2>/dev/null | tail -1 | grep -oE "on|off")
+quat=$(amixer -c 0 cget "name=QUAT_MI2S_RX Audio Mixer MultiMedia1" 2>/dev/null | tail -1 | grep -oE "on|off")
+printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n" \
+  "$(date '+%m-%d %H:%M')" "$up" "${dpms:-?}" "$fault" "$hc" "$afe" "$cards" \
+  "$sink" "${jack:-?}" "${slimrx:-?}" "${quat:-?}" >> "$L"
+tail -2000 "$L" > "$L.tmp" 2>/dev/null && mv "$L.tmp" "$L"
+HEOF
+sed -i "s/@USER@/$USERNAME/g" "$ROOT/usr/local/sbin/raphael-health-sample.sh"
+chmod 755 "$ROOT/usr/local/sbin/raphael-health-sample.sh"
+
+cat > "$ROOT/etc/systemd/system/raphael-health.service" <<'HSEOF'
+[Unit]
+Description=Raphael health sample (read-only diagnostics)
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/raphael-health-sample.sh
+HSEOF
+cat > "$ROOT/etc/systemd/system/raphael-health.timer" <<'HTEOF'
+[Unit]
+Description=Sample Raphael health every 5 minutes (read-only)
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+[Install]
+WantedBy=timers.target
+HTEOF
+enable_unit raphael-health.timer
+log "  健康采样: 每 5 分钟记录 GPU/音频状态到 /var/log/raphael-health.log (只读)"
+
+# ---------------------------------------------------------------------------
 # 11b-3. 路由 keep-alive: PipeWire/ACP 激活 profile 时会把上面这些 switch 复位成 off,
 #   而 sink 能不能出声完全取决于对应路由:
 #     MultiMedia1 (SLIMBUS_0_RX) -> hw:0,0 -> WCD9340 -> 耳机口 ("内置音频 Pro")

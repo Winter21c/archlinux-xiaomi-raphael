@@ -3,9 +3,6 @@ type: architecture
 title: 架构总览：构建侧与运行时侧的阶段群划分
 description: 仓库的整体心智模型：宿主侧 build.sh 的 12 个阶段（00–10，含 03b）把上游 ALARM rootfs、作者内核 deb、固件与 U-Boot 装配成三份刷机产物，设备侧由随镜像发货的 systemd 单元完成首启动初始化与常驻服务。本页给出四个阶段群的关系图、产物到分区清单，以及「构建期只写静态内容」与「设备上才发生的事」之间的分界线。
 tags: [architecture, overview, build-pipeline, boot-chain, raphael, arch-linux-arm]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 架构总览：构建侧与运行时侧的阶段群划分

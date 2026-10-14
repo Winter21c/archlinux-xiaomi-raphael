@@ -3,9 +3,6 @@ type: architecture
 title: 内核、设备树、固件与外部模块的交付
 description: 四个上游 deb（内核 Image/headers、设备固件、ALSA UCM）如何被阶段 03/03b/04 重排进 rootfs 的 Arch 布局、删掉会抢先的同名未压缩固件、把 MS91xx 投屏模块交叉编译进 modules 树，以及阶段 08/10 依据什么把 GPU 与 remoteproc 早期固件送进 initramfs 与 FAT 引导镜像；附内核版本升级时的连带检查清单。
 tags: [kernel, firmware, devicetree, initramfs, kernel-modules, cross-compilation, delivery]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 内核、设备树、固件与外部模块的交付

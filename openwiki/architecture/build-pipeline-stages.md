@@ -3,9 +3,6 @@ type: architecture
 title: 构建流水线：阶段契约与子集重建语义
 description: 把 00→11（含 03b、99）每个阶段当契约来读——前置条件、从 dl/ 读什么、往 work/root 与 work/ 写什么、产物交给谁、能否重复运行、失败即中断还是只告警；并说明 build.sh 的 --from/--only 子集语义如何决定"跳过某阶段后哪些状态是陈旧的"，以及各阶段为增量重建做了哪些显式清理。
 tags: [architecture, build-pipeline, build-stages, incremental-build, idempotency]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 构建流水线：阶段契约与子集重建语义
