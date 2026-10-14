@@ -824,6 +824,15 @@ SDL_IM_MODULE=fcitx
 ENVEOF
     log "  输入法环境: GTK_IM_MODULE/QT_IM_MODULE/XMODIFIERS/SDL_IM_MODULE = fcitx"
   fi
+  # GPU 稳定性: 这台设备上 a6xx 会成簇报 CCU 地址翻译失败
+  #   (*** gpu fault: source=CCU type=TRANSLATION, 出问题的进程是 plasmashell/kwin_wayland),
+  #   驱动会 hangcheck 复位 -> 表现为花屏/闪一下。禁掉 UBWC(带宽压缩) 是社区常见的缓解手段。
+  #   用 noubwc 只影响 freedreno, 代价是少量显存带宽效率。
+  if [ -f "$ROOT/etc/environment" ]; then
+    grep -q '^FD_MESA_DEBUG=' "$ROOT/etc/environment" || \
+      echo 'FD_MESA_DEBUG=noubwc' >> "$ROOT/etc/environment"
+    log "  GPU: 已设 FD_MESA_DEBUG=noubwc (缓解 a6xx CCU 翻译失败/花屏)"
+  fi
   # 3) 默认输入法 = Rime (中州韵): 写进 skel + 现有用户家目录
   RIME_PROFILE='[Groups/0]
 Name=Default

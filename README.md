@@ -204,7 +204,16 @@ GitHub 仓库设 Secret `IMAGE_BT_MAC`（云端构建）。
 | GPU (Adreno 640, freedreno) | ✅ | `qcom/a640_gmu.bin` + `qcom/a630_sqe.fw`（A640 与 A630 共用 SQE） |
 | Wi-Fi (WCN3990, ath10k_snoc) | ✅ | 网卡名是 **`wld0`**（systemd 改名，不是 wlan0）。需要 `skip_otp=y` + **tqftpserv 必须运行**（见 §8.1）；真机已实测扫描到 AP |
 | 蓝牙 (WCN3998, hci_qca) | ✅ | **已修好**：真机实测扫描到 9 个设备、可 `powered`。需要**修补设备树**（补 `local-bd-address`）+ **机器自带的原厂 NVM**（`bluetooth` 分区里的 `crnv21.bin`），两者缺一不可 —— 详见 §8.9 |
-| 音频输出 (ADSP + TFA9874) | ✅ | 声卡 `card 0: Raphael`，一个 Sink（`内置音频 Pro 1` → `hw:0,1` → QUAT_MI2S → **底部扬声器 TFA9874**）。镜像用 `pro-audio` profile + Q6 路由 mixer（开机 `raphael-audio-init.sh` 设置、`raphael-audio-routing.timer` 每 20 秒兜底），**不用 UCM**（见 §8.8）。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
+| 音频输出 (ADSP + TFA9874) | ❌ **未解决** | 声卡 `card 0: Raphael`，一个 Sink（`内置音频 Pro 1` → `hw:0,1` → QUAT_MI2S → **底部扬声器 TFA9874**）。镜像用 `pro-audio` profile + Q6 路由 mixer（开机 `raphael-audio-init.sh` 设置、`raphael-audio-routing.timer` 每 20 秒兜底），**不用 UCM**（见 §8.8）。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
+
+> **2026-10-14 真机复测（重要）**：这一条原来写 ✅，但当时只验证到"`wpctl` 里能看到 Sink"，
+> **没有验证真的出声**。实测（KDE 桌面版镜像，新旧内核都试过）：
+> `qcom-q6afe: AFE enable for port 0x1006 failed`（-110 超时 / -22 EINVAL）→
+> `ASoC error at snd_soc_dai_prepare() on QUAT_MI2S_RX` → **扬声器完全没声音**。
+> 已排除：PipeWire/wireplumber 配置（裸 `aplay -D hw:0,0` 同样失败）、固件（新旧 deb 的 adsp.mbn md5 相同）、
+> 设备树（新旧内核的 DTB 字节相同）、内核配置（音频相关 0 处差异）、内核版本（旧内核 g29662fdcefa9 同样失败）。
+> 结论：**Q6 AFE 服务不应答，是长期存在的 DSP 层问题**，需要单独深挖（不是某次构建引入的）。
+> 表现：codec 混音器全部正确（`QUAT_MI2S_RX Audio Mixer MultiMedia1/2` = on）、Sink 存在且能播放，但数据到不了功放。
 | 耳机输出 (WCD9340) | ❌ | 走的 SLIMBUS 后端链路（`slim-*-dai-link`）会因为 WCD9340 codec DAI 枚举不出来而**让整块声卡卡在 EPROBE_DEFER**，已从设备树删除 → 当前只保留扬声器通路 |
 | 麦克风 | ⚠️ | 采集链路已修到**全部上电**（`AMIC MUX0` 默认断开 + 设备树缺 MCLK 路由，两处已修），但样本仍为全零，还差最后一层（DSP/ADM 或模拟前端）。详见 §8.10 与 [notes/microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md) |
 | 电池 / 充电 / RTC | ✅ | 内核内建 |
