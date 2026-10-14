@@ -1,29 +1,64 @@
 ---
 type: architecture
 title: 仓库布局与入口点
-description: 这个仓库的"源码"只有入口 build.sh、阶段脚本 scripts/ 与随仓库分发的输入（config/、dtb/、vendor/、notes/、pkgs/）；本页给出各入口的用法与读写关系、阶段脚本的调用契约、build.sh 的字典序阶段过滤语义，并说明 dl/ work/ out/ logs/ tools/ release/ _recon/ 为什么是生成物或调研残留——包括 work/root 残留如何改变下一次构建行为。
+description: 弄清哪些路径是被跟踪的源、哪些是随时可删的生成物（以 .gitignore 为分界，openwiki/ 是唯一"生成但被提交"的例外），并给出 build.sh、scripts/11-flash.sh、scripts/bt-mac.sh、scripts/99-make-release.sh 各入口的用法与互不重叠的职责边界。
 tags: [architecture, repository-layout, build-entrypoint, build-pipeline, ci]
+verified:
+  - by: openwiki/0.7.2
+    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 仓库布局与入口点
 
-这个仓库里的"源码"只有三类：一个构建入口 [`build.sh`](../../build.sh)、参数化的阶段脚本集合 `scripts/`、以及随仓库分发的输入资源（`config/`、`dtb/`、`vendor/`、`notes/`、`pkgs/`）。顶层其余目录（`dl/`、`work/`、`out/`、`logs/`、`tools/`、`release/`、`_recon/`）都是构建或调研过程中在本机生成的，删掉它们不会丢任何东西。
+这个仓库里的"源码"只有三类：一个构建入口 [`build.sh`](../../build.sh)、参数化的阶段脚本集合 `scripts/`、以及随仓库分发的输入资源（`config/`、`dtb/`、`vendor/`、`notes/`、`pkgs/`、`.github/workflows/`）。顶层其余目录（`dl/`、`work/`、`out/`、`logs/`、`tools/`、`release/`、`_recon/`）都是构建或调研过程中在本机生成的，删掉它们不会丢任何东西。
 
-判断一个路径属于哪一类，最可靠的依据是 [`.gitignore`](../../.gitignore)：它列出了被排除的产物树与私密配置，除此之外的顶层内容（外加 `openwiki/` 这个"生成但被提交"的目录）才是仓库的真实内容。
+判断一个路径属于哪一类，最可靠的依据是 [`.gitignore`](../../.gitignore)：它列出了被排除的产物树与私密配置，除此之外的顶层内容（外加 `openwiki/` 这个"生成但被提交"的目录）才是仓库的真实内容。反过来说，"被 git 跟踪"并不等于"必须保留"（`release/` 没被忽略，却完全是生成物），"被忽略"也不等于"能重建"（`_recon/`、`config/local.conf` 是本机资料）。
 
 有两条陷阱值得在本页开头就点明，它们是这个仓库改动时最容易踩的坑：
 
 - **生成目录绝不能当成源码读。** 读 `work/root/...` 里的文件、把某个 `out/*.img` 当成"系统的一部分"，等于把某一次本地构建的残留当成设计。真正的系统行为只在 `scripts/` 与 `config/` 里。
 - **`work/` 里的残留会改变下一次构建行为。** 阶段 01 在 `work/root` 看起来"像样"时会整段跳过，阶段 02 只装不删，`dl/` 与 `work/pkgcache` 又是"命中即复用"。所以同一份 `build.sh` 在同一台机器上的第二次运行，和 CI 上的第一次运行，走的不是同一条路径（详见下文"生成目录的生命周期"一节）。
 
-## 三类路径
+## 跟踪的源 vs 生成物
 
-| 类别 | 路径 | 谁写 | 能删吗 |
+### 跟踪的源（改这些才改变系统行为）
+
+| 路径 | 性质 | 说明 |
+|:--|:--|:--|
+| `build.sh` | 入口 | 唯一的构建入口，用 `STAGES` 数组驱动阶段 |
+| `scripts/*.sh` | 入口 | 阶段脚本与三个工具入口，共享 `scripts/lib.sh` 契约层 |
+| `.github/workflows/build.yml` | 入口 | 在 Arch 容器里跑同一条 `build.sh`（+ 打包/发布） |
+| `config/build.conf` | 可执行配置 | 会被 source 执行的一段 bash，是唯一调参入口 |
+| `config/local.conf.example` | 模板 | 脱敏写法示例；真正生效的 `config/local.conf` 被忽略 |
+| `dtb/` | 输入资源 | 唯一随源码分发的设备树 |
+| `vendor/ms91xx/` | 输入资源（源码树） | 被跟踪的 MS91xx 驱动源码，由阶段 03b 编译 |
+| `pkgs/` | 参考配方 | 6 个 PKGBUILD；**构建流水线当前完全不引用** |
+| `notes/` | 调研文档 | 踩坑与取舍的证据链 |
+| `README.md` / `HANDOVER.md` | 文档 | 使用/交付文档与接手说明 |
+| `AGENTS.md` | 文档 | 仓库约定的**手写部分**；其中 `<!-- OPENWIKI:START -->`…`<!-- OPENWIKI:END -->` 区块由自动流程维护 |
+| `.gitignore` | 清单 | 跟踪/生成物的分界依据 |
+
+### 生成物 / 未跟踪（多数可删，删后按需重建）
+
+| 路径 | 谁写 | CI 软链到大磁盘 | 能删吗 |
 |:--|:--|:--|:--|
-| 入口 | `build.sh`、`scripts/*.sh`、`.github/workflows/*.yml` | 人 | 不能 |
-| 随仓库分发的输入 | `config/`、`dtb/`、`vendor/ms91xx/`、`pkgs/`、`notes/`、`README.md` / `HANDOVER.md` / `AGENTS.md` | 人 | 不能 |
-| 生成物 / 未跟踪 | `dl/`、`work/`、`out/`、`logs/`、`tools/`、`release/`、`_recon/`、`config/local.conf` | 构建脚本或人工调研 | 能删（`_recon/`、`config/local.conf` 删了要自己重新准备） |
-| 生成但被提交 | `openwiki/` | CI 的 `openwiki-update.yml` | 不能手工改 |
+| `dl/` | `lib.sh` 建目录，任何阶段的 `fetch()` 填充 | 是 | 能（但所有下载重来；缓存同时被 CI 的 `actions/cache` 持久化） |
+| `work/` | `lib.sh` 与各阶段 | 是 | 能（增量构建的历史全在这里；`work/pkgcache` 也被 CI 缓存） |
+| `out/` | `lib.sh` 建目录，阶段 09/10 与 `11-flash.sh --backup` 写 | 是 | 能（最终镜像会丢） |
+| `logs/` | `lib.sh`（**不是** `build.sh`） | 是 | 能 |
+| `tools/` | `lib.sh:setup_mtools`（惰性） | 是 | 能（下次构建重下 mtools） |
+| `release/` | `99-make-release.sh`（每次先清空） | 是 | 能（下次打包重生成） |
+| `_recon/` | 人工 | 是（占位） | 能，但**删了就自备不了**——上游侦察材料不可重建 |
+| `config/local.conf` | 人工 | 否（不在 CI 的软链清单里） | 能，但**删了就丢本机私密值**（照 `.example` 重写） |
+| `vendor/**/*.o`、`*.ko`、`*.mod*`、`modules.order`、`Module.symvers` | `03b-ms91xx.sh` | — | 能（正常输出在 `work/ms91xx-build`） |
+| `openwiki/` | `.github/workflows/openwiki-update.yml` | 否 | **已提交、不能手工改**：整棵树都是生成内容（见下） |
+
+CI 的软链动作发生在 checkout 之后、构建之前：`mkdir -p` 之后把 `dl work out tools logs release _recon` 全部指向 runner 的大磁盘（[L212-L220](../../.github/workflows/build.yml#L212-L220)），因为仓库所在分区放不下镜像。这也解释了为什么本地全新克隆要先自己建 `logs/`（见下），而 CI 不需要。
+
+关于自动生成的内容，有两条"别手改"的清单：
+
+- `openwiki/` 整棵树，以及 `AGENTS.md` 里的 `<!-- OPENWIKI:START -->`…`<!-- OPENWIKI:END -->` 区块：由 `openwiki-update.yml` 每天定时（或手动）跑 `openwiki code --update` 后开 PR 提交，PR 的 `add-paths` 是 `openwiki`、`AGENTS.md`、该工作流本身（存在 `CLAUDE.md` 时也含它）。要改这些内容，应改源码/文档让自动流程重生成，而不是直接编辑页面。
+- `release/`：虽然不在 `.gitignore` 里，但每次 `99-make-release.sh` 都会先清空重建，手工编辑没有意义。
 
 ## 入口总览
 
@@ -34,7 +69,7 @@ tags: [architecture, repository-layout, build-entrypoint, build-pipeline, ci]
 | `./scripts/bt-mac.sh` | `show <img>` / `set <img> "<地址>"` | 就地给"从 Release 下载来的"`boot-cache.img` 里的设备树补本机蓝牙地址（`set` 先备份为 `<img>.bak`） | 只改传入的镜像文件；`mrun` 依赖 `tools/mtools` |
 | `./scripts/99-make-release.sh` | `[tag]` `[--upload]`（`--upload` 只在**第二个位置参数**上被识别） | zstd 压缩 + 按 1900 MiB 分卷 + 生成 `SHA256SUMS`/刷机说明，可直发 Release | 读 `out/`、`work/uboot/`；写 `release/` |
 | `.github/workflows/build.yml` | push 到 `main` 且改动 `scripts/**`、`config/**`、`dtb/**`、`build.sh` 或本工作流，或手动 dispatch | 在 Arch 容器里跑同一条 `build.sh`（+ 打包），云端出镜像 | 与本地同一组生成树，软链到大磁盘 |
-| `.github/workflows/openwiki-update.yml` | 每日定时 / 手动 | 重生成并提交 `openwiki/` 与 `AGENTS.md` | 只改 `openwiki/`、`AGENTS.md`、工作流本身 |
+| `.github/workflows/openwiki-update.yml` | 每日定时 / 手动 | 重生成并提交 `openwiki/` 与 `AGENTS.md` 的 OpenWiki 区块 | 只改 `openwiki/`、`AGENTS.md`、工作流本身 |
 
 ```mermaid
 flowchart LR
@@ -48,6 +83,7 @@ flowchart LR
   O --> REL["scripts/99-make-release.sh"]
   UB --> REL
   REL --> R["release: zstd 分卷与 SHA256SUMS"]
+  R --> BM["scripts/bt-mac.sh set"]
   FL --> DEV["设备 boot / cache / userdata 分区"]
 ```
 
@@ -89,6 +125,8 @@ flowchart LR
 | `09-image-rootfs.sh` | 造 `out/rootfs.img` 与 `out/rootfs.sparse.img`，并写回实际布局与 UUID |
 | `10-image-boot.sh` | 以 256 MiB FAT 模板造 `out/boot-cache.img`（systemd-boot + 内核 + initramfs + 打过补丁的 dtb）并注入蓝牙地址 |
 
+另外三个脚本不是构建阶段，而是"只消费产物"的工具入口：`11-flash.sh`（刷机/备份）、`bt-mac.sh`（改下载来的引导镜像里的蓝牙地址）、`99-make-release.sh`（打包发布）。
+
 各阶段内部做什么、失败点在哪里，见[构建流水线各阶段](build-pipeline-stages.md)；这里只固定它们的**共同契约**：
 
 - `#!/bin/bash` + `set -euo pipefail` + `source "$(dirname ...)/lib.sh"` + `confirm_stage "..."`。路径基于 `BASH_SOURCE` 解析，所以脚本从任意工作目录调用都能找到库；但依赖历史产物的阶段（如 `03b` 用 `$PWD/vendor/ms91xx`）实际按"从仓库根运行"工作，`build.sh` 已经保证了这一点。
@@ -104,11 +142,17 @@ flowchart LR
 |:--|:--|:--|
 | [`config/build.conf`](../../config/build.conf) | 跟踪、**可执行的 bash** | 全部可调参数：镜像大小与根文件系统类型、包列表与桌面选择、用户名/密码、locale/时区、上游 URL 与内核版本、无线管制域 |
 | [`config/local.conf.example`](../../config/local.conf.example) | 跟踪 | 脱敏模板，演示 `BT_MAC="aa bb cc dd ee ff"` 这类本机私有值该写成什么样 |
-| `config/local.conf` | **已被忽略**（本地文件） | 真正生效的私密值（目前主要是 `BT_MAC`） |
+| `config/local.conf` | **已被忽略**（本地文件，不在 CI 软链清单里） | 真正生效的私密值（目前主要是 `BT_MAC`）；CI 侧改用仓库 Secret 注入环境变量 |
 
 `build.conf` 不是被解析的键值清单，而是会被 `source` 执行的一段 bash：里面有 `case`/`if`、`de_has`/`drop_pkgs`/`de_session_name` 等函数、组合标志（`HAVE_*`、`ALL_PKGS`、`DE_SUMMARY`、`PRIMARY_SESSION`）的推导，以及"桌面名不认识就直接 `exit 1`"的校验。因此：改它等于改构建逻辑，`bash -n config/build.conf` 之类的检查比当配置文件看更有意义；而参数化覆盖走环境变量（如 `DESKTOPS`、`RAPHAEL_ALARM_MIRROR_PRIMARY`、`RAPHAEL_ROOTFS_TYPE`、`RAPHAEL_BT_MAC`），不要改文件本身。
 
 `local.conf` **不是被 source 的**：阶段 10 用 `sed` 从里面抠 `BT_MAC`（[L54-L59](../../scripts/10-image-boot.sh#L54-L59)），环境变量 `RAPHAEL_BT_MAC` 优先于该文件，两者都没有就只 WARN（镜像蓝牙不可用）。地址写的是设备树字节序（小端），格式归一化接受 `11:22:33:44:55:66`、`11-22-33-44-55-66`、`112233445566`、`"11 22 33 44 55 66"` 四种写法。公开仓库里绝不能出现真实地址——CI 用的是仓库 Secret，本地用 `config/local.conf`，两者都不进版本库。
+
+**蓝牙地址两端各有一个入口，别搞混**：
+
+- 自己构建时，地址在**阶段 10 就写进镜像**（`config/local.conf` 或 `RAPHAEL_BT_MAC`）。
+- 只在刷机时补（镜像来自别人/来自 Release，或本地构建时没给地址）用 `11-flash.sh --bt-mac "<地址>"`：它把 `out/boot-cache.img` 复制成 `work/boot-cache-<地址>.img` 再注入，**不动 `out/` 原文件**。
+- 根本不跑构建、只想改一个已下载的 `boot-cache.img`，用 `bt-mac.sh set <img> "<地址>"`：**原地改写**该文件（先留 `<img>.bak`），`bt-mac.sh show <img>` 是核对镜像里当前地址的最小手段。
 
 ## 随仓库分发的输入资源
 
@@ -118,24 +162,23 @@ flowchart LR
 | [`vendor/ms91xx/`](../../vendor/ms91xx/README.md) | 被跟踪的内核模块源码树（`drm/` 驱动、`Makefile`、`dkms.conf`）。`03b-ms91xx.sh` 用阶段 03 留下的 `work/kver` 与头文件树交叉编译；`.gitignore` 只忽略这棵树里的 in-tree 构建产物（`*.o`/`*.ko`/`*.mod*`/`modules.order`…），正常情况下输出在 `work/ms91xx-build` |
 | [`pkgs/`](../../pkgs/qbootctl/PKGBUILD) | 6 个 PKGBUILD（`qrtr`/`rmtfs`/`pd-mapper`/`tqftpserv`/`qbootctl`/`hexagonrpc`）与配套 `.install`：native Arch 打包的**参考配方**（含"哪个单元该 enable"的说明）。**当前 `build.sh` 完全不引用这个目录**——阶段 05 直接从 `linux-msm` 上游拉 tarball、用 clang 交叉编译进 rootfs（[L55-L63](../../scripts/05-qcom.sh#L55-L63)）。想用这些配方得自己 `makepkg`，改流水线不会碰它们 |
 | [`notes/`](../../notes/) | 按主题归档的深度调研（桌面环境多选、qcom 用户态、移植清单、蓝牙、相机、麦克风、上游对齐）；踩坑与取舍的证据链主要在这里 |
-| [`README.md`](../../README.md) / [`HANDOVER.md`](../../HANDOVER.md) / [`AGENTS.md`](../../AGENTS.md) | 使用与交付文档（README 在开头就把 HANDOVER 标为接手必读）/ 接手说明 / 给编码代理的仓库约定（其中的 OpenWiki 块由自动流程维护） |
-| `openwiki/` | 生成但被提交的 wiki：由 `openwiki-update.yml` 定时重生成并开 PR，不应手工编辑 |
+| [`README.md`](../../README.md) / [`HANDOVER.md`](../../HANDOVER.md) / [`AGENTS.md`](../../AGENTS.md) | 使用与交付文档（README 在开头就把 HANDOVER 标为接手必读）/ 接手说明 / 给编码代理的仓库约定（其中 OpenWiki 区块由自动流程维护，不要手改） |
 
-`_recon/` 特殊一点：它在文件系统里和 `notes/` 并列，但**不是随仓库分发的输入**，而是早期侦察时从上游与设备里扒出来的材料——[`_recon/README-winter.md`](../../_recon/README-winter.md) 是另一个 Raphael 项目的 README，`_recon/upstream-scripts/` 是别人写的构建脚本，`_recon/dl/x-image/`、`x-fw/`、`x-alsa/` 是拆开的 deb/镜像内容。整个目录已被 `.gitignore` 排除，[`notes/porting-checklist.md`](../../notes/porting-checklist.md) 与 `notes/qcom-userspace.md` 大量以它为"Source of truth"引用。因此照 `notes/` 里的线索去查证时要注意：那些路径只在原作者机器上存在，新克隆里没有，别把它们当成仓库的一部分。
+`_recon/` 特殊一点：它在文件系统里和 `notes/` 并列，但**不是随仓库分发的输入**，而是早期侦察时从上游与设备里扒出来的材料——[`_recon/README-winter.md`](../../_recon/README-winter.md) 是另一个 Raphael 项目的 README，`_recon/upstream-scripts/` 是别人写的构建脚本，`_recon/dl/x-image/`、`x-fw/`、`x-alsa/` 是拆开的 deb/镜像内容。整个目录已被 `.gitignore` 排除，[`notes/porting-checklist.md`](../../notes/porting-checklist.md) 与 `notes/qcom-userspace.md` 大量以它为"Source of truth"引用。因此照 `notes/` 里的线索去查证时要注意：那些路径只在原作者机器上存在，新克隆里没有，别把它们当成仓库的一部分（CI 只是给它占了个软链空目录）。
 
 ## 生成与未跟踪目录：绝不能当成源码
 
-| 目录/文件 | 谁创建 | 内容与语义 |
-|:--|:--|:--|
-| `dl/` | `lib.sh` 建目录（[L25](../../scripts/lib.sh#L25)），任何阶段的 `fetch()` 填充 | 上游下载缓存。除阶段 00 的 rootfs/deb/U-Boot 之外，阶段 05 的 ALARM gcc 包、阶段 06 的霞鹜文楷字体、阶段 07 的 Konsole 配色也落在这里。`fetch()` 只要目标文件非空就跳过下载（命中即复用，**不校验内容**），所以怀疑缓存损坏时要手工删掉那个文件 |
-| `work/` | `lib.sh` | 展开的目标 rootfs（`work/root`）与所有中间态：`kver`、`rootfs-layout`、`rootfs.uuid`、`bootstage`、`initramfs`、`pkgcache`、`uboot/u-boot.img`、编译日志；`11-flash.sh --bt-mac` 注入用的镜像副本也写在这里 |
-| `out/` | `lib.sh` | 最终镜像：`boot-cache.img`、`rootfs.img`、`rootfs.sparse.img`；`11-flash.sh --backup` 另写 `out/backup/` |
-| `logs/` | `lib.sh`（**不是** `build.sh`） | `build.sh` 追加写的 `build.log`、CI 的 `ci-build.log`，以及阶段 05 按组件拆的 `build-<组件>.log`；`work/logs/` 下另有阶段内的小日志（如 `tar-warnings.txt`） |
-| `tools/` | `lib.sh:setup_mtools` | 从 Arch x86_64 仓库取来的宿主 mtools（`tools/mtools/usr/bin/*`），用于无 root 读写 FAT 镜像。惰性填充：阶段 00 与阶段 10 会调用 `setup_mtools`，蓝牙注入辅助内部也会调用；而 `bt-mac.sh show` 直接用 `mrun` 执行 `tools/mtools/usr/bin/mcopy`，所以它要求 `tools/mtools` 已经在位（至少跑过一次阶段 00） |
-| `release/` | `99-make-release.sh`（每次先清空） | zstd 分卷、`SHA256SUMS`、`刷机说明.txt`、`upload.sh` |
-| `_recon/` | 人工 | 上游/设备侦察材料（他项目 README、`upstream-scripts/`、拆开的镜像与固件），**已被忽略**，只在原作者机器上 |
-| `config/local.conf` | 人工 | 本机私密值（`BT_MAC`），**已被忽略** |
-| `vendor/**/*.o`、`*.ko`、`*.mod*`、`modules.order`、`Module.symvers` | `03b-ms91xx.sh` | 驱动源码树里的构建残留（正常输出在 `work/ms91xx-build`），已被忽略 |
+| 目录/文件 | 谁创建 | 内容与语义 | CI 软链 |
+|:--|:--|:--|:--|
+| `dl/` | `lib.sh` 建目录（[L25](../../scripts/lib.sh#L25)），任何阶段的 `fetch()` 填充 | 上游下载缓存。除阶段 00 的 rootfs/deb/U-Boot 之外，阶段 05 的 ALARM gcc 包、阶段 06 的霞鹜文楷字体、阶段 07 的 Konsole 配色也落在这里。`fetch()` 只要目标文件非空就跳过下载（命中即复用，**不校验内容**），所以怀疑缓存损坏时要手工删掉那个文件 | 是 |
+| `work/` | `lib.sh` | 展开的目标 rootfs（`work/root`）与所有中间态：`kver`、`rootfs-layout`、`rootfs.uuid`、`bootstage`、`initramfs`、`pkgcache`、`uboot/u-boot.img`、编译日志；`11-flash.sh --bt-mac` 注入用的镜像副本也写在这里 | 是 |
+| `out/` | `lib.sh` | 最终镜像：`boot-cache.img`、`rootfs.img`、`rootfs.sparse.img`；`11-flash.sh --backup` 另写 `out/backup/` | 是 |
+| `logs/` | `lib.sh`（**不是** `build.sh`） | `build.sh` 追加写的 `build.log`、CI 的 `ci-build.log`，以及阶段 05 按组件拆的 `build-<组件>.log`；`work/logs/` 下另有阶段内的小日志（如 `tar-warnings.txt`） | 是 |
+| `tools/` | `lib.sh:setup_mtools` | 从 Arch x86_64 仓库取来的宿主 mtools（`tools/mtools/usr/bin/*`），用于无 root 读写 FAT 镜像。惰性填充：阶段 00 与阶段 10 会调用 `setup_mtools`，蓝牙注入辅助内部也会调用；而 `bt-mac.sh show` 直接用 `mrun` 执行 `tools/mtools/usr/bin/mcopy`，所以它要求 `tools/mtools` 已经在位（至少跑过一次阶段 00） | 是 |
+| `release/` | `99-make-release.sh`（每次先清空） | zstd 分卷、`SHA256SUMS`、`刷机说明.txt`、`upload.sh` | 是 |
+| `_recon/` | 人工 | 上游/设备侦察材料（他项目 README、`upstream-scripts/`、拆开的镜像与固件），**已被忽略**，只在原作者机器上 | 是（占位空目录） |
+| `config/local.conf` | 人工 | 本机私密值（`BT_MAC`），**已被忽略**。CI 用仓库 Secret 注入 `RAPHAEL_BT_MAC`，不读这个文件 | 否 |
+| `vendor/**/*.o`、`*.ko`、`*.mod*`、`modules.order`、`Module.symvers` | `03b-ms91xx.sh` | 驱动源码树里的构建残留（正常输出在 `work/ms91xx-build`），已被忽略 | — |
 
 `release/` 值得单独提一句：它**不在 `.gitignore` 里**（忽略规则只覆盖 `*.img`、`*.img.zst`、`*.img.xz`、`*.deb`、`*.tar.gz` 等模式，而分卷名是 `*.img.zst.part00` 这类）。它依然是纯粹的生成目录——每次运行 `99-make-release.sh` 都会先 `rm -f "$REL"/*` 重建，所以不要手工编辑，也不要提交。
 
@@ -194,6 +237,7 @@ flowchart TD
 - **`work/` 里的契约文件一旦与实际不符就是开机事故**：`rootfs-layout` 与 `rootfs.uuid` 被 `06`（fstab）、`09`（成像并在回退时重写 fstab）、`10`（引导参数）三处共享——详见[构建流水线各阶段](build-pipeline-stages.md)与[系统总览](overview.md)。
 - **重启一次干净构建不等于可复现**：`dl/`、`work/`、`tools/` 都是有状态的，本地增量的 `work/root` 与 CI 的全新环境行为可能不同。
 - **秘密只能待在被忽略的位置**：`config/local.conf`、环境变量、仓库 Secret；`config/build.conf` 里的默认密码只是公开的默认值，CI 会在 runner 上就地改写它并用 `::add-mask::` 打码，不落回仓库。
+- **自动生成的目录与区块只读**：`openwiki/`、`AGENTS.md` 的 OpenWiki 区块由 `openwiki-update.yml` 维护；`release/` 每次打包先清空。手改这些内容会被下一次自动运行或下一次打包覆盖。
 
 ## 扩展点
 
@@ -201,6 +245,7 @@ flowchart TD
 - **加一个可调参数**：在 `config/build.conf` 里加变量，或包装成 `${RAPHAEL_...:-默认值}` 形式的环境变量覆盖；派生标志应集中在 `build.conf` 算好，阶段脚本只读 `HAVE_*` 这类结果，不要重新解析字符串。
 - **加一个私密值**：放进 `config/local.conf`（会 `source` 的文件都不要碰），并在 `config/local.conf.example` 里补脱敏写法；CI 侧对应仓库 Secret。
 - **加一个 CI 输入**：在 `.github/workflows/build.yml` 的 `workflow_dispatch.inputs` 里加，然后决定它如何映射到环境变量（如 `DESKTOPS` 走 `$GITHUB_ENV`）或 `build.sh --only`。
+- **改文档或 wiki**：编辑仓库里的 `README.md`、`notes/`、`AGENTS.md` 的手写部分，让 `openwiki-update.yml` 重生成 `openwiki/`；不要直接改 `openwiki/` 下的页面。
 
 ## 验证面
 
@@ -220,3 +265,4 @@ flowchart TD
 - [配置模型](../concepts/configuration-model.md) —— `build.conf`、环境变量与派生标志。
 - [失败模式与不变量](../concepts/failure-modes-and-invariants.md) —— 增量构建、缓存与并发带来的失效方式。
 - [rootfs 布局、fstab 与扩容](../concepts/rootfs-layout-and-fstab.md) —— `work/rootfs-layout` 这个契约文件的去处。
+- [CI 构建工作流](../operations/ci-build-workflow.md) —— 云端如何准备生成树、注入账号密码并校验/发布产物。

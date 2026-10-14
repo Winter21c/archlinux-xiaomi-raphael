@@ -189,7 +189,8 @@
           "标注哪些文件由 OpenWiki 自动生成（openwiki/、AGENTS.md 的 OPENWIKI 区块），不要建议手改。",
           "正文用中文；用表格区分「跟踪的源」与「生成物」，并说明哪些目录会被 CI 软链到大磁盘。"
         ],
-        "status": "pending"
+        "status": "complete",
+        "completedBy": "openwiki/0.7.2"
       },
       {
         "id": "92780bda-1134-486e-8f95-2f3fd2691075",

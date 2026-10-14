@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "pageVersion": "sha256:a4d7e4601edbc62f1003f92e89bd83e9c1eab428de91a6e7b23d543eb465c099",
+  "pageVersion": "sha256:86e8ac758b8d735632c5d5a39214d0c13c91715a50637c428a641f8fe1630261",
   "claims": [
     {
       "id": "claim_3e2f38bb0f2e4005908977d10c9b07e1",
@@ -326,7 +326,7 @@
     },
     {
       "id": "claim_fd827ff717134cbe84d4dccff29a3b3f",
-      "statement": "`openwiki/` 是“生成但被提交”的目录：`.github/workflows/openwiki-update.yml` 每天定时（以及手动）运行 `openwiki code --update`，把 `openwiki/`、`AGENTS.md` 与该工作流本身提交成一个 PR，所以这些页面应由自动流程维护而不是手工编辑。",
+      "statement": "`openwiki/` 是\"生成但被提交\"的目录：`.github/workflows/openwiki-update.yml` 每天定时（以及手动）运行 `openwiki code --update`，用 `add-paths` = `openwiki,AGENTS.md,.github/workflows/openwiki-update.yml`（存在 `CLAUDE.md` 时含它）的 PR 提交结果，并在提交前删掉 `openwiki/.run.json`；因此 `openwiki/` 整棵树与 `AGENTS.md` 里 `<!-- OPENWIKI:START -->`…`<!-- OPENWIKI:END -->` 区块内的内容都应由自动流程维护，不应手工编辑。",
       "evidence": [
         {
           "resource": "repo://.github/workflows/openwiki-update.yml#L1-L14",
@@ -337,8 +337,8 @@
           "version": "repo-lines-v1:sha256:c9ae9ccb06e2cc28f9a73729ba2f7fcd88734219ff049c3dbff192bc32b79a65:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3OWM4ODBmNjJkNDIyNTM4YmNhODRjYjU1ZWNlOGZlMTBlOTY1OGIwNjExMTVjM2ZhYmNkYzdiM2JlY2Y0NDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkYTQxNjY0OTBiMTcyOWI1ZWNiZmFmYmRlMmY1YmFiMDlkMmY3ZWVmZTQ0ZGQ1ZWZkMDZkZmUyMDViYjYxYTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQxOTEzNzMyNTgyYzNlNjAzNTkwNzg2Yzg2ODM2OTUxZmYzNWU5YjJkMGY4ZDMxMDY3ZDRmNGM4NzQzZGIyYWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRkODlkZGU2NjgwODU1NjRmYmRkYzFiZDc3MzAxMGMyNGNhZGViOTViYzQ2ZTcxMTBiMzE5N2NkYmJhN2NkZjgifQ"
         },
         {
-          "resource": "repo://AGENTS.md#L14-L14",
-          "version": "repo-lines-v1:sha256:ab53953bfb72c1262bbae2eaca72cabf1af49927a0bba1157b2d5bdb285c4bd2:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYWI1Mzk1M2JmYjcyYzEyNjJiYmFlMmVhY2E3MmNhYmYxYWY0OTkyN2EwYmJhMTE1N2IyZDViZGIyODVjNGJkMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWI1Mzk1M2JmYjcyYzEyNjJiYmFlMmVhY2E3MmNhYmYxYWY0OTkyN2EwYmJhMTE1N2IyZDViZGIyODVjNGJkMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjZjYjMwYThmOTQ4MTMxNDkwODJmM2RjYjkxOWRiMTJmMjIwYjMxYTI5NWZiZWU5NTM1MWNmOGYxNGJhZGEyZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjIsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzA4OWRmOTNmOGJhNTdhNGRkYmZkOGYwMTM5NjJjMzk3OGNlNGRiNjgxOTljNGRhNjY2NjQ5YjA5OTZjZWRhOSJ9"
+          "resource": "repo://AGENTS.md#L1-L14",
+          "version": "repo-lines-v1:sha256:6c90a8ee260419ce52c98ce902d593546e4e6c9b455577ea517f64e10c04699c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVmMTgwZjljMTI2OTAzYmNjMzMxYWE5NTQ1NmU0OTQ0NGE3ZDRkMDExZThhMmE4M2Y1ZGM4NzAyMzkxODEyZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFiNTM5NTNiZmI3MmMxMjYyYmJhZTJlYWNhNzJjYWJmMWFmNDk5MjdhMGJiYTExNTdiMmQ1YmRiMjg1YzRiZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMwODlkZjkzZjhiYTU3YTRkZGJmZDhmMDEzOTYyYzM5NzhjZTRkYjY4MTk5YzRkYTY2NjY0OWIwOTk2Y2VkYTkifQ"
         }
       ]
     },
@@ -453,7 +453,7 @@
           "version": "repo-lines-v1:sha256:e2b0e8066a8cd19d7cc8270243ef831b2177a6537c983e5aa516fe1487ecb8d0:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTU1ZTc1MWQ1ZGE5NDEyZTg2NzdlNjc5YWE2M2ViY2RhZmVhMmUyMDEwMzFhMDU1YWQ1MjMyYzM1YWIwMTk1YyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYTM1N2VkMWNhZWY1MWRlZWVmMGJjMGM0MTBhY2IzYjljYjU5YTRjMDk2ZWI2MmFmMDI3NTA2MmQ0ZTNhZTdlMCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTgwMzJjMTlhNDA1NDc2NWRmMDc4NTU4ZjQyNmZhYWE0OTNiYWQ4MjIwOTg3YjI0MDhlNzdjYTU3OTA4MmEwYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjdiZTU0NzM1NWQ0YTkxMGE2ZmQ2MzUyNDBmZWU0YjE3MjhjM2EwMmRiMzNhNzAwNTg3MjExMzU0MWU1ODYzZCJ9"
         },
         {
-          "resource": "repo://scripts/07-desktop.sh#L655-L663",
+          "resource": "repo://scripts/07-desktop.sh#L657-L665",
           "version": "repo-lines-v1:sha256:d6d2e0b6875806e1f20d8cf61c0186e1ce7d4fd8f3182ec74067ca4d229d5799:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOGY0ZGE1ZGMzMTEyMmJjZmQ0ODZkZTBhNjg3ZjYzNTNhNWE2NWY5MTYwZTQ2ZjdiZmEyOWI2MWUzOWMzMzFlYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjBhNTZiNmIyMjYyNThjM2NkNTllNjZlM2VhZWE0ZTQwODVjMDEzZTZjODQwZGM1NzY1Yzg5NTY5ZTRmYWUzNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjc0MGRmYmU5NDk4YmQ2NGZjMDBjN2I1Y2VlYjM1YTc5YmUzMDRjYzAxMGE5NjE1ZTc1MWFmZGZkMjJiYjE4ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDJjMTA4MTg5OTBkNmQ2MmNlYmEyZjAxZTNjOWY0ODI1ZWNlNTkwOThkZTk4OWRjMWNiY2IzMzk2YzJhNGUxNyJ9"
         },
         {
@@ -565,7 +565,7 @@
           "version": "repo-lines-v1:sha256:8154b7eada0c5bac9fe9e6e72e60bd91e0b69a98351aa71d711304fd178d8cb7:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU2NDc0NmZmZGFlMjYxOWY0NWIwNTFiNTQ3Yjc0Njg0OTk3MTZmMGRhNThiODFmMGQ3NTA2ZjMyODE2NzRjNmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVlODQzYWYzYzYzMGEzMTQyMjA4NzZmN2YzMDg5YjY4MWNkMzliNmNiMWJjYjA3ZTMyYjU1ZWRkMTNhOTI4YWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk5YTdlZThjMmI4ZGQzODJjNTEwMmQ1OWMyOTM3NGZlNWYzNTM5OWY3ZmNjNzAyZDllNDU0YWUxNzNkNGE1MmYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUwZTU1MjcyOThlNDgwZDFhNDMzN2FlYjgxN2JhYzQ1Yjk0ZDdkOGU4Njk4ZmRiMzViMjk4OGYzZDZmMzc2NjQifQ"
         },
         {
-          "resource": "repo://scripts/07-desktop.sh#L971-L985",
+          "resource": "repo://scripts/07-desktop.sh#L987-L1001",
           "version": "repo-lines-v1:sha256:a58fcdaf92b0be9e6c2a7d4efced9df34a3b9bbc323c8b780083a58b76d73e9a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBiMWI5MDMxYjJmZWYwMGI4MTAyZTM4MmEzMWRiOTAyOWQ0YTRmYjQ2ZjA0ZTVhNGNmNDg1ZTNjNGU1ZWEyYzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNlNDA5ZTYxNWE0MjM2MDdmZWVhZjljZDViZmEyNmJhY2JiN2M4ZGNmZjAyZWUzMDA0MzRhYmE4NzI0ODlhOTEifQ"
         },
         {
@@ -603,6 +603,42 @@
         {
           "resource": "repo://notes/qcom-userspace.md#L1078-L1084",
           "version": "repo-lines-v1:sha256:2560f6716d405489b1bcd652efe94562c5a3ce5ea369ad25f7cb056e65086284:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmNkMTM4ZmY5NmUxNDU4NmQwOWZlN2Q0YTEzM2MwODY4ZGRlODk1MWQ2ZDFkNjVhZmZhZjY5NDU4MWM4YzMzMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWU2NTIyMDc4MjBjMTIxNzlkYmVmMWJiMGU4MzZhOWU3MmRiYWE0YWY2YTcxNmU5MmIyM2RkNTkzMGJjNGI2MyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTI2YmQxMzdlYmExMGZlOTM0NjFiMTUyNWZhYzgwOTZmZTM0YmViZTg3MTgzYzJjNzgwYTJhYzUxM2FjOWQ4NCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_7dc75663dea0423a8b3454f3d927aca8",
+      "statement": "仓库顶层内容按 `.gitignore` 分成三类：被跟踪的源（`build.sh`、`scripts/`、`config/`、`dtb/`、`vendor/ms91xx/`、`pkgs/`、`notes/`、`.github/workflows/` 与三份文档）、被忽略的生成物或本机资料（`dl/`、`work/`、`out/`、`logs/`、`tools/`、`_recon/`、`config/local.conf`）、以及生成但被提交的 `openwiki/`；因此不能只凭\"git 是否跟踪\"判断一个路径是不是源码——`release/` 未被忽略却完全是生成物，`_recon/` 与 `config/local.conf` 被忽略却无法由构建重建。",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/openwiki-update.yml#L56-L74",
+          "version": "repo-lines-v1:sha256:6a74985f210dfbbb29e8375b6e66da9e5038cf67c52e629dfadb5169d5d81c4f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ0NTViYjdjMWRlN2UzZTA1MmVlYmI5MDkwOTYwZjk2YzAyZDI3ZTc5YzBlYTZhOTcyMzI5MWFlNGYyZmIxZWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkYTQxNjY0OTBiMTcyOWI1ZWNiZmFmYmRlMmY1YmFiMDlkMmY3ZWVmZTQ0ZGQ1ZWZkMDZkZmUyMDViYjYxYTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVmZTVjYTdmYmJkMTk5YTZhZDgyZGU1MmY0ZWE2NDMxODVmNjM1MGE4MGJhNTJkNWFkN2VlYTMyNTY3NzUwYzYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRkODlkZGU2NjgwODU1NjRmYmRkYzFiZDc3MzAxMGMyNGNhZGViOTViYzQ2ZTcxMTBiMzE5N2NkYmJhN2NkZjgifQ"
+        },
+        {
+          "resource": "repo://.gitignore#L1-L34",
+          "version": "repo-lines-v1:sha256:33889bd20ab1650500bfa1eeab355ee2d251a96414db0592f286c1c3922f2430:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MzVhZGU2MDVmYWM2ZGQyYTUwMDNlY2MwNmJkNjg1NDc2NWU0MGYwN2E0NDJkYWM0Zjk3N2YxMTU4NWU5MDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzOWRlYTIyMzNiZmZjMjczYWUzNDBlODBkOGM2NmYzMTllNGNiYzEyYzNlNjQ5YzhlNjU3MDgwY2NlYTY0YjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://scripts/99-make-release.sh#L24-L30",
+          "version": "repo-lines-v1:sha256:2843ec92657faccf31acd66876ce55535a014490b79a32fd90e86c85e704b3ba:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzEzMzNjMmNhYzg5Yzg0ZDhmOGJkYjk5M2JmMDgwZjc3OTYwODc3MjllOTM3NzQ5MjVkNTdhNWFmYTdiMzdmZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzFjYjkwYmMzNmY3NGY2MDEyZDhkMDEzMTQxYTI2MDM3NmNmN2Y3YWE1ODVjYjNlNTRjMGEzODJlMjc3OTc5YyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTg3MWM0ODA1NzU0ODdlNGNjNDQ2ZGM3OWQyZmYzNDk4NWM1ZDQ4ZGFiN2MwMTkyNDBmNGNhZTgyNjI0NGY3NiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGVkNGU3NzQzMDk5NmFhYTE4OTI1OGVmMmVlOWJjYWNhMGI2MTUzMjgzZmJlMTk2NGIxYmY1NmU0M2IwYTNiZSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_29eb334e8eba4e578359cbd96cea8f75",
+      "statement": "蓝牙地址有三个互不覆盖的落点：构建时由阶段 10 从 `config/local.conf` 或环境变量 `RAPHAEL_BT_MAC` 写进镜像里的设备树；刷机时用 `11-flash.sh --bt-mac` 把 `out/boot-cache.img` 复制成 `work/boot-cache-<地址>.img` 再注入（不改 `out/` 里的原文件）；对已经下载好的镜像则用 `bt-mac.sh set` 就地改写该文件（先留 `<img>.bak`）。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L54-L72",
+          "version": "repo-lines-v1:sha256:fe71addf70960d8b30d827eb69ef9d7e2ce84f4eb8b4276e3d046bdf0038419f:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxNGFmN2EyNzcyNWJjMjcxYWJkMDg5ODQ3YzQ2OGU4YjU1MWM5N2NhZGQzODMzYjhkYjRmMmFiODhkMTYwMDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE1YzQwNDQzYjc3ZTNjMGNjM2NhMWQxOTMyYWRmODJmYTM3NDFkOGNjNDQ5MWI0OWQ1Mjk1NmY0NmEwOGExZTIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI4YjQ0NjQ2ZDA0MTc0OTU0OTAxN2IyMTU0N2JkNGY3YzU0NjQ3MDU0YWExMjdjNzdhNjUzN2ZmMzRkMzMzM2IiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMxZDJhNDFiNDdiYzUxNTZmZWZiMDAwY2U0NjA1ZGNiMzhjNDE1ZDE4ZDQ2Y2JiZjIyYzQxM2ZlYTkyMGMxYmEifQ"
+        },
+        {
+          "resource": "repo://scripts/11-flash.sh#L91-L100",
+          "version": "repo-lines-v1:sha256:944b04f6c22022b76a7692b831dfe30c809cfdb10c3e070c71186f6d3ea4e5d2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk2YWYyN2EyMDU4ZmRjMjA0ZjBkYjRkNTc2NDBkMmEyOTUwNjMzN2FmMzZmNTZhYjM4Y2Y5ZTZhMThjZDZhYmUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFmOTRhOWM0OWJhOTM0MzYzNzBmNjYxYzlmZTNkYzgyZDZmODEwNzVlMjY3MzZkYTMwMzBiZjVkNjIwNTY3ZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM0ZWUzNjcwMTYzMDkxOTQxOWFjMTJkYTA5OTNkMDMxYzE0ZGY0MmI1YjAxYjk0NjQ2ZmE2ZTJkYTlmYWFlMjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY4Nzk1NjVkYzM3NGNjN2IxMjQ5NTM0NTc1MTk1YmE5MGI0YjZkNTg0N2NiOWI1MzA2ZWY5Y2Q4NzJiNDRkYTMifQ"
+        },
+        {
+          "resource": "repo://scripts/bt-mac.sh#L47-L57",
+          "version": "repo-lines-v1:sha256:c7d09960d1821ada8b1c1e7d8ca18ee7370a6ff520561774c8f9357028827277:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5YjY4M2NhZTFlN2MzZjQ5OTYyMzZmODlhOWQxMzJiOWZkOTlmNmQyZDhkMjU1M2I3MmM1MzVhNmM2OTlmMzciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImIyMzYyMjkyYjFjNDE2ZjU2MzRiYmY5MDE4NmZiMjlkNDNiMjRmYWE4Y2I3N2RlYmZlYzEzMDhhNGVhOTE3NmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUwYmFmZmZiYjhmMzI4MDdkYjcwZTM5NDFhNGQyMjRkOWFiZTg1M2YxNjc1NjgyOTBiZWY3ZGM3NWYzOTc1OTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoxLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM0YTJiZWNmZjhhZmIzNGRiMjYwZGFiYzk2OTE1ZmZlY2ZkZTg0ODkyOTU0MWM2MTkzZGU2ZDE2NGMyMWU4ZGEifQ"
         }
       ]
     }

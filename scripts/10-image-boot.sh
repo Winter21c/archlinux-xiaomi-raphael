@@ -152,6 +152,28 @@ EOF
 # 保留上游 Debian 条目会让菜单里出现一个必然失败的选项, 删掉
 # (模板里叫 ubuntu.conf)
 
+# ---- 已知可用内核备份 (回退用) -------------------------------------------
+# 上面三个条目用的都是同一个 /linux.efi + 同一个 DTB: 内核或设备树一旦出问题,
+# 三个条目会一起起不来, 只能刷机。这里额外放一份**当前已验证可用**的
+# 内核 + initramfs + DTB 副本, 并在菜单里加一个独立条目 ——
+# 以后换内核/改设备树出问题时, 在 systemd-boot 菜单选 known-good 即可回退。
+cp -f "$STAGE/linux.efi" "$STAGE/linux-good.efi"
+cp -f "$STAGE/initramfs" "$STAGE/initramfs-good"
+if [ -f "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb" ]; then
+  cp -f "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb" \
+        "$STAGE/dtbs/qcom/raphael-redmi-k20pro-good.dtb"
+  DT_LINE_GOOD="devicetree /dtbs/qcom/raphael-redmi-k20pro-good.dtb"
+else
+  DT_LINE_GOOD="$DT_LINE"
+fi
+cat > "$STAGE/loader/entries/arch-good.conf" <<EOF
+title   Arch Linux ARM (raphael) - known-good (rollback)
+linux   /linux-good.efi
+initrd  /initramfs-good
+$DT_LINE_GOOD
+options $ROOTOPTS loglevel=4
+EOF
+
 # ---- 写入 FAT 镜像 --------------------------------------------------------
 log "写入 FAT 镜像"
 mtools_mkdir "$IMG" "::/loader"
@@ -177,6 +199,11 @@ mtools_copy "$IMG" "$STAGE/loader/loader.conf"               "::/loader/loader.c
 mtools_copy "$IMG" "$STAGE/loader/entries/arch.conf"         "::/loader/entries/arch.conf"
 mtools_copy "$IMG" "$STAGE/loader/entries/arch-direct.conf"  "::/loader/entries/arch-direct.conf"
 mtools_copy "$IMG" "$STAGE/loader/entries/arch-debug.conf"   "::/loader/entries/arch-debug.conf"
+mtools_copy "$IMG" "$STAGE/linux-good.efi"                   "::/linux-good.efi"
+mtools_copy "$IMG" "$STAGE/initramfs-good"                   "::/initramfs-good"
+mtools_copy "$IMG" "$STAGE/loader/entries/arch-good.conf"    "::/loader/entries/arch-good.conf"
+[ -f "$STAGE/dtbs/qcom/raphael-redmi-k20pro-good.dtb" ] && \
+  mtools_copy "$IMG" "$STAGE/dtbs/qcom/raphael-redmi-k20pro-good.dtb" "::/dtbs/qcom/raphael-redmi-k20pro-good.dtb"
 [ -f "$STAGE/dtbs/qcom/sm8150-xiaomi-raphael.dtb" ] && \
   mtools_copy "$IMG" "$STAGE/dtbs/qcom/sm8150-xiaomi-raphael.dtb" "::/dtbs/qcom/sm8150-xiaomi-raphael.dtb"
 [ -f "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb" ] && \
