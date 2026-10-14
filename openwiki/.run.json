@@ -8,8 +8,8 @@
   "languageChanged": true,
   "requiredRewritePages": [],
   "initialPages": [],
-  "sourceFingerprint": "sha256:d3ca416f36b5a0967074f4aefa78114ae58149cdb916d8459d0f4f278c343720",
-  "targetGitHead": "f8c127b7c5bdd59182100c5b0b9c7a0ea225ca3b",
+  "sourceFingerprint": "sha256:2214037edb726943462b5e9a19104ec3a45fe7f49f09b10eb9ff6638de492d07",
+  "targetGitHead": "366df5ae176f009e779ed8599a11212ad1efb1c6",
   "actor": {
     "producerActor": "openwiki/0.7.2",
     "metadataModel": "deepseek-flash"

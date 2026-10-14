@@ -316,3 +316,24 @@ DAPM 触发；打不开又可能和路由 mixer 未就位有关 —— 这次实
 下一步具体建议：录音时读 `wcd934x` 的寄存器（`/sys/kernel/debug/regmap/*/registers`
 或 codec 的 `codec_reg`），比对 ADC1/AMIC1/MIC BIAS 那几位的实际值 ——
 能直接判定是"寄存器没开"还是"开了但没信号"。
+
+
+### 5. 更正：耳机路由**不会**让播放卡住（那次是 PipeWire 状态残留）
+
+同一轮里先看到过一次"播放返回 124（卡住）+ 3 条报错"，当时怀疑是打开
+`SLIMBUS_0_RX` 路由造成的。随后做了对照实验，结论相反：
+
+| 条件 | 连测 3 次结果 |
+|:--|:--|
+| 路由 **off**（只有扬声器） | 3/3 退出码 0、0 报错、PCM RUNNING |
+| 路由 **on**（扬声器+耳机） | 3/3 退出码 0、0 报错、PCM RUNNING |
+
+两次都很干净。真正的原因是**我反复切换 profile（off/pro-audio/stereo-fallback）
+把 PipeWire 的状态搞坏了**，清掉 `~/.local/state/wireplumber` 重启用户服务后就恢复了。
+（另外还踩了一个自找的坑：静音测试用的 `/tmp/s.wav` 放在 tmpfs 里，重启后被清掉，
+`pw-play` 报 `failed to open audio file` 从而返回 1 —— 一度被误判成"扬声器坏了"。）
+
+所以耳机这条路由**保留**：`SLIMBUS_0_RX Audio Mixer MultiMedia1` 由 audio-init 和
+routing 脚本设置。另外观察到它在空闲时会被 DAPM 自动关掉、播放时自动拉起 ——
+这符合预期（`apr-service@8:routing` 就是 q6routing 组件，FE↔BE 由 DAPM 管理），
+userspace 那两条 cset 只是兜底。
