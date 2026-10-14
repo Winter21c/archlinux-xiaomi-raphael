@@ -547,6 +547,15 @@ cat > "$ROOT/etc/modprobe.d/raphael-audio.conf" <<'MEOF'
 # slim-ngd 要和 ADSP 做 QMI 握手, 握手窗口 ~1 秒; 抢跑就永久失败。
 # 禁止自动加载, 改由 raphael-audio-init.service 在 pd-mapper 就绪后手动加载。
 blacklist slim_qcom_ngd_ctrl
+
+# ★ 2026-10-15 真机定位(竞态): 声卡也必须延后加载。
+#   原来 snd_soc_sm8150 开机自动加载, 那时 SLIMbus codec(wcd934x) 还没枚举出来,
+#   qcom_snd_parse_of 会 EPROBE_DEFER; 重试耗尽后**永久失败** —— aplay -l 一个卡片
+#   都没有; 就算侥幸注册, 也只会保留 3 条链路(slimcap/slim-playback 被丢弃),
+#   麦克风/耳机之后永远不通(实测确认)。
+#   改由 raphael-audio-init.sh 等到 /sys/bus/slimbus/devices/217:250:1:0/driver
+#   出现后再 modprobe, 此时 5 条链路全部解析成功。
+blacklist snd_soc_sm8150
 MEOF
 cat > "$ROOT/usr/local/sbin/raphael-audio-init.sh" <<'AEOF'
 #!/bin/bash
@@ -566,7 +575,25 @@ done
 systemctl restart pd-mapper 2>/dev/null
 sleep 1
 lsmod | grep -q '^slim_qcom_ngd_ctrl' || modprobe slim_qcom_ngd_ctrl 2>/dev/null
+# ★ 等 SLIMbus codec(wcd934x) 就绪再加载声卡 —— 见 modprobe.d 里的说明。
+#   实测 codec 在 ~13s 就绪; 抢跑会让 slim 链路被永久丢弃。最多等 40 秒, 超时也加载
+#   (那样退化成只有扬声器的 3 链路版本, 至少还有声音)。
+i=0
+while [ $i -lt 80 ] && [ ! -e /sys/bus/slimbus/devices/217:250:1:0/driver ]; do
+  i=$((i+1)); sleep 0.5
+done
+[ $i -ge 80 ] && echo "raphael-audio: 等 codec 超时(40s), 仍加载声卡(将只有扬声器)"
 modprobe snd_soc_sm8150 2>/dev/null
+# codec 进卡后, 把耳机模拟通路拉起来(WCD9340 HPHL/HPHR)。不上电就打开
+# SLIMBUS_0_RX 路由会让播放**卡住**(实测), 上电后才正常。
+sleep 2
+for c in "SLIM RX0 MUX AIF1_PB" "SLIM RX1 MUX AIF1_PB" \
+         "RX INT1_1 MIX1 INP0 RX0" "RX INT2_1 MIX1 INP0 RX1" \
+         "COMP1 Switch 1" "COMP2 Switch 1" \
+         "RX INT1 DEM MUX CLSH_DSM_OUT" "RX INT2 DEM MUX CLSH_DSM_OUT"; do
+  amixer -c 0 cset "name='${c% *}'" "${c##* }" >/dev/null 2>&1
+done
+amixer -c 0 cset "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 1 >/dev/null 2>&1
 
 i=0; while [ $i -lt 40 ] && ! have_card; do i=$((i+1)); sleep 0.5; done
 have_card || { echo "raphael-audio: 无声卡"; exit 0; }
@@ -575,7 +602,16 @@ echo "raphael-audio: 声卡就绪"
 apply() {
   # MultiMedia1 就是 ALSA 的 hw:0,0, 也是裸 aplay 的默认设备; 不给它接后端就会报
   # "ASoC: no backend DAIs enabled for MultiMedia1" 而且一点声音都没有。
-  # 下面 SLIMBUS_0_RX 那条是历史遗留 (slim-*-dai-link 已从 DTB 删掉, 控件不存在),
+  # SLIMBUS_0_RX: 耳机(WCD9340)的通路。2026-10-15 起 DTB 里恢复了 slim 链路、
+#   codec 也进了声卡, 所以这条要开; 但**必须先保证 codec 的 HPH 通路已上电**,
+#   否则播放会卡住 —— 下面每次都会重新补 DAPM 设置(幂等)。
+for c in "SLIM RX0 MUX AIF1_PB" "SLIM RX1 MUX AIF1_PB" \
+         "RX INT1_1 MIX1 INP0 RX0" "RX INT2_1 MIX1 INP0 RX1" \
+         "COMP1 Switch 1" "COMP2 Switch 1" \
+         "RX INT1 DEM MUX CLSH_DSM_OUT" "RX INT2 DEM MUX CLSH_DSM_OUT"; do
+  amixer -c 0 cset "name='${c% *}'" "${c##* }" >/dev/null 2>&1
+done
+# 历史遗留说明(已过时, 保留备查): 从前 slim-*-dai-link 被删掉时这条控件不存在
   # 真正干活的是两条 QUAT_MI2S_RX (底部扬声器 TFA9874):
   #   MultiMedia1 -> QUAT_MI2S_RX  (aplay / 原生 ALSA, 即 hw:0,0)
   #   MultiMedia2 -> QUAT_MI2S_RX  (PipeWire 的 pro-output-1, KDE 走这条)

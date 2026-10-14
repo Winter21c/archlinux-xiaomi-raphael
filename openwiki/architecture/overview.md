@@ -18,6 +18,8 @@ verified:
 - 构建：`./build.sh`（`--from` / `--only` / `--list`），阶段脚本在 `scripts/`；[`STAGES`](../../build.sh#L26-L39) 里有 12 个阶段项（阶段号 `00`–`10`，含 `03b-ms91xx.sh`），凡需要 chroot 的阶段都用 `require_ns` 把自己重入 user namespace，所以默认**不需要 root**——唯二例外是还没有 rootfs 的 `00-fetch.sh` 与纯宿主交叉编译的 `03b-ms91xx.sh`。
 - 设备：`./scripts/11-flash.sh --flash` 把产物写进三个分区；之后所有调整都走 `/boot`（就是 cache 分区）或 SSH。
 
+本页只给全景与契约；逐步流程见 [构建流水线各阶段](../workflows/build-pipeline-stages.md)，成像细节见 [镜像打包与引导链](../workflows/image-packaging-and-boot-chain.md)，目录与入口用法见 [仓库结构与入口](repository-layout-and-entrypoints.md)。
+
 ## 产物与三个目标分区
 
 构建的最终产物只有三样，各自对应一个设备分区；刷机时 `dtbo` 分区会被擦除（这也是每台设备的蓝牙地址会丢的原因）。
@@ -88,7 +90,8 @@ flowchart TD
 - `bootaa64.efi` 用的是 **rootfs 内那份 systemd-boot**（与镜像里的 systemd 同版本），模板自带的厂商引导器被备份成 `/efi/boot/bootaa64-vendor.efi` 保留；模板里那个必然失败的上游条目（`ubuntu.conf`）被删掉。
 - 内核以 `linux.efi` 命名放在 FAT 根目录，**三个条目都带** `devicetree /dtbs/qcom/raphael-redmi-k20pro.dtb`，指向**打过补丁的设备树**（[10-image-boot.sh](../../scripts/10-image-boot.sh) 里对 `dtb/raphael-redmi-k20pro.dtb` 的描述：删掉会把整块声卡拖进 `EPROBE_DEFER` 的 SLIMbus dai-link、删掉会让 ASoC 注册失败的路由、补上 `bluetooth/local-bd-address`）。
 - 三个条目是**有意的容错设计**：`arch.conf` 正常启动；`arch-direct.conf` 不加载 initramfs、由内核直接挂根（UFS/btrfs/ext4 都内建），initramfs 出问题时的救命项；`arch-debug.conf` 给详细日志 + 单用户救援。
-- initramfs 是手工拼的而不是 mkinitcpio：静态 busybox + 少量模块（UFS/ext4 其实都已内建）+ 早期固件（Adreno 的 `a630_sqe.fw`/`a630_gmu.bin`/`a640_gmu.bin`、`a640_zap.mbn`、`ipa_fws.mbn`，外加 `regulatory.db`），挂根失败时给一个救援 shell。里面的 `lib -> usr/lib` 软链是必须的——内核 firmware loader 只认 `/lib/firmware`，少了它 GPU 会在没有 SQE 固件的情况下 probe，表现为开机/熄屏瞬间花屏。
+- initramfs 是手工拼的而不是 mkinitcpio：静态 busybox + 少量模块（UFS/ext4 其实都已内建）+ 早期固件（Adreno 的 `a630_sqe.fw`/`a630_gmu.bin`/`a640_gmu.bin`、`a640_zap.mbn`、`ipa_fws.mbn`），挂根失败时给一个救援 shell。里面的 `lib -> usr/lib` 软链是必须的——内核 firmware loader 只认 `/lib/firmware`，少了它 GPU 会在没有 SQE 固件的情况下 probe，表现为开机/熄屏瞬间花屏。
+- 引导参数里没有 `regulatory.db` 这条路：阶段 04 会**故意删掉** `wireless-regdb` 的两个文件（内核 `CONFIG_CFG80211_REQUIRE_SIGNED_REGDB=y`，而这个包的签名不被 vendor 内核信任），所以阶段 08 的"早期固件"拷贝循环根本找不到它们。无线管制域只能靠阶段 10 写进 `options` 的 `cfg80211.ieee80211_regdom=$WIFI_COUNTRY` 设置。
 
 ## 构建侧：四个阶段群
 
@@ -101,11 +104,32 @@ flowchart TD
 | 配置 | `06` `07` `08` | 系统基础配置（locale、fstab、用户、USB NCM、电源、zram、音频路由、各 `raphael-*` 单元）；桌面/会话配置（SDDM、字体、输入法）；手工组装 initramfs |
 | 成像 | `09` `10` | 造根文件系统镜像（含 sparse 版）；造 cache 分区 FAT32 引导镜像并注入蓝牙地址 |
 
-阶段 02 的做法决定了后面很多事情的形态：它**不用 chroot 跑 aarch64 程序**，而是让宿主 x86_64 的 pacman 以 `--arch aarch64` 直接装进 `$ROOT`，并一律 `--noscriptlet`；需要 aarch64 执行环境的后置步骤（`ldconfig`、`sysusers`、字体缓存、GSettings）再由 qemu 垫片显式补跑。因此**发行版的 preset / scriptlet 没有跑过**，所有 enable 动作（连用户级的 `pipewire.socket` / `wireplumber.service`）都必须由阶段脚本自己做——漏掉的症状是"系统里有声音选项但一个输出设备都没有"。
+阶段 02 的做法决定了后面很多事情的形态：它**不用 chroot 跑 aarch64 程序**，而是让宿主 x86_64 的 pacman 以 `--arch aarch64` 直接装进 `$ROOT`，并一律 `--noscriptlet`；装完列表后再用 `-Su --noscriptlet --ignore linux-firmware` 把整个 rootfs 对齐到仓库快照（否则 ALARM tarball 自带的旧包会和新装包形成"半升级"）；需要 aarch64 执行环境的后置步骤（`ldconfig`、`sysusers`、字体缓存、GSettings schema）再由 qemu 垫片显式补跑。因此**发行版的 preset / scriptlet 没有跑过**，所有 enable 动作（连用户级的 `pipewire.socket` / `wireplumber.service`）都必须由阶段脚本自己做——漏掉的症状是"系统里有声音选项但一个输出设备都没有"。
 
 阶段脚本共享 `scripts/lib.sh`：日志、`require_ns`（自举 user namespace）、`ns_mount`（bind 出 proc/dev）、qemu 垫片、mtools 包装、`rootfs_layout`、`write_root_fstab`、`enable_unit`/`mask_unit`、`normalize_ownership`、蓝牙地址注入。它是"构建期契约"的单一出处。
 
 ## 构建期与运行时的分界
+
+```mermaid
+flowchart LR
+  subgraph BUILD["构建期: 阶段 01-10 产出静态镜像"]
+    FILES["文件落地: rootfs 目录树, /etc/fstab, loader 条目, 单元文件"]
+    OFFLINE["离线启停: systemctl --root=/ enable 与 mask"]
+    IMGS["产物: boot-cache.img 与 rootfs 镜像"]
+    FILES --> IMGS
+    OFFLINE --> IMGS
+  end
+  subgraph RUN["设备运行时: systemd 随镜像发货"]
+    FIRST["首次开机一次性: growfs 扩容, pacman 密钥环, @swap 交换文件, 原厂蓝牙 NVM"]
+    LONG["常驻: rmtfs 与 tqftpserv, usb-ncm, 音频 profile 与 mixer 纠偏, snapper"]
+    LOGIN["graphical.target -> SDDM -> 会话"]
+    FIRST --> LONG
+    LONG --> LOGIN
+  end
+  IMGS --> FIRST
+```
+
+上图是两侧的分工：构建期只把静态文件与 enable 软链写进镜像，一次性的首启动动作与后来的"持续纠偏"都在设备侧。
 
 同一个功能往往一半在构建期、一半在运行时，这条分界是本仓库最容易看错的地方：
 
@@ -115,19 +139,21 @@ flowchart TD
 | 单元启停 | 离线 `systemctl --root=/ enable/mask`（chroot 内经 qemu，不需要 dbus） | systemd 按软链启动 |
 | 根扩容 | 写 `x-systemd.growfs` 到 fstab（`systemd-growfs@` 缺失时退回自建 `raphael-growfs.service`） | 首次开机把根撑满 userdata |
 | 首启动动作 | 只放脚本与条件（`ConditionPathExists`） | `raphael-firstboot.service` 初始化 pacman keyring（含 archlinuxcn）、`raphael-swapfile.service` 在 `@swap` 建 nocow 交换文件、`raphael-bt-firmware.service` 从 `bluetooth` 分区拷原厂 NVM |
-| 音频 | 写 `pro-audio` profile 与 WirePlumber 格式规则 | `raphael-audio-init.timer` 开机 12 秒后路由一次，`raphael-audio-routing.timer` 从 25 秒起每 20 秒重设 mixer（ACP 会把它们复位） |
-| qcom 用户态 | 交叉编译并 `enable_unit` `pd-mapper` / `rmtfs` / `tqftpserv` | 常驻，给 ADSP/CDSP 提供固件与电源域服务、给 MSS 提供 EFS |
+| 音频 | 精简 UCM（`HiFi.conf` 只留 TFA9874 扬声器通路，并复制到 4 个可能的声卡名目录）、WirePlumber 格式规则、`blacklist slim_qcom_ngd_ctrl` | `raphael-audio-init.timer` 开机 12 秒后重启 `pd-mapper`、手动 `modprobe` slim-ngd、把声卡从 `pro-audio` 切到 HiFi/立体声并写 Q6 mixer；`raphael-audio-routing.timer` 从 25 秒起每 20 秒重设 mixer，并把掉回 `pro-audio` 的 profile 再切回来 |
+| qcom 用户态 | 交叉编译并 `enable_unit` `rmtfs` / `tqftpserv`（以及 `pd-mapper`，见下方注意） | 常驻，给 ADSP/CDSP 提供固件与电源域服务、给 MSS 提供 EFS |
 | 网络 | 关掉并 mask `systemd-networkd`/`systemd-resolved`，启用 NetworkManager，装 USB NCM gadget 脚本 | `usb-ncm.service` 等 UDC 出现后绑 gadget，设备侧 `172.16.42.1` |
 | 桌面 | 写 `sddm.conf.d/10-raphael.conf`（会话、自动登录、合成器、主题）并 `set-default graphical.target` | SDDM 起登录界面 → 会话 |
 | 其它 | `fstrim.timer`、`raphael-snapper-setup.service`、`raphael-display-nopm.service`、非 KDE 时的 `raphael-power-key.service` | 各自在上线后执行 |
 
 几处"故意不启用/故意屏蔽"同属运行语义：`sleep`/`suspend`/`hibernate`/`hybrid-sleep` 被 mask（SM8150 只有 s2idle 且不稳定，用熄屏代替），`systemd-firstboot.service` 被 mask（交互式首启会卡住无人值守启动），`logind` 的 `HandlePowerKey` 设成 ignore 交给桌面或自研守护。
 
+注意 qcom 用户态里有一处**跨阶段的启停分歧**：`05-qcom.sh` 明确把用户态 `pd-mapper` 保持禁用（真机验证内核 `qcom_pd_mapper` 已覆盖必需的电源域映射），但随后运行的 `06-config.sh` 6b 段又把它 `enable` 回来，并写着"pd-mapper 必须开机自启"。因为 06 在 05 之后执行，镜像里最终是**启用**状态。要改 qcom 服务启停，两个阶段都得看，否则会被后一个阶段悄悄改回去。
+
 ## 不变量与失败语义
 
 这条流水线的设计核心是**让几种容易做出"开不了机镜像"的分歧在构建期就暴露**：
 
-- **布局三处一致**：`lib.sh:rootfs_layout()` 统一决定 `ext4` / `btrfs-subvol` / `btrfs-flat` 并缓存到 `work/rootfs-layout`；阶段 06 按它写 fstab，阶段 09 按它造镜像、在 loop 挂载失败回退到 flat 时**先重写 fstab 再 `mkfs -r`**，阶段 10 按它生成 `rootfstype=` 与 `rootflags=subvol=...`。三者不会各说各话。
+- **布局三处一致**：`lib.sh:rootfs_layout()` 统一决定 `ext4` / `btrfs-subvol` / `btrfs-flat` 并缓存到 `work/rootfs-layout`；阶段 06 按它写 fstab，阶段 09 按它造镜像、在 loop 挂载失败回退到 flat 时**先重写 fstab 再 `mkfs -r`**，阶段 10 按它生成 `rootfstype=` 与 `rootflags=subvol=...`。三者不会各说各话。fstab 的唯一生成点是 `lib.sh:write_root_fstab()`：根用 `UUID=`（不依赖分区标签），subvol 布局下另有 `/home`（`nofail`）与 `/swap`（`nodatacow,compress=no`）两行，`/boot` 用 `PARTLABEL=cache` 且带 `nofail`。
 - **UUID 同源**：root 的 UUID 由 `rootfs_uuid()` 生成并持久化在 `work/rootfs.uuid`，阶段 09 用它建文件系统、阶段 10 用它写 `root=UUID=`，所以引导参数必定指向真实文件系统。
 - **属主归一化**：成像前 `normalize_ownership()` 把整树 chown 回 `0:0`、恢复 setuid 清单、并断言 `/usr/bin/mount` 是 `0:0 4755`。非真 root（userns）构建时它只能告警并继续——产出的镜像里 setuid 程序会失效，`mount`/`sudo`/`sshd` 全挂。
 - **硬失败而非静默降级**：阶段 09 在灌镜像前检查 `*.wants/` 下是否还有 `systemd-networkd*`/`systemd-resolved*` 软链，有就 `die`（阶段 06 的 disable+mask 失效过一次，症状是每次开机多一个 failed 单元）；阶段 05 缺 `rmtfs`/`tqftpserv`/`libqrtr.so.1` 直接失败（否则会静默产出没 Wi-Fi/没声音的镜像）；阶段 02 末尾对关键程序做 qemu 实跑烟雾测试。
@@ -142,8 +168,8 @@ flowchart TD
 | 引导与内核 | 上游 `linux-xiaomi-raphael-uboot` 的 U-Boot；`GengWei1997/kernel-deb` 的 7.2 内核 deb；`dtb/raphael-redmi-k20pro.dtb` 的三处修改；`erase dtbo` 与蓝牙地址 | systemd-boot 的 `loader.conf` + `loader/entries/*.conf`；`root=`/`rootfstype=`/`rootflags=` 传参 |
 | 分区 | `boot`/`cache`/`userdata` 这套 Android 分区名，`cache` 当 `/boot` | FAT32 镜像用 mtools 无 root 读写；`mke2fs -d` / `mkfs.btrfs -r` |
 | 根文件系统 | —— | ALARM aarch64 rootfs tarball；`btrfs` + `@`/`@home`/`@swap` 子卷 + `compress=zstd:3`；`x-systemd.growfs` |
-| 软件来源 | 设备固件与 UCM 来自作者 deb；qcom 用户态仓库里没有，需自己交叉编译 | 宿主 pacman `--arch aarch64` 装 ALARM/archlinuxcn 包；`--noscriptlet` + qemu 补跑 |
-| 硬件服务 | `tqftpserv`/`pd-mapper`/`rmtfs`、`ath10k_core skip_otp=y`、蓝牙原厂 NVM、`pro-audio` + amixer 路由 + WirePlumber 格式规则、USB NCM gadget、显示控制器不 runtime-suspend | systemd 单元的 enable/mask、`tmpfiles.d`、`logind.conf.d`、`zram-generator`、`fstrim.timer` |
+| 软件来源 | 设备固件与 UCM 来自作者 deb；qcom 用户态仓库里没有，需自己交叉编译；`vendor/ms91xx` 的 USB 投屏驱动模块（阶段 03b）按本项目内核适配 | 宿主 pacman `--arch aarch64` 装 ALARM/archlinuxcn 包；`--noscriptlet` + qemu 补跑 |
+| 硬件服务 | `tqftpserv`/`rmtfs`、内核 `qcom_pd_mapper`（servreg 电源域映射）、`ath10k_core skip_otp=y`、蓝牙原厂 NVM、精简 UCM（HiFi）+ amixer 路由 + WirePlumber 格式规则、USB NCM gadget、显示控制器不 runtime-suspend | systemd 单元的 enable/mask、`tmpfiles.d`、`logind.conf.d`、`zram-generator`、`fstrim.timer` |
 | 桌面 | 触屏键盘选择与电源键策略按形态切换 | SDDM 会话机制（`/usr/share/wayland-sessions/*.desktop`、`[Autologin]`）、`wayland.target`/`graphical.target` |
 | 构建环境 | —— | user namespace 无 root 构建；qemu 垫片；`normalize_ownership`；CI 里的 privileged 容器 + loop 设备 |
 
@@ -151,7 +177,7 @@ flowchart TD
 
 ## 配置与扩展点
 
-- **`config/build.conf` 是唯一调参入口**：镜像大小、根文件系统类型、包列表与桌面、用户名/密码、自动登录、locale/时区、内核版本与上游 URL、无线管制域（不设就掉进"世界域"，很多 5GHz 信道被禁）。
+- **`config/build.conf` 是唯一调参入口**：镜像大小、根文件系统类型、包列表与桌面、用户名/密码、自动登录、locale/时区、内核版本与上游 URL、无线管制域（不设就掉进"世界域"，很多 5GHz 信道被禁；它只通过引导参数 `cfg80211.ieee80211_regdom` 生效，因为 `regulatory.db` 已被阶段 04 删掉）。
 - **私密值放 `config/local.conf`**（已 gitignore）：目前主要是 `BT_MAC`。CI 侧对应仓库 Secret 与 workflow 输入。
 - **加一个运行时单元**：在 06（系统级、与桌面无关）或 07（桌面相关）里写脚本 + unit，然后 `enable_unit` —— 它内部先试 `systemctl --root=/ enable`，失败再手工建 `*.wants` 软链，两条路都保证在无 dbus 的 chroot 里可用。
 - **加一个构建阶段**：写 `scripts/NN-name.sh`（`source lib.sh` + `require_ns`）并加进 `build.sh` 的 `STAGES` 数组；阶段号就是脚本名前缀。
@@ -166,3 +192,4 @@ flowchart TD
 - [镜像打包与引导链](../workflows/image-packaging-and-boot-chain.md) —— 阶段 09/10 的成像细节与 `fastboot` 流程。
 - [配置模型](../concepts/configuration-model.md) —— `build.conf` / 环境变量 / 派生标志。
 - [运行时服务清单](../runtime/service-inventory.md) —— 镜像里启用的单元与它们的关系。
+- [刷机与首次开机](../operations/flashing-and-first-boot.md) —— 刷机命令、首启动动作与恢复路径。

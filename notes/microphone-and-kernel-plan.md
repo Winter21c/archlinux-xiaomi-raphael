@@ -137,3 +137,77 @@ DAPM 路由** —— 这是内核/DTS 工作，不是配置工作。
 > * 验证：`ls /sys/kernel/debug/asoc/Raphael/`（看有没有 wcd934x-codec）、
 >   `arecord -l`、`arecord -D hw:0,0 ... /tmp/rec.wav` 后看峰值是否非零
 > * 回滚：把 `.safe` 拷回去 + `systemctl reboot`
+
+
+---
+
+## 2026-10-15 第二轮：竞态被修好，耳机通了，麦克风仍卡在 SLIMbus TX
+
+### 1. 真正的原因是**加载竞态**，不是 DTB 里该不该有那条链路
+
+前一轮我以为是"slimcap 链路让声卡卡住"，其实真正的机制是：
+
+```
+开机 -> snd_soc_sm8150 自动加载 (~5s) -> qcom_snd_parse_of 找 codec
+      -> codec(wcd934x) 要 ~13s 才枚举出来 -> EPROBE_DEFER -> 重试
+      -> 重试耗尽 -> 要么声卡**永久注册失败**(aplay -l 一个卡片都没有),
+         要么只保留 3 条链路(slimcap/slim-playback 被丢弃)
+```
+
+所以现象时好时坏(取决于 codec 那一次赶上没赶上)，而"删掉 slim 链路"只是**掩盖**
+了它 —— 代价是 codec 永远进不了声卡，麦克风/耳机彻底没戏。
+
+**修复**(`06-config.sh`，已真机验证)：把声卡也延后加载，和项目当年对 slim-ngd 的做法一样：
+
+```conf
+# /etc/modprobe.d/raphael-audio.conf
+blacklist slim_qcom_ngd_ctrl
+blacklist snd_soc_sm8150          # ★ 新增
+```
+```bash
+# raphael-audio-init.sh：等 codec 就绪再加载声卡
+i=0; while [ $i -lt 80 ] && [ ! -e /sys/bus/slimbus/devices/217:250:1:0/driver ]; do
+  i=$((i+1)); sleep 0.5
+done
+modprobe snd_soc_sm8150
+```
+
+结果：**`qcom_snd_parse_of OK: 5 links`** —— 5 条链路稳定全部解析成功，
+声卡组件里出现 `wcd934x-codec.1.auto`（1251 个控件），扬声器依旧正常(0 报错)。
+
+### 2. 3.5mm 耳机 —— **通了**
+
+耳机是 WCD9340 的 HPHL/HPHR 模拟通路，走 SLIMBUS_0_RX。要点两条：
+
+1. codec 必须进声卡（上面已解决）
+2. **打开 `SLIMBUS_0_RX Audio Mixer MultiMedia1` 之前，必须先把 codec 的 HPH 通路
+   上电**（`SLIM RX0/1 MUX` → `RX INT*_1 MIX1 INP0` → `COMP1/2 Switch` →
+   `RX INT* DEM MUX`）。不上电就开路由，播放会**卡住**（pw-play 超时 124），
+   因为 DSP 一直在等一个没上电的后端。
+
+上电后的实测：
+
+```
+HPHL = HPHL: On  in 1 out 1        ← 耳机左声道功放已上电
+HPHR = HPHR: On  in 1 out 1        ← 右声道
+静音播放: 退出码=0, 期间报错 0 条, 播放中 pcm0p: state RUNNING
+```
+
+这两步都写进了 `raphael-audio-init.sh` 和 `raphael-audio-routing.sh`（幂等，每 20 秒兜底）。
+
+### 3. 麦克风 —— 仍然不行，卡点精确到 SLIMbus 上行
+
+- 保留 slimcap 链路后 `arecord -D hw:0,0` 直接 **EINVAL**（采集会走到 SLIMBUS_0_TX
+  这个后端）；不保留该链路时能打开但**样本全零**。
+- dmesg 里的直接证据：`wcd934x-slim 217:250:1:0: TX timed out:MC:0x21,mt:0x2`
+  —— **SLIMbus 上行(TX)超时**，codec 的采集方向根本没起来，所以模拟前端不出信号。
+- 这与 §1.3 的判断一致（缺的是内核/固件侧的采集后端），现在是**可复现的精确卡点**：
+  要修得从 qcom slim-ngd / ADSP 的 TX 通道下手，属内核级工作。
+
+### 4. DTB 的最终选择
+
+用**内核作者 deb 里那份** `qcom/sm8150-xiaomi-raphael.dtb`（已替换 `dtb/`），
+它与项目原先"从 U-Boot 导出"的那份相比只有 46 行差异，其中
+**panel/dsi/touchscreen/backlight/mdss 零差异**（已逐项 diff 确认），
+其余差异是 U-Boot 自带的 serial-number/uefi-mmap/bootargs/内存 reg —— 内核走 EFI
+启动时内存由固件提供（`/sys/firmware/efi` 存在），实测多次启动正常。

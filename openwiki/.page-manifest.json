@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "pages": {
     "/openwiki/architecture/overview.md": {
-      "gitHead": "997149c63348c0ed7ee8beb86093c6e0e7524b05",
-      "sourceFingerprint": "sha256:b6d8cee18acb74464249c8257587a0d4a450afb4508a6a0ffeb8c651ed8b2ef8",
-      "pageVersion": "sha256:5bdc0f5505c010fd546526c50b494f2f8d4c3b46d2cb58ed77d0fcab1ba362ec",
+      "gitHead": "68d72b1899da7e430dd86bb8cd0d7a8d9fe77324",
+      "sourceFingerprint": "sha256:5a4eb02f9af02ff7155ebd8bbafb46ab507659adb6bbe15dae6b22af54a40520",
+      "pageVersion": "sha256:f2f666f1ac3c880d29aefafd550829c5174e1ad2a0a555eeeb67d592fa8fc1c5",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
@@ -16,25 +16,32 @@
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/rootless-build-runtime.md": {
-      "pageVersion": "sha256:355781d9633311de3d0fa1da94e4a8e31d3b1ea5e581c50822bf9e638506cc73",
+      "gitHead": "68d72b1899da7e430dd86bb8cd0d7a8d9fe77324",
+      "sourceFingerprint": "sha256:5a4eb02f9af02ff7155ebd8bbafb46ab507659adb6bbe15dae6b22af54a40520",
+      "pageVersion": "sha256:dd2cf4e5504e51f52b4d319914686b29fb23fe2e1c07ab02f03f87189c20e321",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+    },
+    "/openwiki/concepts/configuration-model.md": {
       "gitHead": "997149c63348c0ed7ee8beb86093c6e0e7524b05",
-      "sourceFingerprint": "sha256:b6d8cee18acb74464249c8257587a0d4a450afb4508a6a0ffeb8c651ed8b2ef8"
+      "sourceFingerprint": "sha256:b6d8cee18acb74464249c8257587a0d4a450afb4508a6a0ffeb8c651ed8b2ef8",
+      "pageVersion": "sha256:cc6cc169da54e075bf01b44847a43ff6c9347b712b879dcc9b1f0c282e0466af",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/concepts/failure-modes-and-invariants.md": {
-      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
-      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445",
-      "pageVersion": "sha256:88e8c2e52dc6e4efb0f8969c4851f8e51f8a8a8d5950f6104a14fd0e7a00fa7d",
+      "gitHead": "68d72b1899da7e430dd86bb8cd0d7a8d9fe77324",
+      "sourceFingerprint": "sha256:5a4eb02f9af02ff7155ebd8bbafb46ab507659adb6bbe15dae6b22af54a40520",
+      "pageVersion": "sha256:59416fd2167218c7d4fdef014046a380221bb7d8218169aa423ce4b30794fc00",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/concepts/rootfs-layout-and-fstab.md": {
-      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
-      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445",
-      "pageVersion": "sha256:beab27175417b696bc35816f0fb104a9d6e89e74e7bac5c611ef2f5f9614603d",
+      "pageVersion": "sha256:53e1b564aea47920a437194cf406a8682fe345d3db11bde2830b6a14fb272ae0",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
+      "gitHead": "68d72b1899da7e430dd86bb8cd0d7a8d9fe77324",
+      "sourceFingerprint": "sha256:5a4eb02f9af02ff7155ebd8bbafb46ab507659adb6bbe15dae6b22af54a40520"
     }
   }
 }

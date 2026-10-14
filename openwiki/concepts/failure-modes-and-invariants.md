@@ -1,8 +1,11 @@
 ---
 type: concept
 title: 失败模式、不变量与静默退化陷阱
-description: 这套构建里"一碰就炸"与"能刷但残废"两类风险的集中说明：每条不变量为什么存在、谁在守（die 还是 warn）、拿掉后会静默退化成什么，以及文档口径与代码现状不一致的几处。
+description: 这套构建里"一碰就炸"与"能刷但残废"两类风险的集中说明：每条不变量为什么存在、谁在守（die 还是 warn）、拿掉后会静默退化成什么，以及文档口径与代码现状不一致的几处（固件自检只 warn、非真 root 属主降级、pd-mapper/qrtr-lookup 不在硬失败集合、PKGS_IME 有形态分支）。
 tags: [failure-modes, invariants, guardrails, silent-degradation, build-gates, troubleshooting]
+verified:
+  - by: openwiki/0.7.2
+    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 失败模式、不变量与静默退化陷阱
@@ -22,7 +25,7 @@ tags: [failure-modes, invariants, guardrails, silent-degradation, build-gates, t
 
 ## 1. 硬失败闸门一览
 
-产物出厂前依次经过这些闸门；只有最后一条（属主归一化）在"非真 root 构建"时会降级为告警。
+产物出厂前依次经过这些闸门；绝大多数直接 `die` 中止阶段，但现状下有三处仍然会放行（§2 逐个说明）：固件自检只 `warn`、非真 root 时属主归一化降级为 `warn`、阶段 05 的硬失败集合不含 `pd-mapper` 与 `qrtr-lookup`。
 
 | 闸门 | 位置 | 守的不变量 | 触发后 |
 |:--|:--|:--|:--|
@@ -44,28 +47,32 @@ flowchart TD
   B -->|否| X["die 拒绝产出"]
   B -->|是| C["关键程序烟雾测试 qemu 实跑"]
   C -->|库或符号加载失败| X
-  C -->|通过| D["阶段 05 qcom 用户态"]
-  D --> E{"rmtfs tqftpserv libqrtr.so.1 齐?"}
-  E -->|否| X
-  E -->|是| F["阶段 06 系统配置"]
+  C -->|通过| D["阶段 04 固件与 UCM"]
+  D --> D2{"固件自检 FAIL 大于 0?"}
+  D2 -->|是| W1["warn 后继续 固件可能缺失"]
+  D2 -->|否| E["阶段 05 qcom 用户态"]
+  W1 --> E
+  E --> E2{"rmtfs tqftpserv libqrtr.so.1 齐?"}
+  E2 -->|否| X
+  E2 -->|是| F["阶段 06 系统配置"]
   F --> G["阶段 08 initramfs"]
   G --> H["阶段 09 灌镜像前检查"]
   H --> I{"有 networkd 残留软链?"}
   I -->|有| X
   I -->|无| J{"真 root 属主归一化?"}
-  J -->|非真 root| W["warn 后继续 属主未修复"]
+  J -->|非真 root| W2["warn 后继续 属主未修复"]
   J -->|真 root| K["产出镜像"]
-  W --> K
+  W2 --> K
   K --> L["CI 校验 sha256sum 与 mdir 清单"]
 ```
 
-上图：产物出厂前的硬失败闸门；唯一的降级分支是非真 root 构建时的属主归一化。
+上图：产物出厂前的闸门链，以及两条"warn 后照样出厂"的降级分支（阶段 04 固件自检、非真 root 属主归一化）。阶段 05 内部 `pd-mapper` / `qrtr-lookup` 缺失也只 warn，但它不改变主链走向（§2.3）。
 
 阶段之间的传播规则很简单：每个阶段脚本都 `set -euo pipefail`，`build.sh` 逐阶段 `bash scripts/<阶段> | tee logs/build.log`，任一阶段非零退出就整体中止（[`build.sh`](../../build.sh)）。因此**闸门只在"阶段真的跑到"时生效**——`--from` / `--only` 跳过某阶段时，该阶段的检查也一并被跳过，这是增量调试的固有代价。
 
 ## 2. 文档口径 vs 代码现状
 
-这一节只列**文档把某件事说成保证、而代码实际上只告警**的地方。修这些地方的正确方向是**把告警补成硬失败**（或明确写清楚它是可选项），绝不是反过来把硬失败降级成告警。
+这一节只列**文档或脚本注释把某件事说成保证、而代码实际上只告警**的地方（§2.6 顺带说明一处"看起来矛盾、其实是分工"的情况，§2.7 则是刻意保留的告警）。修这些地方的正确方向是**把告警补成硬失败**（或明确写清楚它是可选项），绝不是反过来把硬失败降级成告警。
 
 ### 2.1 属主与 setuid：文档说"断言"，非真 root 下只 warn
 
@@ -79,27 +86,36 @@ flowchart TD
 `04-firmware.sh` 的自检会逐条检查设备专属固件（`adsp.mbn` / `cdsp.mbn` / `modem.mbn` / `a640_zap.mbn` / WCN3990 `firmware-5.bin.zst` / `qca/crnv21.bin.zst` …）以及"同名未压缩抢先文件"是否已删除，计数器 `FAIL` 累加后**只**走 `warn "固件自检有 N 项异常"`（[`scripts/04-firmware.sh`](../../scripts/04-firmware.sh)）。同文件里固件包安装/卸载失败同样只 warn。
 后果：缺固件（或缺 `linux-firmware-atheros` 提供的 `crbtfw21.tlv`）的镜像会照常出厂，表现为 Wi-Fi 扫不到 AP、蓝牙 `Invalid Index`、调制解调器起不来。这与 §1 里其他闸门的严格程度不一致——属于"文档把固件当必需、代码只当参考"的缺口。
 
-### 2.3 pd-mapper 的启用归属：05 说禁用，06 又无条件启用
+### 2.3 阶段 05 的硬失败集合：`pd-mapper` 与 `qrtr-lookup` 不在里面
+
+`05-qcom.sh` 的产物校验只把 `rmtfs` / `tqftpserv`（进 `MISSING` 数组）与 `libqrtr.so.1` 当成硬失败；`pd-mapper` 与 `qrtr-lookup` 缺失只在日志里留一行"未生成"（[`scripts/05-qcom.sh`](../../scripts/05-qcom.sh)）。
+
+这个划分本身有依据（内核 `qcom_pd_mapper` 覆盖必需电源域，见 §3.3），但要记住两点：
+
+- **"没报错"不等于这两个程序不重要**：`pd-mapper` 缺失时是否真的残废，取决于同一次启动里内核模块给出的电源域够不够用。`05-qcom.sh` 的注释说内核已覆盖 adsp/cdsp/mpss，而 `06-config.sh` 的 §6b 注释说用户态 `pd-mapper` 必须开机自启（否则 SLIMbus 握手超时、WCD9340 不出现、完全没声音）——**在音频这条路径上两处口径相反**，这与 §2.4 的启用归属矛盾是同一处证据链的两个面。
+- **改校验列表前先确认内核那一侧**：把 `pd-mapper` 加进硬失败集合，等于断言"镜像里没有这个二进制就不能出厂"；这个断言只有在确认内核 `qcom_pd_mapper` 不再提供音频/调制解调器所需的电源域时才成立（§3.3）。
+
+### 2.4 pd-mapper 的启用归属：05 说禁用，06 又无条件启用
 
 - `05-qcom.sh` 编译出用户态 `pd-mapper` 后**明确** `disable` 它、删掉 `*.wants` 软链，理由是"真机验证内核 `qcom_pd_mapper` 已覆盖 adsp/cdsp/mpss 等必需电源域"；[`HANDOVER.md`](../../HANDOVER.md) §4.4 也写"`pd-mapper` 用户态**默认禁用**"。
 - 但 `06-config.sh` 的 §6b 段理由完全相反（"pd-mapper 必须开机自启"），并 `for u in pd-mapper.service rmtfs.service tqftpserv.service` 逐个 `enable_unit`。阶段顺序是 05 → 06，且 05 只删软链不删单元文件，所以**全量构建出来的镜像里 `pd-mapper.service` 是 enabled**。
 - 这是两处注释互相矛盾的典型：改这里之前先确认镜像的真实状态（`systemctl --root=/ is-enabled pd-mapper.service`），别只读注释。它也不会造成功能损坏（两个提供者同时在场），但它决定了"内核模块与用户态谁负责 servreg"这条边界在文档里写不清楚。
 
-### 2.4 输入法：文档的"不装 fcitx5"只对手机形态成立
+### 2.5 输入法：文档的"不装 fcitx5"只对手机形态成立
 
 [`HANDOVER.md`](../../HANDOVER.md) §5.5 的结论是"不要装 fcitx5……所以 `config/build.conf` 的 `PKGS_IME` 是空的、`07-desktop.sh` 也不再写 fcitx5/Rime 的任何配置"。
 实际代码：`PKGS_IME` 只在**手机形态**为空，选 `plasma-desktop` 时会被填成 `fcitx5 fcitx5-rime fcitx5-qt fcitx5-gtk fcitx5-configtool`（[`config/build.conf`](../../config/build.conf)），并且 `07-desktop.sh` 的 13.8b/13.11 段会写 fcitx5 配置、把 KWin 虚拟键盘留空。规则本身没变（**一个形态只能有一个输入法来源**，见 §3.10），变的是这条规则有分支，而文档只描述了手机那支。
 
-### 2.5 同一件事在构建期 warn、在刷机期 die
+### 2.6 同一件事在构建期 warn、在刷机期 die
 
 蓝牙地址的两种失败语义**不是**矛盾，而是分工：
 
 - 构建期（`10-image-boot.sh`）：没给地址、格式不对、设备树里没有 `bluetooth` 节点、缺 `dtb/raphael-redmi-k20pro.dtb` —— 一律只 `warn`，并明确写出"该镜像蓝牙不可用"。因为地址是**每台设备唯一**的，公开镜像本来就不该带（[`HANDOVER.md`](../../HANDOVER.md) §3.3）。
 - 刷机期（`11-flash.sh --bt-mac`、`bt-mac.sh`）：格式错或注入失败直接 `die`（[`scripts/11-flash.sh`](../../scripts/11-flash.sh)）。
 
-也就是说"蓝牙不可用"是一份**合法产物**的合法状态；把它当构建错误会把公开镜像这条路堵死。真正不能降级的告警是那些"缺了就残废、又不该由用户补"的东西（§2.1–§2.3）。
+也就是说"蓝牙不可用"是一份**合法产物**的合法状态；把它当构建错误会把公开镜像这条路堵死。真正不能降级的告警是那些"缺了就残废、又不该由用户补"的东西（§2.1–§2.4）。
 
-### 2.6 有意的"只告警"分支
+### 2.7 有意的"只告警"分支
 
 以下几处降级是刻意的，改它们之前要理解动机：
 
@@ -147,7 +163,7 @@ flowchart TD
 
 **陷阱的形态**：编出 `libqrtr.so.1` 后**必须**在 `$STAGE` 里建 `libqrtr.so` 软链，因为 `-lqrtr` 只认 `libqrtr.so` / `libqrtr.a`。本地构建时 rootfs 里往往还留着上次装好的 `/usr/lib/libqrtr.so`，clang 的 sysroot 搜索路径会兜住，**所以在本地永远看不出问题**；CI 是全新 rootfs → `ld.lld: error: unable to find library -lqrtr` → `qrtr-lookup / qrtr-cfg / rmtfs / pd-mapper / tqftpserv` 全部链接失败。这段历史里脚本只 `warn`，于是静默产出了没有 Wi-Fi、没有声音的镜像（[`README.md`](../../README.md) §8.13）。
 
-现在：软链照建（[`scripts/05-qcom.sh`](../../scripts/05-qcom.sh)），产物校验改成**硬失败**——缺 `rmtfs` / `tqftpserv` / `libqrtr.so.1` 直接 `die`。注意校验列表里 `pd-mapper` 与 `qrtr-lookup` **不在**硬失败集合内（只 warn），因为内核 `qcom_pd_mapper` 已经覆盖必需电源域。
+现在：软链照建（[`scripts/05-qcom.sh`](../../scripts/05-qcom.sh)），产物校验改成**硬失败**——缺 `rmtfs` / `tqftpserv` / `libqrtr.so.1` 直接 `die`。注意校验列表里 `pd-mapper` 与 `qrtr-lookup` **不在**硬失败集合内（只 warn），这条边界与它的代价见 §2.3。
 
 同阶段还有两个时序不变量：
 
@@ -159,6 +175,8 @@ flowchart TD
 **为什么存在**：作者内核 `# CONFIG_SECURITY_LANDLOCK is not set`，而 pacman 7.1 默认用 Landlock 沙箱下载，于是设备上 `pacman -Sy` 直接失败（`switching to sandbox user 'alpm' failed`）——"什么软件都装不了"（[`README.md`](../../README.md) §8.7）。
 
 不变量：**构建机的 pacman 配置和镜像里目标系统的 `/etc/pacman.conf` 必须都写 `DisableSandboxFilesystem` + `DisableSandboxSyscalls`**（[`scripts/02-pacman.sh`](../../scripts/02-pacman.sh)）。只改一边会出现"构建能过、用户装不了软件"（或反过来）的错位。这不是可选的优化项，删掉它等于把"镜像到手后无法安装任何软件"这个坑留给用户。
+
+审计这条不变量时要看**最终镜像**里的 `/etc/pacman.conf`，而不是只看 02 阶段那段 `sed`：同一份文件在构建期还有别的写入者（阶段 07 的 KDE 形态会打开 `[multilib]`，阶段 02 还会插 `IgnorePkg = linux-firmware`，见 §3.7）。
 
 ### 3.5 rootfs 布局 / fstab / 引导参数三者一致
 
@@ -196,7 +214,8 @@ flowchart TD
 
 1. **同名未压缩文件会抢先**：内核固件加载器优先尝试无后缀文件名，所以设备专属固件是 `.zst` 时，必须删掉通用固件里的同名未压缩文件，否则 Wi-Fi/蓝牙会加载到通用版本（板级校准不匹配 → 控制器上报全零 BD_ADDR → 内核立刻关掉蓝牙）。阶段 04 的第 3 步按 `.zst` 清单逐个 `rm` 抢先文件，自检里的 `check_absent` 就是在守这条（[`scripts/04-firmware.sh`](../../scripts/04-firmware.sh)）。注意这也解释了为什么 `PKGS_FIRMWARE` **不含** `linux-firmware-atheros`（它的未压缩 WCN3990 固件会覆盖设备专属那份），以及为什么原厂蓝牙 NVM 要靠 `raphael-bt-firmware.service` 从 `bluetooth` 分区回填。
 2. **`regulatory.db` 是被故意删掉的**：内核 `CONFIG_CFG80211_REQUIRE_SIGNED_REGDB=y`，`wireless-regdb` 包的签名密钥不被这个内核信任，加载必然失败，所以阶段 04 主动 `rm -f` 它，退化成 world 域。dmesg 里 `Direct firmware load for regulatory.db failed` 是**预期输出**，不要"修"。
-   一个未被贯彻的收尾：`IgnorePkg = wireless-regdb` 只写在**构建用**的 pacman 配置里，镜像里目标系统的 `/etc/pacman.conf` 没有这一项（[`scripts/02-pacman.sh`](../../scripts/02-pacman.sh)），而 [`notes/porting-checklist.md`](../../notes/porting-checklist.md) §12.6 的建议是连 `IgnorePkg` 一起移植。后果有限（文件装回来也只是重现上面那行 dmesg），但"设备上 `pacman -Syu` 会改变一个被刻意手工处理过的文件"这件事值得记住。
+   一个未被贯彻的收尾：`IgnorePkg` 在两份 pacman 配置里的内容**不一样**。构建用配置（`$WORK/pacman-build.conf`）写的是 `IgnorePkg = wireless-regdb`；镜像里目标系统的 `/etc/pacman.conf` 只被写入 `IgnorePkg = linux-firmware`（而且只在原本没有任何 `IgnorePkg` 行时才插入），`wireless-regdb` **不在**其中（[`scripts/02-pacman.sh`](../../scripts/02-pacman.sh)），而 [`notes/porting-checklist.md`](../../notes/porting-checklist.md) §12.6 的建议是连 `IgnorePkg` 一起移植。
+   两个后果并不对称：设备上 `pacman -Syu` 不会把发行版的 `linux-firmware` 元包（连带几 GB 无关固件）拉回来，但**会**把被刻意删掉的 `regulatory.db` 装回来——文件装回来只是重现上面那行 dmesg（代价有限），真正值得记住的是"设备上的一次 `pacman -Syu` 会改变一个被刻意手工处理过的文件"。
 
 固件自检本身只 warn（§2.2），所以**不要**把它当作出厂门禁。
 
@@ -226,7 +245,7 @@ flowchart TD
 1. `~/.config/kwinrc` 的 `[Wayland] InputMethod[$e]=/usr/share/applications/org.kde.plasma.keyboard.desktop`（**只写这一个键**，不要同时写 `VirtualKeyboardEnabled`/`VirtualKeyboardMode`）；
 2. **只有合成器** `kwin_wayland` 通过 systemd user drop-in 拿到 `QT_IM_MODULES=qtvirtualkeyboard`（复数）；
 3. plasma-keyboard 自己的 `Exec=env -u QT_IM_MODULES plasma-keyboard`；
-4. `/etc/environment` 里**不得**出现任何 `QT_IM_*`（阶段 06 只写 `EDITOR/VISUAL`）。
+4. `/etc/environment` 里**不得**出现任何 `QT_IM_*`（阶段 06 只写 `EDITOR/VISUAL`；只有桌面形态才写单数 `QT_IM_MODULE=fcitx` 那四个变量，见下文形态分支）。
 
 ```mermaid
 flowchart LR
@@ -300,7 +319,7 @@ flowchart LR
 | 蓝牙没有控制器 / `btmgmt` 报 `Invalid Index` | DT 缺 `local-bd-address`（或地址字节序写反）＋ 通用 NVM 不匹配 | §3.11、§3.7 | [`README.md`](../../README.md) §8.9、[`HANDOVER.md`](../../HANDOVER.md) §5.7 |
 | `systemctl reboot` 卡在 `Fail to set watchdog hardware timeout` | PM8150 不支持 10 分钟看门狗超时 | §3.9 | [`README.md`](../../README.md) §8.2、[`HANDOVER.md`](../../HANDOVER.md) §5.6 |
 | 屏幕键盘弹得出来但字打不进去 / 关不掉 | 输入法变量作用域错了，或有两个输入法来源 | §3.10 | [`HANDOVER.md`](../../HANDOVER.md) §5.5、[`README.md`](../../README.md) §8.16 |
-| 登录界面闪一下回到登录界面（Phosh） | atomic 提交 / 用户服务看不到 `WAYLAND_DISPLAY` / layer-shell 校验 | §2.6 | [`README.md`](../../README.md) §8.17、[`HANDOVER.md`](../../HANDOVER.md) §5.10 |
+| 登录界面闪一下回到登录界面（Phosh） | atomic 提交 / 用户服务看不到 `WAYLAND_DISPLAY` / layer-shell 校验 | §2.7 | [`README.md`](../../README.md) §8.17、[`HANDOVER.md`](../../HANDOVER.md) §5.10 |
 | 每次开机多一个 failed 单元（`systemd-networkd-wait-online`） | networkd/resolved 的 `*.wants` 软链残留在镜像里 | §3.8 | [`HANDOVER.md`](../../HANDOVER.md) §2.2 阶段 09、[`README.md`](../../README.md) §8.16 |
 
 ## 5. 改这里的守则
@@ -310,4 +329,5 @@ flowchart LR
 3. **改一个不变量，同时改它的所有落点**：fstab 有 06/09 两个写入点；布局有 `lib.sh` / `06` / `09` / `10` 四处读取；属主有 `01` / `09` / `06` 三层；输入法变量有环境、drop-in、desktop 文件、kwinrc 四处。
 4. **把检查放在"数据离开构建树"之前**：09 的残留检查、`normalize_ownership()` 都在 `mkfs`/`cp -a` 之前，这类位置才拦得住"已经把坏东西写进镜像"。
 5. **每次改完都问一句"这条在干净 rootfs / 真 root / 有 loop 的环境里会怎样"**，然后跑一次 CI（§3.13）。
-6. 每条不变量的**验证入口**统一放在[验证与烟雾测试](../testing/verification-and-smoke-tests.md)；排障动作放在[排障手册](../operations/troubleshooting-playbook.md)。本页只描述"为什么"和"退化后会怎样"。
+6. **不要只读注释或文档判断现状**：`pd-mapper` 的启用归属（§2.3、§2.4）、镜像里 `IgnorePkg` 到底写了什么（§3.7）、`/etc/pacman.conf` 的最终内容（§3.4）都是"注释与产物不一致"的实例。改这些之前先在产物或 `--root=` 下实测（`systemctl --root=/ is-enabled`、直接 `grep` 镜像里的配置文件），验证命令见[验证与烟雾测试](../testing/verification-and-smoke-tests.md)。
+7. 每条不变量的**验证入口**统一放在[验证与烟雾测试](../testing/verification-and-smoke-tests.md)；排障动作放在[排障手册](../operations/troubleshooting-playbook.md)。本页只描述"为什么"和"退化后会怎样"。

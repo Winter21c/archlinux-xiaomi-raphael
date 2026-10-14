@@ -204,7 +204,7 @@ GitHub 仓库设 Secret `IMAGE_BT_MAC`（云端构建）。
 | GPU (Adreno 640, freedreno) | ✅ | `qcom/a640_gmu.bin` + `qcom/a630_sqe.fw`（A640 与 A630 共用 SQE） |
 | Wi-Fi (WCN3990, ath10k_snoc) | ✅ | 网卡名是 **`wld0`**（systemd 改名，不是 wlan0）。需要 `skip_otp=y` + **tqftpserv 必须运行**（见 §8.1）；真机已实测扫描到 AP |
 | 蓝牙 (WCN3998, hci_qca) | ✅ | **已修好**：真机实测扫描到 9 个设备、可 `powered`。需要**修补设备树**（补 `local-bd-address`）+ **机器自带的原厂 NVM**（`bluetooth` 分区里的 `crnv21.bin`），两者缺一不可 —— 详见 §8.9 |
-| 音频输出 (ADSP + TFA9874) | ✅ | 声卡 `card 0: Raphael`，Sink = `output:stereo-fallback`（`hw:0,1` → QUAT_MI2S → **底部扬声器 TFA9874**）。**不要用 `pro-audio` profile**：那个 profile 打开 PCM 的参数会让 Q6 AFE 使能失败（-110/-22）→ 完全没声音；见下面 2026-10-15 的根因说明。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
+| 音频输出 (ADSP + TFA9874) | ✅ | **扬声器 + 3.5mm 耳机都可用**。Sink = `output:stereo-fallback` （`hw:0,0/0,1` → QUAT_MI2S → 底部扬声器；`SLIMBUS_0_RX` → WCD9340 → 耳机）。**不要用 `pro-audio` profile**（会让 Q6 AFE 使能失败 → 完全没声音）。关键前提：声卡必须**延后加载**（`blacklist snd_soc_sm8150` + 等 codec 就绪），否则 slim 链路被丢弃、codec 进不了声卡。见 §8.10 与 notes/microphone-and-kernel-plan.md |
 
 > **2026-10-15 修好了**（真机验证：`Active Profile=output:stereo-fallback`、
 > 静音播放 `PCM state=RUNNING`、`AFE 报错 0 条`）。根因是**声卡名变化**：
