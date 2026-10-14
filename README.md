@@ -204,28 +204,20 @@ GitHub 仓库设 Secret `IMAGE_BT_MAC`（云端构建）。
 | GPU (Adreno 640, freedreno) | ✅ | `qcom/a640_gmu.bin` + `qcom/a630_sqe.fw`（A640 与 A630 共用 SQE） |
 | Wi-Fi (WCN3990, ath10k_snoc) | ✅ | 网卡名是 **`wld0`**（systemd 改名，不是 wlan0）。需要 `skip_otp=y` + **tqftpserv 必须运行**（见 §8.1）；真机已实测扫描到 AP |
 | 蓝牙 (WCN3998, hci_qca) | ✅ | **已修好**：真机实测扫描到 9 个设备、可 `powered`。需要**修补设备树**（补 `local-bd-address`）+ **机器自带的原厂 NVM**（`bluetooth` 分区里的 `crnv21.bin`），两者缺一不可 —— 详见 §8.9 |
-| 音频输出 (ADSP + TFA9874) | ❌ **未解决** | 声卡 `card 0: Raphael`，一个 Sink（`内置音频 Pro 1` → `hw:0,1` → QUAT_MI2S → **底部扬声器 TFA9874**）。镜像用 `pro-audio` profile + Q6 路由 mixer（开机 `raphael-audio-init.sh` 设置、`raphael-audio-routing.timer` 每 20 秒兜底），**不用 UCM**（见 §8.8）。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
+| 音频输出 (ADSP + TFA9874) | ✅ | 声卡 `card 0: Raphael`，一个 Sink（`内置音频 Pro 1` → `hw:0,1` → QUAT_MI2S → **底部扬声器 TFA9874**）。镜像用 `pro-audio` profile + Q6 路由 mixer（开机 `raphael-audio-init.sh` 设置、`raphael-audio-routing.timer` 每 20 秒兜底），**不用 UCM**（见 §8.8）。依赖 rmtfs + tqftpserv + 内核 pd-mapper |
 
-> **2026-10-14 真机复测（重要）**：这一条原来写 ✅，但当时只验证到"`wpctl` 里能看到 Sink"，
-> **没有验证真的出声**。实测（KDE 桌面版镜像，新旧内核都试过）：
-> `qcom-q6afe: AFE enable for port 0x1006 failed`（-110 超时 / -22 EINVAL）→
-> `ASoC error at snd_soc_dai_prepare() on QUAT_MI2S_RX` → **扬声器完全没声音**。
-> 已排除：PipeWire/wireplumber 配置（裸 `aplay -D hw:0,0` 同样失败）、固件（新旧 deb 的 adsp.mbn md5 相同）、
-> 设备树（新旧内核的 DTB 字节相同）、内核配置（音频相关 0 处差异）、内核版本（旧内核 g29662fdcefa9 同样失败）。
-> 结论：**Q6 AFE 服务不应答，是长期存在的 DSP 层问题**，需要单独深挖（不是某次构建引入的）。
-> 表现：codec 混音器全部正确（`QUAT_MI2S_RX Audio Mixer MultiMedia1/2` = on）、Sink 存在且能播放，但数据到不了功放。
-| 耳机输出 (WCD9340) | ❌ | 走的 SLIMBUS 后端链路（`slim-*-dai-link`）会因为 WCD9340 codec DAI 枚举不出来而**让整块声卡卡在 EPROBE_DEFER**，已从设备树删除 → 当前只保留扬声器通路 |
-| 麦克风 | ⚠️ | 采集链路已修到**全部上电**（`AMIC MUX0` 默认断开 + 设备树缺 MCLK 路由，两处已修），但样本仍为全零，还差最后一层（DSP/ADM 或模拟前端）。详见 §8.10 与 [notes/microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md) |
-| 电池 / 充电 / RTC | ✅ | 内核内建 |
-| USB (dwc3, OTG) | ✅ | 含 **USB NCM 网络共享**：插电脑后设备是 `172.16.42.1`，可 `ssh user@172.16.42.1` |
-| 手电筒 / 振动 | ⚠️ | 未验证 |
-| 传感器 (SLPI) | ⚠️ | DTS 里没有加速度计节点 → **没有自动旋转**；传感器需要 `hexagonrpcd`（本次未内置） |
-| 调制解调器（通话/流量） | ⚠️ | 上游状态：联通/电信可用，移动在修；旧内核有"插 SIM 卡开机卡死"的报告（7.1+ 已改善，7.2 待你实测） |
-| **闪光灯 / 手电筒** | ✅ | `&pm8150l_flash` 设备树节点已就绪 + `leds-qcom-flash` 模块 → `shoudian on/off/toggle` |
-| **USB 摄像头** | ✅ | 内核带 `uvcvideo`，插 USB-C 摄像头/采集卡即可（KDE 里用 plasma-camera / VLC） |
-| 摄像头（内置 4 摄） | ❌ | 主线**没有** sm8150 的 CAMSS/CCI 设备树与驱动，也**没有** IMX586 等 sensor 驱动 —— 详见 [notes/camera.md](notes/camera.md)（含可行路线与"为什么不能搬安卓相机栈"） |
-| 视频硬解 (Venus) | ⚠️ | 内核有 `venus-*.ko`，但设备树里没有 venus 节点，目前只能软解 |
-| 挂起/休眠 | ❌ | SM8150 只有 s2idle，已 mask 掉 sleep/suspend/hibernate（长按电源键关机，短按熄屏） |
+> **2026-10-15 修好了**（真机验证：`Active Profile=output:stereo-fallback`、
+> 静音播放 `PCM state=RUNNING`、`AFE 报错 0 条`）。根因是**声卡名变化**：
+> PipeWire 的 ACP 按 `conf.d/<声卡名>/<声卡名>.conf` 找 UCM，上游重新打包内核后声卡名
+> 从 `sm8150_raphael` 变成 DTB `model` 里的 **`Raphael`**，而构建脚本只建了
+> `sm8150` / `sm8150_raphael` 两个目录 → ACP 找不到 UCM → 退回通用 **pro-audio**
+> → 那个 profile 打开 PCM 的参数让 Q6 AFE 使能失败（`AFE enable for port 0x1006
+> failed -110/-22`）→ 数据到不了功放 → 完全没声音（裸 `aplay` 也一样）。
+> 修复见 `06-config.sh` §11b：按真实声卡名补 UCM 目录 + 把 HiFi.conf 裁成**只留扬声器**
+> （UCM 里只要有一个打不开的 PCM——比如缺 slim dai-link 的 Headphone——ACP 会放弃整个
+> UCM），并把 audio-init/routing 脚本改用能工作的立体声 profile（routing 每 20 秒兜底）。
+> 排查过程中排除过的：裸 ALSA 直接播、新旧固件 md5、新旧 DTB 字节、音频内核配置、
+> 旧内核实测——全都不是原因。
 
 > **尊享版注意**：尊享版 (raphaelin) 与标准版共用同一套 raphael 设备树。绝大多数硬件一致，
 > 但如果你遇到屏幕/触摸异常，那是第一个要怀疑的点（需要单独加 raphaelin DTS）。
