@@ -42,15 +42,33 @@ md5（每次重新构建后会变，刷前用 `md5sum out/*.img` 重新取即可
 
 ```bash
 # 电脑侧（手机走 USB 网卡 172.16.42.1，用户 winter / 密码 031210）
-ssh winter@172.16.42.1 'echo 031210 | sudo -S bash -s' <<'EOF'
-echo "桌面单元: $(runuser -u winter -- env XDG_RUNTIME_DIR=/run/user/1000 \
-  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus \
-  systemctl --user is-active plasma-kwin_wayland plasma-plasmashell plasma-ksmserver plasma-kded6)"
-echo "链路: $(dmesg | grep -oE 'OK: [0-9]+ links' | tail -1)  卡片: $(aplay -l | grep -c '^card')"
+# 说明: SSH 登录用户**就是 winter**, 所以 systemctl --user 直接可用;
+#       dmesg / aplay 需要 root, 先 sudo -v 缓存一次凭据。
+ssh winter@172.16.42.1 'sudo -v && bash -s' <<'EOF'
+echo "桌面单元: $(systemctl --user is-active plasma-kwin_wayland plasma-plasmashell \
+  plasma-ksmserver plasma-kded6 | tr '\n' ' ')"
+echo "链路: $(sudo dmesg | grep -oE 'OK: [0-9]+ links' | tail -1)  卡片: $(sudo aplay -l | grep -c '^card')"
 echo "失败单元: 系统 $(systemctl --failed --no-legend | wc -l)"
-echo "GPU fault: $(dmesg | grep -c 'source=CCU')  屏幕: $(cat /sys/class/drm/card0-DSI-1/dpms)"
+echo "GPU fault: $(sudo dmesg | grep -c 'source=CCU')  屏幕: $(cat /sys/class/drm/card0-DSI-1/dpms)"
+echo "面板: $(qdbus6 org.kde.plasmashell /PlasmaShell \
+  org.kde.PlasmaShell.evaluateScript 'print(panels().length)')"
 EOF
 ```
+
+**实测输出参考**（本机刚跑的结果）：
+
+```
+桌面单元: active active active active
+链路: OK: 5 links  卡片: 2
+失败单元: 系统 0
+GPU fault: 138  屏幕: Off        ← 138 是**累计**值; 息屏时**速率**为 0/分钟
+面板: 1
+```
+
+> `GPU fault` 计数会随屏幕活动累积（dmesg 环形缓冲回绕后甚至会下降），
+> 所以**不要拿累计值做对比** —— 要看速率就用设备上装的
+> `raphael-health.timer`（每 5 分钟记一次"最近 5 分钟增量"，见
+> `/var/log/raphael-health.log`）。
 
 期望值：桌面 4 个单元都是 `active`、链路 `OK: 5 links`、卡片 2、失败单元 0。
 （GPU fault 数量会随屏幕活动变化，**息屏时应为 0/分钟**，见 README 的花屏一节。）
