@@ -837,12 +837,22 @@ ENVEOF
     printf 'FD_MESA_DEBUG=noubwc\n' > "$H/.config/environment.d/10-raphael-gpu.conf"
     # ★ 真机实测 environment.d 到不了 KDE 的合成器(kwin 的 environ 里没有),
     #   KDE 的 plasma-*.service 是自己的一套 systemd 用户单元, 用 drop-in 才稳。
-    install -d "$H/.config/systemd/user/plasma-kwin_wayland.service.d"
-    printf '[Service]\nEnvironment=FD_MESA_DEBUG=noubwc\n' \
-      > "$H/.config/systemd/user/plasma-kwin_wayland.service.d/10-raphael-gpu.conf"
-    install -d "$H/.config/systemd/user/plasma-plasmashell.service.d"
-    printf '[Service]\nEnvironment=FD_MESA_DEBUG=noubwc\n' \
-      > "$H/.config/systemd/user/plasma-plasmashell.service.d/10-raphael-gpu.conf"
+    # 这两个 drop-in 同时做两件事:
+    #  1) FD_MESA_DEBUG=noubwc (GPU 稳定性)
+    #  2) 显式给上显示环境。真机踩到(2026-10-15): 插投屏器/DRM 热插拔会让
+    #     plasma-plasmashell.service **重启**, 而重启后的单元环境里没有
+    #     WAYLAND_DISPLAY -> Qt 选不到平台插件 -> plasmashell 直接 abort
+    #     ("no Qt platform plugin could be initialized"), 桌面只剩壁纸。
+    #     显式写死后, 单元重启实测能够正常拉起(pid 变化、环境正确、单元 active)。
+    for _unit in plasma-kwin_wayland plasma-plasmashell; do
+      install -d "$H/.config/systemd/user/$_unit.service.d"
+      cat > "$H/.config/systemd/user/$_unit.service.d/10-raphael-gpu.conf" <<'UNITEOF'
+[Service]
+Environment=FD_MESA_DEBUG=noubwc
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=DISPLAY=:1
+UNITEOF
+    done
   fi
   if [ -f "$ROOT/etc/environment" ]; then
     grep -q '^FD_MESA_DEBUG=' "$ROOT/etc/environment" || \
