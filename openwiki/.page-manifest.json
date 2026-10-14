@@ -9,18 +9,25 @@
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/build-pipeline-stages.md": {
+      "gitHead": "5844d17a3969e6a166737c7418bdc2e86b195b39",
+      "sourceFingerprint": "sha256:99c9fdc8ae664bbcdb343d0af86c3fa148aa0c8636f3326eaeead0cae8f80799",
       "pageVersion": "sha256:16abe50556e75bb10c04980d8a8f0be62df3771f5a3375e2f13ef02f3bd36dd0",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+    },
+    "/openwiki/architecture/firmware-kernel-and-module-delivery.md": {
+      "gitHead": "5844d17a3969e6a166737c7418bdc2e86b195b39",
+      "sourceFingerprint": "sha256:99c9fdc8ae664bbcdb343d0af86c3fa148aa0c8636f3326eaeead0cae8f80799",
+      "pageVersion": "sha256:9a648ffcd0dced2b81ad120e16fe16e4596c20b399c58c6eb72963a6e1b3ceca",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+    },
+    "/openwiki/architecture/overview.md": {
+      "pageVersion": "sha256:85eb3a8f6644eff62347070f95e31b1bbff19023f92c973ecbe2bfac4685cde6",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
       "gitHead": "5844d17a3969e6a166737c7418bdc2e86b195b39",
       "sourceFingerprint": "sha256:99c9fdc8ae664bbcdb343d0af86c3fa148aa0c8636f3326eaeead0cae8f80799"
-    },
-    "/openwiki/architecture/overview.md": {
-      "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
-      "sourceFingerprint": "sha256:f9400dc874fca24dfaff7e7d3d9a7836685747a187c8c245f59af8c98a4b02b7",
-      "pageVersion": "sha256:e63ac7db652776e43e1237fd50f9e61452da5770764f63fac5c5811d4463f77e",
-      "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/repository-layout-and-entrypoints.md": {
       "gitHead": "dfd7371331d125a736b06b5b86ed50b75c090385",
