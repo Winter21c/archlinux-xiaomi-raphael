@@ -839,22 +839,26 @@ ENVEOF
     printf 'FD_MESA_DEBUG=noubwc\n' > "$H/.config/environment.d/10-raphael-gpu.conf"
     # ★ 真机实测 environment.d 到不了 KDE 的合成器(kwin 的 environ 里没有),
     #   KDE 的 plasma-*.service 是自己的一套 systemd 用户单元, 用 drop-in 才稳。
-    # 这两个 drop-in 同时做两件事:
-    #  1) FD_MESA_DEBUG=noubwc (GPU 稳定性)
-    #  2) 显式给上显示环境。真机踩到(2026-10-15): 插投屏器/DRM 热插拔会让
-    #     plasma-plasmashell.service **重启**, 而重启后的单元环境里没有
-    #     WAYLAND_DISPLAY -> Qt 选不到平台插件 -> plasmashell 直接 abort
-    #     ("no Qt platform plugin could be initialized"), 桌面只剩壁纸。
-    #     显式写死后, 单元重启实测能够正常拉起(pid 变化、环境正确、单元 active)。
-    for _unit in plasma-kwin_wayland plasma-plasmashell; do
-      install -d "$H/.config/systemd/user/$_unit.service.d"
-      cat > "$H/.config/systemd/user/$_unit.service.d/10-raphael-gpu.conf" <<'UNITEOF'
+    # GPU 稳定性 + 会话重启健壮性。真机踩过的两个坑(2026-10-15):
+    #  1) FD_MESA_DEBUG 只写 /etc/environment 到不了 KDE 合成器, 所以放 unit drop-in。
+    #  2) plasmashell 的 unit **重启**时环境里会没有 WAYLAND_DISPLAY -> Qt 选不到
+    #     平台插件 -> 直接 abort("no Qt platform plugin could be initialized")。
+    #     显式给上即可(实测重启后能正常拉起、环境正确、unit active)。
+    # ⚠️ **千万不要**给 plasma-kwin_wayland 设 WAYLAND_DISPLAY!
+    #     实测: KWin 自己负责创建 wayland socket, 预设这个名字会让会话起不来 ——
+    #     表现为 plasma-kcminit.service 卡在 activating(超时失败), 随后 kded6/
+    #     ksmserver/plasmashell 全部等不到, 桌面只剩 SDDM。KWin 只留 FD_MESA_DEBUG。
+    install -d "$H/.config/systemd/user/plasma-kwin_wayland.service.d"
+    cat > "$H/.config/systemd/user/plasma-kwin_wayland.service.d/10-raphael-gpu.conf" <<'KWINEOF'
+[Service]
+Environment=FD_MESA_DEBUG=noubwc
+KWINEOF
+    install -d "$H/.config/systemd/user/plasma-plasmashell.service.d"
+    cat > "$H/.config/systemd/user/plasma-plasmashell.service.d/10-raphael-gpu.conf" <<'PSHELLEOF'
 [Service]
 Environment=FD_MESA_DEBUG=noubwc
 Environment=WAYLAND_DISPLAY=wayland-0
-Environment=DISPLAY=:1
-UNITEOF
-    done
+PSHELLEOF
   fi
   if [ -f "$ROOT/etc/environment" ]; then
     grep -q '^FD_MESA_DEBUG=' "$ROOT/etc/environment" || \
