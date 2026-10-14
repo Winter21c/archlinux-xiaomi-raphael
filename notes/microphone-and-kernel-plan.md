@@ -211,3 +211,64 @@ HPHR = HPHR: On  in 1 out 1        ← 右声道
 **panel/dsi/touchscreen/backlight/mdss 零差异**（已逐项 diff 确认），
 其余差异是 U-Boot 自带的 serial-number/uefi-mmap/bootargs/内存 reg —— 内核走 EFI
 启动时内存由固件提供（`/sys/firmware/efi` 存在），实测多次启动正常。
+
+
+---
+
+## 2026-10-15 第三轮：把采集链路彻底钉死（能开、能录、恒为 0）
+
+这一轮把麦克风问题从"打不开"推进到"打得很开，但样本恒为 0"，卡点范围缩到最后一环。
+
+### 1. 采集其实是能打开的 —— 关键是**顺序**
+
+`arecord -D hw:0,0` 报 EINVAL 有两个前提条件，缺一个就打不开：
+
+```bash
+# 必须先把采集路由设上, 再打开 PCM
+amixer -c 0 cset "name='AMIC MUX0'" 1                        # 选 ADC1（主麦 AMIC1）
+amixer -c 0 cset "name='CDC_IF TX0 MUX'" DEC0
+amixer -c 0 cset "name='AIF1_CAP Mixer SLIM TX0'" 1
+amixer -c 0 cset "name='MultiMedia1 Mixer SLIMBUS_0_TX'" 1    # FE→BE
+arecord -D hw:0,0 -f S16_LE -r 48000 -c 2 -d 2 /tmp/rec.wav   # 此时能开
+```
+
+顺序对了以后 `arecord` 稳定打印 `Recording WAVE ... 48000 Hz Stereo`，
+文件大小正常（192044 字节 / 2 秒 ✓）。**但解码出来是精确的全零**：峰值 0、
+非零样本 0、RMS 0.0 —— 连本底噪声都没有。
+
+### 2. 项目 §8.10 的"MCLK 依赖"方案：控件全都存在，但补上之后仍然是 0
+
+先确认过 DAPM 部件名**全部存在**（`wcd934x-codec.1.auto` 共 247 个部件）：
+
+```
+MCLK 存在 ✓   AIF1 CAP ✓   AIF2 CAP ✓   AIF3 CAP ✓   SLIM TX0 ✓
+MIC BIAS3/4 ✓  AMIC1 ✓  AMIC3 ✓  RX_BIAS ✓   （ANA_BIAS 不存在）
+```
+
+于是按 §8.10 的方案把采集侧时钟依赖写进设备树的 `audio-routing`：
+
+```bash
+fdtput -t s <dtb> /sound audio-routing \
+  "RX_BIAS" "MCLK" "AMIC1" "MIC BIAS3" "AMIC3" "MIC BIAS4" \
+  "AIF1 CAP" "MCLK" "AIF2 CAP" "MCLK" "AIF3 CAP" "MCLK" "SLIM TX0" "MCLK"
+```
+
+结果：声卡照常注册（**5 条链路全在**，没有 "Failed to add route"），
+`MCLK` 部件也确实出现在 DAPM 图里（`widget-type supply`，`out "static" "SLIM TX0"`），
+**但录音仍然是全零**。也就是说 §8.10 当年补的时钟依赖不是最后那一环。
+
+> 设备树最终**保留了内核作者 deb 里那份**（不加这几条额外路由）：加了没有可见收益，
+> 而它曾一度让我误判"播放坏了"（真实原因是我的测试文件放在 /tmp，重启后被 tmpfs
+> 清掉了，`pw-play` 报的是 `failed to open audio file`，不是音频问题）。
+
+### 3. 现在的确切结论
+
+* 采集链路的**软件部分全部就位**：FE(q6asm MultiMedia1) → `MultiMedia1 Mixer
+  SLIMBUS_0_TX` → BE(q6afe SLIMBUS_0_TX) → SLIMbus → codec TX0 → DEC0 → ADC1 → AMIC1，
+  每一段的控件都能设上、DAPM 图里都有对应部件。
+* 采样**精确为 0**（不是噪声、不是静音段），说明数据从模拟前端出来就是 0 ——
+  卡在 **codec 的模拟前端（AMIC/MIC BIAS/ADC）或 ADSP 的 ADM/采集会话**这一环。
+* 下一步值得试的方向（留给后续）：
+  1. 用 `debugfs` 看采集时 ADM/ASM 的会话是否真的建立（`q6asm` 的 `MM_UL1` 端口）；
+  2. 对照 Android 的 `mixer_paths.xml` 检查 AMIC 的 micbias 电压/时钟档位；
+  3. 抓 codec 寄存器（`wcd934x` 的 ADC/AMIC 寄存器）看在录音时有没有被真正打开。
