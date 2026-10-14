@@ -828,11 +828,19 @@ ENVEOF
   #   (*** gpu fault: source=CCU type=TRANSLATION, 出问题的进程是 plasmashell/kwin_wayland),
   #   驱动会 hangcheck 复位 -> 表现为花屏/闪一下。禁掉 UBWC(带宽压缩) 是社区常见的缓解手段。
   #   用 noubwc 只影响 freedreno, 代价是少量显存带宽效率。
+  #  ★ 落点很重要: 只写 /etc/environment 到不了 KDE 的 wayland 会话 (真机实测
+  #    kwin_wayland / plasmashell 的 /proc/<pid>/environ 里没有这个变量)。
+  #    systemd 用户会话会读 ~/.config/environment.d/*.conf, KDE 的
+  #    plasma-*.service 都由它启动, 所以放这里才真正生效。
+  if [ -d "$H" ]; then
+    install -d "$H/.config/environment.d"
+    printf 'FD_MESA_DEBUG=noubwc\n' > "$H/.config/environment.d/10-raphael-gpu.conf"
+  fi
   if [ -f "$ROOT/etc/environment" ]; then
     grep -q '^FD_MESA_DEBUG=' "$ROOT/etc/environment" || \
       echo 'FD_MESA_DEBUG=noubwc' >> "$ROOT/etc/environment"
-    log "  GPU: 已设 FD_MESA_DEBUG=noubwc (缓解 a6xx CCU 翻译失败/花屏)"
   fi
+  log "  GPU: 已设 FD_MESA_DEBUG=noubwc (environment.d + /etc/environment)"
   # 3) 默认输入法 = Rime (中州韵): 写进 skel + 现有用户家目录
   RIME_PROFILE='[Groups/0]
 Name=Default
