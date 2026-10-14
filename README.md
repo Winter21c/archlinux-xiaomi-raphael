@@ -1038,13 +1038,26 @@ SPDX-License-Identifier: GPL-2.0-only
 
 ### 已修掉的坑（都是真机踩出来的）
 
-**KDE 单元重启会因缺显示环境而崩**：插投屏器（或任何 DRM 热插拔）会让
-`plasma-plasmashell.service` 重启，而重启后的单元环境里没有 `WAYLAND_DISPLAY`
-→ Qt 选不到平台插件 → `plasmashell` 直接 abort（`no Qt platform plugin could be
-initialized`），桌面只剩壁纸。修复：给 `plasma-plasmashell` / `plasma-kwin_wayland`
-的 systemd 用户单元 drop-in 里显式写上 `WAYLAND_DISPLAY=wayland-0` 与 `DISPLAY=:1`
-（顺带把 `FD_MESA_DEBUG=noubwc` 也放这里）。修复后实测：单元重启能正常拉起、
-环境正确、`active`，不再出现该报错。
+**KDE 会话的两个环境坑（都踩过，都已修）**
+
+1. *plasmashell 单元重启会因缺 `WAYLAND_DISPLAY` 而崩*：插投屏器（或任何 DRM 热插拔）
+   会让 `plasma-plasmashell.service` 重启，重启后的单元环境里没有 `WAYLAND_DISPLAY`
+   → Qt 选不到平台插件 → `plasmashell` 直接 abort（`no Qt platform plugin could be
+   initialized`），桌面只剩壁纸。修复：给 `plasma-plasmashell` 的 systemd 用户单元
+   drop-in 里写上 `WAYLAND_DISPLAY=wayland-0`。修复后实测：重启能正常拉起（unit
+   `active`、D-Bus 名 `org.kde.plasmashell` 注册、34 个线程）。
+2. **⚠️ 但绝不能给 `plasma-kwin_wayland` 设 `WAYLAND_DISPLAY`**：KWin 自己负责创建
+   wayland socket，预设这个名字会让**整个会话起不来** —— 表现为
+   `plasma-kcminit.service` 卡在 `activating`（90 秒后 timeout failed），随后
+   `kded6`/`ksmserver`/`plasmashell` 全部等不到依赖，桌面停在 SDDM。
+   KWin 的 drop-in 只放 `FD_MESA_DEBUG=noubwc`（GPU 稳定性）。
+3. 另外把 SDDM 的 `Relogin` 打开（`true`）：会话退出/崩溃后**自动重新登录**，
+   手机场景不该把人丢在登录界面。
+
+**声卡加载竞态 / 播放卡死 / 音量被复位**：见下面各节与
+[notes/microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md)。
+其中音频侧的最终形态是：`blacklist snd_soc_sm8150` + 等 codec 就绪后带重试加载；
+routing 脚本**只在值不同时**才写 mixer，并按耳机插入状态二选一。
 
 **声卡加载竞态 / 播放卡死 / 音量被复位**：见下面各节与
 [notes/microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md)。
