@@ -92,6 +92,13 @@ rm -rf "$MO"; mkdir -p "$MO"
 make -C "$KDIR" M="$SRC" MO="$MO" ARCH=arm64 LLVM=1 CONFIG_DRM_MS91XX=m modules \
      >"$WORK/ms91xx-build.log" 2>&1 || true
 KO="$MO/drm/usbdisp_drm.ko"
+
+# 开机自动加载: 插上 MS91xx 投屏器即可用, 不用手动 modprobe
+#   (没有硬件时加载也无害, 只注册一个 DRM 驱动)
+mkdir -p "$ROOT/etc/modules-load.d"
+echo usbdisp_drm > "$ROOT/etc/modules-load.d/raphael-msdisp.conf"
+log "  投屏: 已配置开机自动加载 usbdisp_drm"
+
 if [ ! -f "$KO" ]; then
   tail -25 "$WORK/ms91xx-build.log" >&2 || true
   die "模块没编出来 (完整日志: $WORK/ms91xx-build.log)"

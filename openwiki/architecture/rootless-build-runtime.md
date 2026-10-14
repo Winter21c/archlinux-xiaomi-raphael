@@ -1,8 +1,11 @@
 ---
 type: architecture
 title: 无 root 构建运行时：userns、qemu 垫片、mtools 与阶段契约
-description: 这套流水线默认以普通用户在 user namespace 里构建：require_ns() 把阶段脚本重入到 unshare 出来的 mount/pid/user namespace，ns_mount()/ns_dev_mount() 用自 bind 与单文件 bind 拼出 chroot，setup_qemu_shim() 加 gq() 在没有 binfmt_misc 的情况下显式执行 aarch64 程序，setup_mtools() 不挂载就读写 FAT 镜像，enable_unit()/mask_unit() 在离线 chroot 里手工建单元软链。本页说明每个 helper 补偿了哪一条内核能力限制、真 root 构建（sudo）会改变哪些行为，以及这些 helper 的失败语义与自检入口。
+description: 这套构建默认以普通用户在 user namespace 里以「假 root」完成：require_ns() 把阶段脚本重入 unshare 出来的命名空间，ns_mount() 用自 bind 与单文件 bind 拼出 chroot，gq() 在没有 binfmt_misc 时显式执行 aarch64 程序，setup_mtools() 不挂载就读写 FAT 镜像，enable_unit()/mask_unit() 在离线 chroot 里手工建单元软链。本页说明每个 helper 补偿了哪条内核能力限制、它们的调用顺序与失败语义，以及真 root（sudo）与 userns 两种模式的行为差异。
 tags: [architecture, build-runtime, user-namespace, qemu-user, mtools, systemd-units, rootless-build]
+verified:
+  - by: openwiki/0.7.2
+    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 无 root 构建运行时：userns、qemu 垫片、mtools 与阶段契约
@@ -92,6 +95,8 @@ flowchart TD
 2. `mount --bind "$ROOT" "$ROOT"` 把目标树自身变成挂载点——后续 `find "$ROOT" -xdev` 不会从宿主根一路走下去，收尾时也才能整体 detach。
 3. 检查 `/proc` 是否已挂载；没有就 `warn`（提示"请确认通过 `unshare --mount-proc` 启动"）。
 4. 从宿主拷 `/etc/resolv.conf` 进 rootfs（`gq /usr/bin/flatpak remote-add …` 这类需要 DNS 的步骤依赖它；阶段 09 会在成像前用兜底 DNS 覆盖掉它，避免把宿主的 tailscale 之类地址带进镜像）。
+
+需要留意的是，`ns_mount()` **只**解决 `/proc` 与那几个设备节点：`$ROOT/sys`（以及 `run`、`tmp`）永远只是一只空目录，sysfs 从不挂进 chroot。因此 `gq` 派发的命令必须能在没有 sysfs 的情况下跑完——现有用法（`ldconfig`、`systemctl --root=/`、`fc-cache`、`locale-gen`、`dconf update`、`chsh`）都是单次执行、只读写文件系统的工具。要在 chroot 里加一条读 `/sys` 的步骤，得先改 `ns_mount()`。
 
 `ns_dev_mount()` 只处理 `null` `zero` `full` `random` `urandom` `tty` 这几个设备节点：目标不存在时先用 `: >` 造一个普通文件占位（bind 的目标必须存在），然后**单文件** `mount --bind`，已经是挂载点就跳过，失败也不致命（`|| true`）。不整体 bind `/dev` 的原因写在源码注释里：它们是被宿主标成 locked 的挂载点。
 
@@ -189,6 +194,18 @@ sequenceDiagram
 `normalize_ownership()` 在真 root 下的完整动作是：先记下所有 setuid/setgid 文件及其完整模式（`chown` 可能清掉 s 位）→ `find … -xdev` 整树 `chown -h 0:0` → 家目录还给目标用户 → 逐条恢复 setuid 位 → 恢复硬编码的少数"组属主"文件（`/usr/bin/wall:tty`、`/usr/lib/dbus-daemon-launch-helper:dbus`、`/var/log/journal:systemd-journal` 等）→ **断言**关键程序是 `0:0` 且带 s 位，不符合就 `die`（这样的镜像刷进去开不了机）。
 
 一个操作层面的推论：**CI 跑的是真 root 模式**。GitHub Actions 的容器步骤以 root 执行（工作流里 `pacman -Syu` 直接调用、没有 `sudo`），`--privileged` 又放开了 `unshare`/`mount` 的 seccomp 限制，所以 `require_ns` 走 `id -u = 0` 分支、`normalize_ownership()` 真的生效、阶段 09 的 loop 探测也能成功（工作流甚至专门 `mknod` 补 `/dev/loop*` 并自检一次 loop 挂载）。换句话说，"userns 下 setuid 失效"这类坑是**本地默认构建**才会遇到的，CI 不会替你暴露。
+
+### 运行前提与调试开关
+
+这套机制不是"任何环境都能跑"，它依赖宿主两项前提（不满足时第一个阶段就失败）：
+
+- **非特权 user namespace 可用**：宿主内核得允许 `unshare -r -m -p -f`（`user.max_user_namespaces` 不为 0）。
+- **`unshare` / `mount` 不被 seccomp 拦掉**：默认配置的容器（Docker 默认 seccomp profile）就会拦，此时连 `require_ns` 都进不去——CI 之所以用 `--privileged` 的 `archlinux` 容器，原因就在这里。
+
+与布局有关的两个开关值得记住：
+
+- `RAPHAEL_FORCE_LAYOUT=ext4|btrfs-subvol|btrfs-flat` 直接跳过 `rootfs_layout()` 的探测，用来复现某条成像路径。
+- 探测结果缓存在 `work/rootfs-layout`：阶段 06（fstab）、09（成像）与 10（引导参数）读的都是这同一份（`write_root_fstab` 的默认参数也取自它）；只有删掉这个文件才会重新探测，阶段 09 的 loop 回退也会把它改写。
 
 ## 不变量与失败语义
 

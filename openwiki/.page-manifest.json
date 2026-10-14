@@ -2,25 +2,25 @@
   "schemaVersion": 1,
   "pages": {
     "/openwiki/architecture/overview.md": {
+      "gitHead": "997149c63348c0ed7ee8beb86093c6e0e7524b05",
+      "sourceFingerprint": "sha256:b6d8cee18acb74464249c8257587a0d4a450afb4508a6a0ffeb8c651ed8b2ef8",
       "pageVersion": "sha256:5bdc0f5505c010fd546526c50b494f2f8d4c3b46d2cb58ed77d0fcab1ba362ec",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
-      "gitHead": "997149c63348c0ed7ee8beb86093c6e0e7524b05",
-      "sourceFingerprint": "sha256:b6d8cee18acb74464249c8257587a0d4a450afb4508a6a0ffeb8c651ed8b2ef8"
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/repository-layout-and-entrypoints.md": {
-      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
-      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445",
-      "pageVersion": "sha256:1e621640125130b1b1dadbb66063302454ad4aef9acaba47e39bf5347206a2ee",
+      "gitHead": "997149c63348c0ed7ee8beb86093c6e0e7524b05",
+      "sourceFingerprint": "sha256:b6d8cee18acb74464249c8257587a0d4a450afb4508a6a0ffeb8c651ed8b2ef8",
+      "pageVersion": "sha256:a39436951fcc9a82f0bb5e7a8896793b5d259f4f8b231b314cf2aee2339cb7af",
       "completedBy": "openwiki/0.7.2",
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/rootless-build-runtime.md": {
-      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
-      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445",
-      "pageVersion": "sha256:c1b0441a6ac558d87e0ea5a33f9ebcc8c25dd1b4700f460869402244697ad5f6",
+      "pageVersion": "sha256:355781d9633311de3d0fa1da94e4a8e31d3b1ea5e581c50822bf9e638506cc73",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
+      "gitHead": "997149c63348c0ed7ee8beb86093c6e0e7524b05",
+      "sourceFingerprint": "sha256:b6d8cee18acb74464249c8257587a0d4a450afb4508a6a0ffeb8c651ed8b2ef8"
     },
     "/openwiki/concepts/failure-modes-and-invariants.md": {
       "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",

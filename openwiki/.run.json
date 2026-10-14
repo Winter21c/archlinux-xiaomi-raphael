@@ -74,7 +74,8 @@
           "强调「ddl/ work/ out/ 不是源码」这一点，并说明判断依据在 .gitignore 与生成目录清单。",
           "指出 pkgs/ 的 6 个 PKGBUILD 只是参考配方，流水线实际用 05 阶段交叉编译。"
         ],
-        "status": "pending"
+        "status": "complete",
+        "completedBy": "openwiki/0.7.2"
       },
       {
         "id": "4030f324-ec61-47d4-9229-dd76d00310b7",
@@ -99,7 +100,8 @@
           "保留并维护「真 root vs userns 行为差异」表与 gq 调用时序图，这是本页最有价值的部分。",
           "写明 enable_unit 兜底分支对自研 raphael-* 单元会产出悬空软链这一边界。"
         ],
-        "status": "pending"
+        "status": "complete",
+        "completedBy": "openwiki/0.7.2"
       },
       {
         "id": "d4773376-89bd-426d-9316-4ba3d230bf65",
