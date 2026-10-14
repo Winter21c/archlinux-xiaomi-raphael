@@ -1028,6 +1028,7 @@ SPDX-License-Identifier: GPL-2.0-only
 |:--|:--|
 | 底部扬声器 | `output:stereo-fallback`（**不用 `pro-audio`**）；静音播放连测 3 次退出码 0、AFE 报错 0 条、`PCM state=RUNNING` |
 | 3.5mm 耳机 | 声卡里有 `wcd934x-codec`，HPHL/HPHR 能上电；routing 脚本按 `iface=CARD,name="Headset Jack"` **自动二选一**。**两条分支都已真机验证**：插 = 走 SLIMBUS_0_RX 且扬声器 mixer 关（HPHL/HPHR On，播放 2/2 退出码 0、0 报错、PCM RUNNING，**不卡死**）；未插 = 只走 QUAT_MI2S（连测 3 次干净）。切换后状态能干净恢复。实际出声待插耳机确认 |
+| KDE 桌面 | 开机后 5 个会话单元（kwin_wayland / plasmashell / ksmserver / kded6 / portal）全部 `active`，D-Bus 名 `org.kde.plasmashell` 等全部注册（plasmashell 约 30-34 线程）。`panels().length = 1`（底部面板、高 46）、内部屏输出 `1080x2340@60`、逻辑 400x867 / Scale 2.7。**连续 3 次重启逐项复测一致**（系统失败单元 0、用户失败单元 0）|
 | GPU / 花屏 | `FD_MESA_DEBUG=noubwc` 经 KDE systemd 用户单元 drop-in 生效；CCU fault 从 151 降到个位数、hangcheck 0 |
 | Wi-Fi | 连 `ChinaNet_XQP2_5G`（**5GHz**，channel 44 / 5220MHz），拿到 `192.168.31.90`，与本机 `192.168.31.65` 同网段 |
 | pacman | `pacman -Syu` 干净通过（清掉残留的 `linux-aarch64.preset`；`IgnorePkg = linux-firmware` 防止拉进 12 个固件拆分包）|
