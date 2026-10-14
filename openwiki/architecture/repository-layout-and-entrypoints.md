@@ -1,0 +1,170 @@
+---
+type: architecture
+title: 仓库结构、入口与生成目录
+description: 这个仓库的"源码"只有入口 build.sh、阶段脚本 scripts/ 与随仓库分发的输入（config/、dtb/、vendor/、pkgs/、notes/）；本页给出各入口的用法与相互依赖、阶段脚本的调用契约、以及 dl/ work/ out/ logs/ tools/ release/ _recon/ 这些生成或未跟踪目录的语义，说明它们为什么不能被当成源码。
+tags: [architecture, repository-layout, build-entrypoint, build-pipeline, ci]
+verified:
+  - by: openwiki/0.7.2
+    at: 2026-10-10T11:58:54.634Z
+---
+
+# 仓库结构、入口与生成目录
+
+这个仓库里的"源码"只有三类：一个构建入口 [`build.sh`](../../build.sh)、参数化的阶段脚本集合 `scripts/`、以及随仓库分发的输入资源（`config/`、`dtb/`、`vendor/`、`pkgs/`）。顶层其余目录（`dl/`、`work/`、`out/`、`logs/`、`tools/`、`release/`、`_recon/`）都是构建或调研过程中生成的，删掉它们不会丢任何东西，而把它们当源码读会把"某次本地构建的残留"误当成系统行为。
+
+判断一个路径属于哪一类，最可靠的依据是 [`.gitignore`](../../.gitignore)：它列出了被排除的产物树与私密配置，除此之外的顶层内容（外加 `openwiki/` 这个"生成但被提交"的目录）才是仓库的真实内容。
+
+## 入口总览
+
+| 入口 | 用法 | 做什么 | 依赖的生成树 |
+|:--|:--|:--|:--|
+| `./build.sh` | `[--from NN]` `[--only NN...]` `[--list]` | 唯一构建入口，按 `STAGES` 数组跑阶段 00→10 | `dl/` `work/` `out/` `logs/` `tools/` |
+| `./scripts/11-flash.sh` | `--dry-run` / `--flash` / `--backup` / `--bt-mac "<地址>"` | 把产物刷进 `boot`/`cache`/`userdata` 三个分区（会擦 `dtbo`），或先用 TWRP 备份 | 读 `out/`、`work/uboot/`；`--backup` 写 `out/backup/` |
+| `./scripts/bt-mac.sh` | `show <img>` / `set <img> "<地址>"` | 就地给"从 Release 下载来的"`boot-cache.img` 里的设备树补本机蓝牙地址（先备份 `.bak`） | 只改传入的镜像文件 |
+| `./scripts/99-make-release.sh` | `[tag]` `[--upload]` | zstd 压缩 + 按 1900 MiB 分卷 + 生成 `SHA256SUMS`/刷机说明，可直发 Release | 读 `out/`、`work/uboot/`；写 `release/` |
+| `.github/workflows/build.yml` | push 或手动 dispatch | 在 Arch 容器里跑同一条 `build.sh`（+ 打包），云端出镜像 | 与本地同一组生成树，软链到大磁盘 |
+| `.github/workflows/openwiki-update.yml` | 每日定时 / 手动 | 重生成并提交 `openwiki/` 与 `AGENTS.md` | 只改 `openwiki/`、`AGENTS.md`、工作流本身 |
+
+```mermaid
+flowchart LR
+  B["build.sh: --from --only --list"] --> S["scripts/NN-*.sh 阶段脚本"]
+  S --> DL["dl: 上游下载缓存"]
+  S --> W["work: 展开的 rootfs 与中间态"]
+  S --> O["out: 镜像产物"]
+  W --> UB["work/uboot/u-boot.img"]
+  O --> FL["scripts/11-flash.sh --flash"]
+  UB --> FL
+  O --> REL["scripts/99-make-release.sh"]
+  UB --> REL
+  REL --> R["release: zstd 分卷与 SHA256SUMS"]
+  FL --> DEV["设备 boot / cache / userdata 分区"]
+```
+
+上图是各入口与生成树之间的读写关系：只有 `build.sh` 生产产物，`11-flash.sh`、`99-make-release.sh`、`bt-mac.sh` 都只消费产物。
+
+## build.sh：唯一的构建入口
+
+```bash
+./build.sh                  # 完整构建 (00 -> 10)
+./build.sh --from 03        # 从指定阶段开始
+./build.sh --only 06 07     # 只跑指定阶段
+./build.sh --list           # 列出阶段
+```
+
+要点（全部来自 [build.sh](../../build.sh) 的源码）：
+
+- **阶段清单就是 `STAGES` 数组**，每项写成 `脚本名:一句话说明`。`build.sh` 只遍历这个数组，`scripts/` 目录里未被列进去的文件永远不会被它执行——新增阶段必须同时改数组（见下文"扩展点"）。
+- 阶段号不是独立字段，而是**脚本名里第一个 `-` 之前的前缀**（`03b-ms91xx.sh` → `03b`），过滤就是拿这个字符串比较。
+- `--only` 一旦给出就**完全接管**过滤逻辑（可跟多个值，遇到下一个 `--` 开头的参数为止，且要求阶段号精确匹配）；否则 `--from` 用来跑"阶段号大于等于它"的阶段。比较是**字典序而非数字**，而阶段号是零填充的，所以 `--from 03` 会连 `03b` 一起跑；反过来写成 `--from 3` 这种非补零形式就会一个阶段都不跑（脚本不校验参数有效性）。
+- `-h`/`--help` 打印的是本文件头部注释（`sed -n '2,20p'`），`--list` 除了 `STAGES` 还会手工补一行 `11-flash.sh`——`99-make-release.sh` 不在列表里，它是独立的发布工具，不属于构建阶段。
+- 每个阶段都以 `bash scripts/<脚本名>` 在**仓库根目录**执行（脚本开头已 `cd "$PROJ"`），并接 `2>&1 | tee -a logs/build.log`；任一阶段失败即打印"阶段失败，详见 logs/build.log"并 `exit 1`（脚本本身 `set -euo pipefail`）。日志是**追加**的，不是每次覆盖。
+- 它自己**不创建** `logs/`：该目录由阶段脚本 source 的 `scripts/lib.sh` 创建。因此在从未构建过的克隆里，第一次运行前应先确保 `logs/` 存在，否则第一步的 `tee` 就无处可写。
+- 开头先 `. config/build.conf` 只是为了两件事：让写错的 `DESKTOPS` 立刻报错（`build.conf` 会直接 `exit 1`，因为是被 source 的，等于退出 `build.sh`），以及把"这次装哪些桌面"打印到构建横幅里。
+
+## scripts/：阶段脚本与调用契约
+
+| 脚本 | 一句话职责 |
+|:--|:--|
+| `00-fetch.sh` | 下载上游产物（ALARM rootfs tarball、内核/固件 deb、U-Boot zip 并解出 `work/uboot/u-boot.img`、cache 分区 FAT 模板），并取回宿主 mtools |
+| `01-rootfs.sh` | 在 user namespace 内解包 ALARM rootfs 并校正 setuid/权限位 |
+| `02-pacman.sh` | 用宿主 pacman `--arch aarch64 --noscriptlet` 装基础系统与所选桌面，末尾用 qemu 补跑关键 scriptlet |
+| `03-kernel.sh` | 安装定制内核（`Image` + 模块 + dtb）并记录版本到 `work/kver` |
+| `03b-ms91xx.sh` | 用 `vendor/ms91xx` 交叉编译 MS91xx USB 投屏驱动模块 |
+| `04-firmware.sh` | 装设备固件 + ALSA UCM，删掉同名通用固件与无关大固件 |
+| `05-qcom.sh` | 交叉编译 qcom 用户态（`qrtr`/`rmtfs`/`pd-mapper`/`tqftpserv`）并落地单元文件 |
+| `06-config.sh` | 系统基础配置（locale/fstab/用户/USB NCM/电源/zram/音频路由/自研单元） |
+| `07-desktop.sh` | 桌面与会话配置（SDDM、字体、各桌面预置；纯命令行时反向清理旧残留） |
+| `08-initramfs.sh` | 手工组装极简 initramfs（静态 busybox + 模块 + 早期固件） |
+| `09-image-rootfs.sh` | 造 `out/rootfs.img` 与 `out/rootfs.sparse.img`，并写回实际布局与 UUID |
+| `10-image-boot.sh` | 以 256 MiB FAT 模板造 `out/boot-cache.img`（systemd-boot + 内核 + initramfs + 打过补丁的 dtb）并注入蓝牙地址 |
+
+各阶段内部做什么、失败点在哪里，见[构建流水线各阶段](../workflows/build-pipeline-stages.md)；这里只固定它们的**共同契约**：
+
+- `#!/bin/bash` + `set -euo pipefail` + `source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"` + `confirm_stage "..."`。路径基于 `BASH_SOURCE` 解析，所以脚本从任意工作目录调用都能找到库；但依赖历史产物的阶段（如 `03b` 用 `$PWD/vendor/ms91xx`）实际按"从仓库根运行"工作，`build.sh` 已经保证了这一点。
+- **不接收命令行参数**：`build.sh` 传空参；`--from`/`--only` 只是决定跑不跑，不会把阶段号当参数传进去。
+- 凡需要 chroot 的阶段调用 `require_ns`（把自身重入到 `unshare` 出来的 namespace，用 `RAPHAEL_NS=1` 做哨兵，并导出 `PROJ`）再 `ns_mount`。例外只有两个：`00-fetch.sh`（此时还没有 rootfs）与 `03b-ms91xx.sh`（纯宿主交叉编译）；`08-initramfs.sh` 只用 `require_ns`、不挂 `ns_mount`。
+- 共享状态一律通过 `work/` 里的文件传，而不是命令行：`work/kver`、`work/rootfs-layout`、`work/rootfs.uuid`、`work/bootstage`、`work/initramfs`。这正是"跨阶段契约"的存放处。
+
+[`scripts/lib.sh`](../../scripts/lib.sh) 是所有阶段与辅助脚本（`11-flash.sh`、`bt-mac.sh`、`99-make-release.sh`）共用的契约层：基于 `BASH_SOURCE` 定位仓库根、source `config/build.conf`、定义并创建 `WORK`/`DL`/`OUT`/`LOGS`/`TOOLS` 等路径，并提供日志、带缓存与重试的 `fetch`、`require_ns`/`ns_mount`、qemu 垫片、mtools 包装、`rootfs_layout`/`write_root_fstab`、`enable_unit`/`mask_unit`、`normalize_ownership` 与蓝牙地址注入。改构建行为时先看它，不要在各阶段里重复实现。
+
+## config/：唯一调参入口
+
+| 文件 | 性质 | 说明 |
+|:--|:--|:--|
+| [`config/build.conf`](../../config/build.conf) | 跟踪、**可执行的 bash** | 全部可调参数：镜像大小与根文件系统类型、包列表与桌面选择、用户名/密码、locale/时区、上游 URL 与内核版本、无线管制域 |
+| [`config/local.conf.example`](../../config/local.conf.example) | 跟踪 | 脱敏模板，演示 `BT_MAC="aa bb cc dd ee ff"` 这类本机私有值该写成什么样 |
+| `config/local.conf` | **已被忽略**（本地文件） | 真正生效的私密值（目前主要是 `BT_MAC`） |
+
+`build.conf` 不是被解析的键值清单，而是会被 `source` 执行的一段 bash：里面有 `case`/`if`、`de_has`/`drop_pkgs`/`de_session_name` 等函数、组合标志（`HAVE_*`、`ALL_PKGS`、`DE_SUMMARY`、`PRIMARY_SESSION`）的推导，以及"桌面名不认识就直接 `exit 1`"的校验。因此：改它等于改构建逻辑，`bash -n config/build.conf` 之类的检查比当配置文件看更有意义；而参数化覆盖走环境变量（如 `DESKTOPS`、`RAPHAEL_ALARM_MIRROR_PRIMARY`、`RAPHAEL_ROOTFS_TYPE`、`RAPHAEL_BT_MAC`），不要改文件本身。
+
+`local.conf` **不是被 source 的**：阶段 10 用 `sed` 从里面抠 `BT_MAC`，环境变量 `RAPHAEL_BT_MAC` 优先于该文件，两者都没有就只 WARN（镜像蓝牙不可用）。地址写的是设备树字节序（小端），格式归一化接受 `11:22:33:44:55:66`、`11-22-33-44-55-66`、`112233445566`、`"11 22 33 44 55 66"` 四种写法。公开仓库里绝不能出现真实地址——CI 用的是仓库 Secret，本地用 `config/local.conf`，两者都不进版本库。
+
+## 随仓库分发的输入资源
+
+| 路径 | 作用 |
+|:--|:--|
+| [`dtb/raphael-redmi-k20pro.dtb`](../../dtb/raphael-redmi-k20pro.dtb) | 唯一随源码分发的设备树：从设备导出的 U-Boot DT + 本项目三处修改。阶段 10 把它复制成镜像里的 `dtbs/qcom/raphael-redmi-k20pro.dtb`，并使其成为 systemd-boot 条目的 `devicetree` 目标；文件缺失只 WARN（症状是蓝牙与麦克风不可用） |
+| [`vendor/ms91xx/`](../../vendor/ms91xx/README.md) | 被跟踪的内核模块源码树（`drm/` 驱动、`Makefile`、`dkms.conf`）。`03b-ms91xx.sh` 用阶段 03 留下的 `work/kver` 与头文件树交叉编译；`.gitignore` 只忽略这棵树里的 in-tree 构建产物（`*.o`/`*.ko`/`*.mod*`/`modules.order`…），正常情况下输出在 `work/ms91xx-build` |
+| [`pkgs/`](../../pkgs/qbootctl/PKGBUILD) | 6 个 PKGBUILD（`qrtr`/`rmtfs`/`pd-mapper`/`tqftpserv`/`qbootctl`/`hexagonrpc`）与配套 `.install`：native Arch 打包的**参考配方**（含"哪个单元该 enable"的说明），**构建流水线并不使用它们**——阶段 05 直接从 `linux-msm` 上游拉 tarball、用 clang 交叉编译 |
+| [`notes/`](../../notes/) | 按主题归档的深度调研（桌面环境多选、qcom 用户态、移植清单、蓝牙、相机、麦克风、上游对齐）；踩坑与取舍的证据链主要在这里 |
+| [`README.md`](../../README.md) / [`HANDOVER.md`](../../HANDOVER.md) / [`AGENTS.md`](../../AGENTS.md) | 使用与交付文档（README 在开头就把 HANDOVER 标为接手必读）/ 接手说明 / 给编码代理的仓库约定（其中的 OpenWiki 块由自动流程维护） |
+| `openwiki/` | 生成但被提交的 wiki：由 `openwiki-update.yml` 定时重生成并开 PR，不应手工编辑 |
+
+## 生成与未跟踪目录：绝不能当成源码
+
+| 目录/文件 | 谁创建 | 内容与语义 |
+|:--|:--|:--|
+| `dl/` | `lib.sh` 建目录，`fetch()` 填充 | 上游下载缓存。`fetch()` 只要目标文件非空就跳过下载（命中即复用，**不校验内容**），所以怀疑缓存损坏时要手工删掉那个文件 |
+| `work/` | `lib.sh` | 展开的目标 rootfs（`work/root`）与所有中间态：`kver`、`rootfs-layout`、`rootfs.uuid`、`bootstage`、`initramfs`、`pkgcache`、`uboot/u-boot.img`、编译日志 |
+| `out/` | `lib.sh` | 最终镜像：`boot-cache.img`、`rootfs.img`、`rootfs.sparse.img`；`11-flash.sh --backup` 另写 `out/backup/` |
+| `logs/` | `lib.sh`（**不是** `build.sh`） | `build.log` 及 `work/logs/` 下按组件分开的编译日志 |
+| `tools/` | `lib.sh:setup_mtools` | 从 Arch x86_64 仓库取来的宿主 mtools（`tools/mtools/usr/bin/*`），用于无 root 读写 FAT 镜像 |
+| `release/` | `99-make-release.sh`（每次先清空） | zstd 分卷、`SHA256SUMS`、`刷机说明.txt`、`upload.sh` |
+| `_recon/` | 人工 | 早期侦察草稿（含上游未授权脚本与下载物），**已被忽略**，不随仓库分发 |
+| `config/local.conf` | 人工 | 本机私密值（`BT_MAC`），**已被忽略** |
+| `vendor/**/*.o`、`*.ko`、`*.mod*`、`modules.order`、`Module.symvers` | `03b-ms91xx.sh` | 驱动源码树里的构建残留（正常输出在 `work/ms91xx-build`），已被忽略 |
+
+`release/` 值得单独提一句：它**不在 `.gitignore` 里**（忽略规则只覆盖 `*.img`、`*.img.zst`、`*.img.xz`、`*.deb`、`*.tar.gz` 等模式，而分卷名是 `*.img.zst.part00` 这类）。它依然是纯粹的生成目录——每次运行 `99-make-release.sh` 都会先 `rm -f "$REL"/*` 重建，所以不要手工编辑，也不要提交。
+
+## 产物位置与"三样齐不齐"
+
+最终可刷写产物有三个，但**位置是分裂的**：
+
+- `out/boot-cache.img`（阶段 10）→ 刷 `cache` 分区；
+- `out/rootfs.img` / `out/rootfs.sparse.img`（阶段 09）→ 刷 `userdata` 分区；
+- `work/uboot/u-boot.img`（阶段 00 从上游 zip 解出，**不在 `out/`**）→ 刷 `boot` 分区。
+
+[`99-make-release.sh`](../../scripts/99-make-release.sh) 三样都要收，并且在 `work/uboot/u-boot.img` 缺失时**硬失败**而不是"有几个打几个"——因为生成的刷机说明里让用户 `fastboot flash boot u-boot.img`，少这个文件用户会卡在第一步（CI 上真发生过：全新环境里阶段 00 只下载没解压）。
+
+## 不变量与失败语义
+
+- **`STAGES` 数组是权威**：脚本是否会被构建执行，只取决于它在不在数组里；阶段号必须与脚本名前缀一致，否则 `--only`/`--from` 永远选不中它。
+- **过滤是字符串比较且不做校验**：阶段号写错（漏零、写错前缀）不会报错，只会静默地少跑或不跑；判断"到底跑了哪些阶段"要看 `>>> [NN] ...` 那几行横幅与 `logs/build.log`。
+- **`dl/` 的"存在即可信"**：半截文件一旦以最终文件名落盘就会被后续构建反复复用，删除文件是唯一的失效手段。
+- **`work/` 里的契约文件一旦与实际不符就是开机事故**：`rootfs-layout`（`ext4`/`btrfs-subvol`/`btrfs-flat`）与 `rootfs.uuid` 被 `06`（fstab）、`09`（成像并在回退时重写 fstab）、`10`（引导参数）三处共享——详见[构建流水线各阶段](../workflows/build-pipeline-stages.md)与[系统总览](overview.md)。
+- **重启一次干净构建不等于可复现**：`dl/`、`work/`、`tools/` 都是有状态的，本地增量的 `work/root` 与 CI 的全新环境行为可能不同（历史上"本地能过、CI 全挂"的软链/半升级类问题都出在这里）。
+- **秘密只能待在被忽略的位置**：`config/local.conf`、环境变量、仓库 Secret；`config/build.conf` 里的默认密码只是公开的默认值，CI 会在 runner 上就地改写它并用 `::add-mask::` 打码，不落回仓库。
+
+## 扩展点
+
+- **加一个构建阶段**：写 `scripts/NN-name.sh`（遵守上面的契约），再把 `"NN-name.sh:说明"` 加进 `build.sh` 的 `STAGES` 数组。阶段号就是文件名前缀，`--list` 与过滤逻辑自动生效；如果是像 `11-flash.sh` 那样"不该进自动流水线"的工具，就加到 `list_stages()` 的补充输出里。
+- **加一个可调参数**：在 `config/build.conf` 里加变量，或包装成 `${RAPHAEL_...:-默认值}` 形式的环境变量覆盖；派生标志应集中在 `build.conf` 算好，阶段脚本只读 `HAVE_*` 这类结果，不要重新解析字符串。
+- **加一个私密值**：放进 `config/local.conf`（会 `source` 的文件都不要碰），并在 `config/local.conf.example` 里补脱敏写法；CI 侧对应仓库 Secret。
+- **加一个 CI 输入**：在 `.github/workflows/build.yml` 的 `workflow_dispatch.inputs` 里加，然后决定它如何映射到环境变量（如 `DESKTOPS` 走 `$GITHUB_ENV`）或 `build.sh --only`。
+
+## 验证面
+
+仓库没有独立的单元/集成测试目录；"测试"体现为 CI 的产物校验步骤与阶段内自检：
+
+- CI 在构建后执行 `sha256sum -c release/SHA256SUMS`，并用 mtools 的 `mdir` 列出 `out/boot-cache.img` 的根目录、`::/dtbs/qcom`、`::/loader/entries/arch.conf`，确认引导镜像分区内容与引导项真的写进去了；失败时上传 `logs/` 作为产物。
+- CI 在构建前先自检工具链（`unshare`、`mount`、`chroot`、`ar`、`depmod`、`img2simg`、`7z`、`cpio`、`qemu-aarch64`、`mkfs.btrfs`…）并探测能否 loop 挂载 btrfs（决定 `@`/`@home` 子卷布局是否可用）。
+- 阶段内的硬失败即断言：`05-qcom.sh` 缺 `rmtfs`/`tqftpserv` 直接失败（否则静默产出没 Wi-Fi/没声音的镜像）、`lib.sh:verify_qemu` 失败即中止、`normalize_ownership` 断言关键 setuid 程序是 `0:0` 且带 s 位、阶段 09 灌镜像前检查是否残留 `systemd-networkd*`/`systemd-resolved*` 软链。
+- 对下载来的镜像，`./scripts/bt-mac.sh show <img>` 是核对设备树是否已有蓝牙地址的最小手段。
+
+## 相关页面
+
+- [系统总览：宿主构建流水线与设备运行时](overview.md) —— 构建期与运行时的分界、产物与分区的对应关系。
+- [构建流水线各阶段](../workflows/build-pipeline-stages.md) —— 每个阶段做什么、失败点在哪、`work/` 里的状态如何流转。
+- [无 root 构建运行时](rootless-build-runtime.md) —— `require_ns`/qemu 垫片/mtools 这套"不需要 root"的机制。
+- [配置模型](../concepts/configuration-model.md) —— `build.conf`、环境变量与派生标志。
+- [上游来源与版本固定](../integrations/upstream-sources-and-pinning.md) —— `dl/` 里那些上游产物各自从哪来。

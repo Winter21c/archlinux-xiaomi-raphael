@@ -1,0 +1,490 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:88e8c2e52dc6e4efb0f8969c4851f8e51f8a8a8d5950f6104a14fd0e7a00fa7d",
+  "claims": [
+    {
+      "id": "claim_b08350c1ffa54e2c9a352cd562d07ec0",
+      "statement": "normalize_ownership() 只在真 root（id -u 为 0 且 /proc/self/uid_map 首行是 0 0）下执行整树 chown 0:0、恢复 setuid/setgid 位与组属主，并断言 usr/bin/{mount,umount,sudo,su,passwd} 为 0:0 且带 s 位；在 user namespace（假 root）下它只打印警告横幅并 return 1。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/lib.sh#L257-L306",
+          "version": "repo-lines-v1:sha256:3645254595e5cc53382f9ed26bdb6c4d997659d8d873a507eccbef943da906ec:eyJzZWxlY3RlZExpbmVDb3VudCI6NTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjBjNWFhMDQ3YTk3OTFiYzg5MGFkNTFiMDEyY2ZmMDMyM2NmNGMwNTA0YTg2MTdjZDRlNDY1N2JlMzMxZTAwN2QiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVhMWQxMjdjOTYxNjM2NWI2NTMzNzU2NzJmNmJiNzdlMTg3N2E3Mjg2Y2U4NTljYzJlYjA0M2NjMDJiYzEzY2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjI3MTY1Y2M5YTQyNzBiNjcwOTMxZjY5ZWY0ZGQ3Y2RiMWI1NGYxYzZkYjZlOTViNWZkOWFhNjg4Y2FkNTYyYWYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e810cb49acff4426b6b1943de61b224c",
+      "statement": "阶段 09 把 normalize_ownership() 的失败降级为 warn（\"跳过属主归一化 (非真 root)\"）后继续产出镜像，因此非真 root 构建可以出厂一份 setuid 程序失效（mount/sudo/sshd 全挂）的镜像，而 HANDOVER §5.1 把这条描述成无条件断言。",
+      "evidence": [
+        {
+          "resource": "repo://HANDOVER.md#L292-L298",
+          "version": "repo-lines-v1:sha256:aecc4df3a7d598c70a0b12b2bf24ca9f6d3fcc89adc3fa683126920e16fe5cbf:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYWExYWQyOGM0MGI5MWRlNDg0ODUxMTE1MjNmNDQyMjgxYWVhY2E4YzEzZDE5M2RhYzUyYTQyMDdmYjFmZTE5OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNGM2NDk1YmVmNTAyMjg4ZmRmMTk0MzU4MjFkYjU4MGQwNTA2MTRhZGI1MTlhODVhZjhkM2ZmMDI1NDU0NGM2OSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYWMwZDZmNmE2MWFhYzc5Y2FlNzQ5MTcyY2JiOTFhNDA5ODA5Yjk5ZGEwNmYzZGM0ZDI2OTQwY2FkODk3NzFlMSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzgyMTgzOWViMThjM2I1MzBhMTZmMzE1ZjM4NGQyNWE4NmIzMmI4NTBlMTU5MjM5MDc3OTRkZmJkNzAyZjc2YSJ9"
+        },
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L79-L84",
+          "version": "repo-lines-v1:sha256:824f9c242fec56dcb7a2fb3853ff5dfda8eb3a578be1af05cdfca111c571c641:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmVmZDViZDVjMzgzMDJiZTBlNjk0YjdkYWUwZjNiM2Q3NTVhOWRiZWY1NzJmMzc2OWQ1YTRmMjU2ZGY1ODJkZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYmEzYTI2Y2VkYzMyZTZhY2Y3MzI3NjI2NzlmMDkyZjFlZWQ4MWM4MGU5NWM5YWM0NzQwNTU3YTUzNTU3NTZlNyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTc1YjdiNDQ4MmUxMzFmOTQ4MWRjZWE5OGZkMWY4OWM4Mzg0ZjM3ZjRhMDI5MjdmYmViMzQ5ZmY1MWU3ODlhNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTEyZjU4ZWViMmQ5MzJhOWVlYjU1Y2UyMDM2MWY4NjViODRjZWU1YWI5OTY2Y2I1YjgwNGFlMmNlMzFmNmI4NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_a1ac11078a2041f1938ff13e94508a9a",
+      "statement": "属主不变量有三层防线：阶段 01 按 tarball 元数据恢复 setuid/setgid 位；阶段 09 成像前整树归一化；/home/<user> 的 1000:1000 由无条件写入的 /etc/tmpfiles.d/raphael-home.conf 与 raphael-firstboot.service 首启动 chown 兜底（userns 内 chown 到 1000 是空操作）。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/01-rootfs.sh#L44-L64",
+          "version": "repo-lines-v1:sha256:46f85ce05ab1ca90db8ef13579a3ea69a0dcf10a5feb6174e06932fb1ee9a081:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY2NTQ2NDU5MzRlNmNkZjAxMzUyYzc2NDUyNzU2OTRlYmIzYTYxYWQzZDNlMGRkNDI3MTg2ZjkwMGY3ZjM0MDkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI0ZTBhYTVlZmQxOTRmNjNhMzY4OTZlNGVkZDNiMDk4NGYzNGEyYjg3ZDlkNGQ5NThmYmZiOGFkYTlhZTJjZGQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgzZGU5NDdkZTk3ZjEwZjRhMzczYjk5MDVjMzNhNzU3NDc4NGQ4ODI1Y2FjYmM4MzFjZjYxMDM5M2UyMDZmMGQifQ"
+        },
+        {
+          "resource": "repo://scripts/06-config.sh#L766-L789",
+          "version": "repo-lines-v1:sha256:b6c5d1f79aa230c4ec6f72dbad74b31cea994ae0f481e524ce628f1665218d81:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjZhOGE1NDQ3YWJlNjYxYTA4MWRiZGU4MWYyMjEyZWNmNGM4Y2M1M2RjZjY0N2I5MTAyNWQ4YzFlNjQzMjVlMWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk1MjFhYTA3MDg1ODk4NTEyOTZjNTM1NjczZWQ3MDU2OGZmZjc0MDY3OTI0MzVmN2M3M2RkY2VlMDdjYzIyM2EifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f4fca9db02144bea8ae62ccb09c9b67a",
+      "statement": "阶段 02 对不存在的包只 warn（手机端可选应用常常缺失），但选中的桌面缺关键包（sddm 及各桌面核心包）时直接 die，拒绝产出进不去桌面的镜像。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/02-pacman.sh#L93-L126",
+          "version": "repo-lines-v1:sha256:2c82297f66bbf82e68d2e88c7e880fe26a7b50703623efa23af80cbadd86cb65:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVkNDU5Mzk0ZGE2OTYwOTE3ZjZlMTE5YzM5NTlkYjhhYTQzMDlmMWNkYzE5NTQ4NDRiNjlkMTZhMTFlMmIxNmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQzYWY3ZjhiODUyMmJjODU4OTU5NGFlZTYwODU3ZmZiNWE5MzMzODI2Y2VjM2JmZTJkZmFhN2NjOWNhNGE0ZGIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_d1f4144582eb466bad6dbf1a292670c2",
+      "statement": "阶段 02 先 `-S --noscriptlet --needed` 再 `-Su --noscriptlet --ignore linux-firmware`，目的是消除\"新包配 tarball 旧包\"的半升级（符号版本不匹配 pacman 依赖检查看不出来）；忽略 linux-firmware 是为避免连带拉入已拆包的几 GB 无关固件。",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L786-L808",
+          "version": "repo-lines-v1:sha256:d428fb540e2e6af95734f09b0ad256fd6c48175f28d0232929ec68517a4d2bf6:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUxMzNmOGQ3YjYyZDgxZDIwODdhOTJkM2Y2Y2M2YmVhZmQ5MmVlZDJiMzJkZjZlNTA3NDNjMTA1MTJlOWVlMDgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI5ODZkZjMyMDM0M2Q3ZTIxNDliZGRlYjdiYjM0YmE1Yzk3NjhlNWYwZmM1Yzg3OTcyYjVhZjgwNTc2NDAyOTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ0MzkzMGRkNDA4NGJhM2QzYzA3YWE5OWJlNmYwODI5YTYwNThmZTc0MDIzY2ZiZjIyNzY0NDJkOGQ5YjQ5MjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA2YzQwYTdhNjNhYWJkODUyODkzZjIyNWFmNGJhNmMzMDhhZWMzYWQ0OTE4NDM2YzQ5YmExMjgzMWFkNGZiYzcifQ"
+        },
+        {
+          "resource": "repo://scripts/02-pacman.sh#L132-L158",
+          "version": "repo-lines-v1:sha256:506062d1408ed190172710585286efb075f676398663664d8e5ebdefa9a32580:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0ODRiNGE0MDViZTVhNzhiMDE1ZWYxOWIyZDAwMGY3OGE1MWJkNDM0ZmVkZjYzOWZjM2ZmZWYwMDlhYTJkNjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE0NGU2ZWM2YzJjY2VjMjkxN2UwMWI1ZWU1NGEwZjAwZWJiNzUwNzg5NDE5OTgwODI1MjRkNzk5ZjMzZDU3YWUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE0ZDVkMWJhN2QyYWNiYjRiMmZjYzU2YmM0MGMyZDVmMzM0Y2Q2NmYxNTZlMDA0NGI2MTg4ODEyOTU4NTQ0MTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1fd4c0a0d6f84b4e8f024e2a0e53a33c",
+      "statement": "阶段 02 的关键程序烟雾测试用 qemu 实跑 bash/dnsmasq/nft/nmcli/iw/wpa_supplicant，只把\"库/符号加载失败\"三种模式判为失败并 SMOKE_FAIL>0 时 die；未安装的程序被静默跳过，退出码非零但输出不匹配时也不算失败。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/02-pacman.sh#L205-L234",
+          "version": "repo-lines-v1:sha256:131a50b8bf5800c24bee3c1f9687f6a64b9f5483d8dc2f8895a9ee4b4a46a181:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM0MzAwZjA2Y2FlNzJkZjU5ZmU2ZjQ0OTNhNTU5Yjk2MGNlYmE3NjY4Nzg1YmQ5MTQ5MzE2ZDg1OTFmYWIwZmMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM4ZDA2ZTEyOGM0MjcwNjFlYmJmZjUyYjhkOThiMzFmYjQ0ZjE3M2M0Mzc1OWQ2N2RhMmYxZDJlMmEwNjA5NjEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM3YWVmYjQ3NTQyMTQxMGQzNDM4NDgzZTA5ZjAwMDI4N2JhNWRjNTQ5MjMyMTAwYzFjODEwYjhlYzM0YTVlOTIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_cc93cb17e6914adf9ac7b65a57084966",
+      "statement": "由于装包用 --noscriptlet，阶段 02 末尾用 gq() 补跑 ldconfig、systemd-sysusers、systemd-tmpfiles、glib-compile-schemas、fc-cache、update-desktop-database/update-mime-database/gtk-update-icon-cache 等关键构建后步骤，且这些步骤失败只记为 warn。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/02-pacman.sh#L180-L203",
+          "version": "repo-lines-v1:sha256:472cc8cc45f9bc8f67b7f865a21b01bfedac32859e538c84967802b7cd64839d:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQzOGQxMDY2MTFjODYwMmU5NDg3MzhjMDgxNzQ3OTcwZWVkMDc4NGNiOTViYWQ3ZDYzNjA4OTEzYmM0ZmIwY2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJhYWZmODU2OGQyZDE2YzdkOGE0ZWM5MjYxNjE4MzI3YWJlNDYzYzg0MTlhMjlmMGI2ZGFhZmQ4MzJkZDE2ZWMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a434430dd4ab46fbb182a6b0e020ff61",
+      "statement": "因为作者内核 # CONFIG_SECURITY_LANDLOCK is not set，构建用 pacman 配置与镜像内 /etc/pacman.conf 都必须写入 DisableSandboxFilesystem 与 DisableSandboxSyscalls，否则设备上 pacman 会因为沙箱失败而完全装不了软件。",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L453-L473",
+          "version": "repo-lines-v1:sha256:e4ea8f81b0a688d979322066f0a3dc728fe9180badbd9bac283e285807f0349e:eyJzZWxlY3RlZExpbmVDb3VudCI6MjEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA4NzEyY2Y2Y2NhMDEyYzdlNDU2MTgxNjc3NDVjMWE0MDE4NmUyMDIyNWVhYjdmNDgwMjk2MTFlMDM0ZDY4OTEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFjOTk3YWUwZGMyNDNlNTU5NTgxYWMzODFkMjQxNDg3YjZhYTUxYTk2ZmJhNjM1N2MwYjQzMGIwN2U5OTI2ZmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjczZDU1YTQ4Yzg2ZmI2MjMxYmNmZTczNGUyYWQ4M2JjZmEwZjQzOTc1MTgyZGQ2NzRmZTc3MTA5ZWQwODk1NTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjIwMGRiNzliNzFmNmU2MTc5MmYxYTgwZWUxNzE0YjY2OTk4ZDRmMDgxZWY2ZjlkM2M2MzM2ZjI5NjdmMGVkYzgifQ"
+        },
+        {
+          "resource": "repo://scripts/02-pacman.sh#L23-L30",
+          "version": "repo-lines-v1:sha256:71f5b04160980da32c0cd78a927ab3fcc0fc86c986b63479a45e7be31330c610:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDljOTBlYjRmNTdmMTI4MWIxOTZlZWMxZjQ2ZWMxY2Q5ZDYyNzc4Nzg1NjU3YTFmZmIxYWRhOWE0MWQ2ZjdiMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNmIwYTYwYTI4NWNmZjY1ZWRlOTlmZWNjMzNiNjY3Yzk2YTRkYWJhNWZkOGQ2NTcxZmQ5ODkwM2EyZWZlM2U5MCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDY3OWFkMmJkMzdjNDlkNGFhZGFhN2UyZjdiZTE3NGEzOGFkZjhlY2I5ZmIwNmZjZTg3OWFkMjM4NjUyN2JmMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTIzNzM5MDNjZDI1OTkxZWIwNjhiYjZkMjVhMTk1NjM4YTRkODg2MzNiNDJkMGI3ZWViZDQxNzU2ODgyNzI3MCJ9"
+        },
+        {
+          "resource": "repo://scripts/02-pacman.sh#L60-L67",
+          "version": "repo-lines-v1:sha256:f5c151303344b4e150812ddc1e41c7444dfaaf51b90abe77b3bde52acfd032ff:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2Q0ODA3OTZkYjIyM2ZmZDUwOTA1MGJlNzllYTVmY2VjYzIwOWZmZGZkMzRmNmEzMjFmNGIxNGNjYjUxZDUzZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDExN2ZhMDA2YmE5MjA4NTAwYjI5MzBjZTY5Y2JkZTQzNmM2NDdhZmE5MTdjYjczOTZhOWJjOTExMWE0NmRkMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmQ1ZDg4ZjAxYzI5ZjU5MjE4YjJkYjVlZjk1OTJkNTQwY2Q5NmE1YmM2NDQzZTM3NzVmZGE5MDFmZDBkZWJiMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2FmMzdiMzkwNGIwNWI3NDUyODc1MGNjYTMwMDkzZDg4YzkwNTg2ZGRlYmQ0ZDQxZjY1MGZjZTc4Njc5MTEzOSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_a01dd072da284b428cbc36e70c7b03bc",
+      "statement": "阶段 05 编出 libqrtr.so.1 后必须在 $STAGE 里补 libqrtr.so 软链，因为 -lqrtr 只认 libqrtr.so / libqrtr.a；本地构建时 rootfs 里旧的 /usr/lib/libqrtr.so 会被 clang sysroot 搜索路径兜住而掩盖问题，CI 的干净 rootfs 上会让 rmtfs/pd-mapper/tqftpserv/qrtr-* 全部链接失败。",
+      "evidence": [
+        {
+          "resource": "repo://HANDOVER.md#L253-L261",
+          "version": "repo-lines-v1:sha256:753fde363a68359c4fcaeb22c5fecbc62e551d0beb06f54f497c34e5790373b1:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMDZjZDY0OTU2NjQwNmI5NjE3MTVmNDJiYjVhMTFkOTk4MGM5NWUyYWZmMDc3YjQ0YjJlYzgwMWJhODBmMTRiMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMjkxZWQxNmIyNGM0NzM1NmMyNTA2ZjAzZWM4YWQ0MDdiYTQ0NGYxNGEzNzU4N2IzNDMwMGFhYmY5ZmZhZGMwZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTgxYTUyMjU3YjM5NjI1MWVmMTRiMzIwN2Q0NTI2ZDQ4ZmY2ZTRlY2I0NWVmMGVlNzdmNDlkZmI3NTI0M2I0YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZWJiMDY0ZmE3YzkwMDQ4MWE2MGYyN2Y5MmQwZmY2MWYyZDJlYTI5MmM3MDc4MGNiMmRhMDdhMTA2N2M2MWU5NSJ9"
+        },
+        {
+          "resource": "repo://scripts/05-qcom.sh#L79-L94",
+          "version": "repo-lines-v1:sha256:05e814a272f12298d7f52040a6e5f47379d51b281e7d8416da87e4649d8fcb23:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA0ZjliOTQ0ZjVkOGJiYjEzNGY1ZjIyZmUzMmRkYjA1MzViZGRlNTk0NGUyZWM3ZjgwNTcyYjVlMWY4Y2U4ZWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4ZDQ3YzVlN2ZmZjQ2MTYwZGZmNjU4YjRiODk5MDYwOGE2OTAzOGZjYmEwOTliMWI0ZDU3ZWU4OTc5ZGVmYWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNhNTU0MjkyYWIxMGJkYzNiNGYwMDc5ZjY3YjU2MDJkNDllZWM3MmFjMjdiZjgxZmFiZGExNGVjYTUyNTFkZDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVmYjgwOWQ4ZTkxNWUyMWUxMjA0ZTM0ODU1YjJhMWQzZDdkNjA5YjU5NThhYjU1NGRkYjZjNWFkMTRlZDY0ODgifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_56e1484ffeca419fa398ce87e24607e6",
+      "statement": "阶段 05 的产物校验对缺失 rmtfs / tqftpserv / libqrtr.so.1 是硬失败（缺这些等于没有 Wi-Fi 与音频），而 pd-mapper 与 qrtr-lookup 缺失只 warn，因为内核 qcom_pd_mapper 已覆盖必需电源域。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/05-qcom.sh#L234-L258",
+          "version": "repo-lines-v1:sha256:413923372fad2bc2f3dc666593e14bfd5182982f05a9ec011895fa987f9dadc2:eyJzZWxlY3RlZExpbmVDb3VudCI6MjUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcyODY0ZWQwMWUyMTA4NDA4OTM2ODAzMDU1M2RkNjk1NWVhOGM1OTI3Mzc0Y2EzMThhMjAzYjY2YjZkNGFlODkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjZmZjcwZjAwYjc2OTFiYzAxNWQ5Njg3NDdmZjA4NzFjYjhiZDA0NTFjMDdmODkyYmE2ZGYyYzc3MDJkNTlkY2QifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_2c7825123d8b4098a8bdc754f2ec449b",
+      "statement": "tqftpserv.service 必须直接把单元内容写进 /usr/lib/systemd/system，而不能 sed 上游的 *.service.in：模板里多个占位符漏替换任何一个都会让 systemd 报 bad unit file setting 并拒绝加载，结果是没有 Wi-Fi、没有声音。",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L393-L399",
+          "version": "repo-lines-v1:sha256:95d264d645d9dc1e7554c8a427c2e7f533e58d2434bc8228b70e9237d5bd784a:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMzZkNDAwMWY3NmZlOTMwZDBkMDcyNjhhNmY0ZmMzOWMxNjJlZDRjYjBkZWM3MDBhYzVmNmIzYmM4MDk1NzRlMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDBhYmJkOGJmMjA3MjVmZjdiNWYxYzQxYjk5NzhhMzQzMmQzZDRiNzkyZGIxNzQ2YjYzYjViOWM2MTc0MmZmZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOTM0ZmUxYjU3M2NlNGE1ZDFkOWYzODc5ODQzMGNkMjBlNDA2ZDk3YTc2MDMxNWQ2NjViZWZlZTM2ZDM0ZTYwYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYTQyN2RkMTVjMzllOGFkM2VlYjg5MWVlNzRlNmFkZDFiZDc4NjU3NWI4NGIzODY0YzAxYjVlOTc2YjVhODkwYSJ9"
+        },
+        {
+          "resource": "repo://scripts/05-qcom.sh#L180-L199",
+          "version": "repo-lines-v1:sha256:1970c547a2c81d43dc9549cb8563c8b6bc96a7e67e3d442ac444492de1659da9:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3Yzc1OGVmMzU0ZjE3YzA1ZTBiYmMwYjMyZmJlZDMwODI3YzI2NTIxNmEzZTFmZDUzMmY5YWE4MTUxYTM3OGYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2ZjE2M2IxYjkxYjI1MDk4NDFhMzMwZjhlNDliNTA1NmI4ZDkyOTY5ODlhNjUzNTYzZmU2NDk0YmRkOWU1MjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQzYzA5YTk0Nzg4NDdjNzcxNTJiNTMyYzk5NWFkZjM0MWIwNTJlYTY4NTI4YTJhZThjNjhkMGVhNWU2NmVhZWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA5MGNhYjYxMDMxOWZmNWRhYjQ2NjRjNDQ0MzE5Mjk4YmM2NjI3MzU2ZjJiNDU0MTk3MWNlMjllNDhiOGFiNDYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_10d89279c7c1450fa63f3821ed165bdd",
+      "statement": "servreg 电源域映射里 msm/modem/wlan_pd（Wi-Fi 必需）只存在于内核 qcom_pd_mapper 的硬编码表里，所以该模块绝不能 blacklist，反而通过 /etc/modules-load.d/raphael-pd-mapper.conf 尽早加载；阶段 05 还会删除历史遗留的 modprobe.d blacklist 与 pd-mapper 的 *.wants 软链。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/05-qcom.sh#L205-L230",
+          "version": "repo-lines-v1:sha256:cfdbe795aeda88a8f84fdc3d86be587392aad13ed63e0d8d972167056894ed70:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg3MGFiNmNlNGQwYTRhYWM1OGRmODZhN2I0MjIxMWFiMDI2NGNiMDY0NDU5MTE4NTExYjMwZDU1YzJhZTVjOTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY0NWNjM2E5ZTVhZDM5NTkyMGRlZWUzOTZhOGU0ODFlMGRiMjM5OWQyNGQxNTM2OGU4Yjg2ODY2YjkzOGNkODIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImIwZWMxZmMxOWNiYzRiN2EwZjVjMWVlOTA5MTI5ZDYyNjU5ZDZjODBhYjM5MTBmNWQ1ZmRkMzRlYzMyOTY3OGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcyODY0ZWQwMWUyMTA4NDA4OTM2ODAzMDU1M2RkNjk1NWVhOGM1OTI3Mzc0Y2EzMThhMjAzYjY2YjZkNGFlODkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_1b508035e8d14805ba7f02d96323066f",
+      "statement": "pd-mapper 的启用归属在两处互相矛盾：阶段 05 明确 disable 用户态 pd-mapper 并依据内核 qcom_pd_mapper，而阶段 06（顺序在 05 之后）在单元文件存在时无条件 enable pd-mapper.service，因此全量构建出来的镜像里它是 enabled，与 HANDOVER §4.4 的\"用户态默认禁用\"不一致。",
+      "evidence": [
+        {
+          "resource": "repo://HANDOVER.md#L232-L239",
+          "version": "repo-lines-v1:sha256:03a4e2ce80ed6ffc376f7bed99eb811f7045843ebd0bafbca5faa622d8693065:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNzg1YWIyNWU2ZWI3Y2Y3ODkxYzI3NzA1OTM0ZDhiNWQzNDkzYWJmOGZjZmI5MWIyYTQ0Njc2YWFlM2JjOWY0NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjUyMDk4ZWVjYWIxM2I2MTZhODVjODBlYzMxNDcwMTVjYWY3YTE0YzNhZjM1MDhiYTJiMDgxM2ViYjUyYWI0YSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzdmYzQ0NTQ4Nzk0MTAxZjNiOTNlNGJmZGQyZWUwNjU5YmVmZmNhMmRmMzhlZDkyMzEwZmI5ZmVlYTcyYTJmOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYzk0NGEzM2M2OTYwNjVhYTkzZmNiOGY1YjBjN2I1ZTBiZjVlNjIwYTgwMzdiNTg2MmY1YjJmOTg3NTZmZDRhMSJ9"
+        },
+        {
+          "resource": "repo://scripts/05-qcom.sh#L217-L230",
+          "version": "repo-lines-v1:sha256:0aaf230b805a1e4b544f24c66968ed96337f5af9992122cf9a884098a329ca19:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVlZjRmYTc0NzRhM2Y1Njc2Yzk5ZTQxZWMzMjdmZTZiMDM0ZTA5YTM2Zjk5Yjk0Njk1NDIyOGM4NjcyNWZjZGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY0NWNjM2E5ZTVhZDM5NTkyMGRlZWUzOTZhOGU0ODFlMGRiMjM5OWQyNGQxNTM2OGU4Yjg2ODY2YjkzOGNkODIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVhMTBmOGNmM2YxNmNlNWQ5YmQ1MzlhNjc2NjQ1MzQ5NjQwYTUyNjVmZjU1Yjg5NTcxZjMyYjk4NWIyNWUyZjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjcyODY0ZWQwMWUyMTA4NDA4OTM2ODAzMDU1M2RkNjk1NWVhOGM1OTI3Mzc0Y2EzMThhMjAzYjY2YjZkNGFlODkifQ"
+        },
+        {
+          "resource": "repo://scripts/06-config.sh#L195-L212",
+          "version": "repo-lines-v1:sha256:8cf47f9faa6fbac332171fa0b23bd3a9075679d15d290364a22f9cdac9bb06bc:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg0YWM5YjlkYjU5Nzg3OTQxZWIxYTg1NDBhMDA5NDllZjJmOGVhMDdkNmEyMGNmYzk2ODVmNDdhMTQxNWVjNTMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMwNDdlOTM5ZmI4MDc2OGIwZTA0NzVmODM0M2Y3MGExZDkxNzQ4YTgyMmE2ODhkMmU3ZjNjYjhkNThlNDRkYjAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_5a7087da71754c76afd0ba77f20c6386",
+      "statement": "阶段 04 的固件自检（check_fw 检查设备专属固件存在、check_absent 检查抢先文件已删除，累加 FAIL）最终只 warn，不阻断产物，因此缺固件的镜像会照常出厂（表现为 Wi-Fi 扫不到 AP、蓝牙 Invalid Index、调制解调器起不来）。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/04-firmware.sh#L112-L148",
+          "version": "repo-lines-v1:sha256:55b77534ef86794100ce20ec4ea5a29fc1bff25a684f1393451f4140daa15b20:eyJzZWxlY3RlZExpbmVDb3VudCI6MzcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRjNjk1ZjhiMjBiMmQzNmY4MGI4YTA5ZDY4Yzc3N2I2MmRjMGExZTZkMjUwMGNiOWI0NWM1Y2RmMDFmZjZiNTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVhODZmODVjMWNjOWE0OGZkZDcyNGFmN2FiYjk5MGI4OWEwMzdjOTE2NWIwZTA2MDMzZWM4OWY4YmM3YzQ0N2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_72a6e59f885c4acb9cb0a3f8830dbc7b",
+      "statement": "内核固件加载器优先尝试无后缀文件名，所以阶段 04 必须删除与设备专属 .zst 固件同名的未压缩通用固件；PKGS_FIRMWARE 同样刻意不含 linux-firmware-atheros，避免它的未压缩 WCN3990 固件覆盖设备专属固件。",
+      "evidence": [
+        {
+          "resource": "repo://config/build.conf#L154-L157",
+          "version": "repo-lines-v1:sha256:32c5c43f2bd3a768c0c0d09871967fec208073ddb79bb4f0d662feebaa2df8be:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjI3ZjgyMTY0NzBmZTViZTk4MDc2MWE2MzJjMmY4NGQzZDg3MjI2M2JhZjYzZmVkNGI2ODZkMDNjOTdiMzhjYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTYzNDMzNzk2ZGJjODFmNjAwY2UwZGQ1NTM2YzM0ZmM0Y2FiOTFmZmVhYTA2ZGQxODk0MTFiOWRhNmQ4ZDA0ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDkxMTNiYWQ4NGNlMGEwOGNjMzZjZWFiODI2Njc1YjI5OWM3YWU4NDgyYWE5ZTAwOWJkMDAxODcxM2Y3MTBhMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNTBlZWZmMzNjNzlkMWFjNTQ0MjFhNDQzMDVjZjMzYzQxOTJjZDMyZDFlOGEwYTg0YTEwMTViODhlMjRhMjU2ZCJ9"
+        },
+        {
+          "resource": "repo://scripts/04-firmware.sh#L83-L95",
+          "version": "repo-lines-v1:sha256:c907a4df723360e6ebdae8656b5824b1586b5adbab3410e123f7713cb9b8543a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkwOGE0ODE3MDRlMTIxN2ZlNWU4ZDlkYTZiMjZjYzgxNDg1ZjU3ODI4NDFhNWQ2Y2IzODk0OTZmYjFkMmFmNTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkxN2U0ZTE2NTNjYjA4MWYyZGZkYjk2MDA2Y2I5MzgyNTczMTcxZjAwODU0Y2Y0YjIwOTBmNjcyYjNmNTA3MDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA5NjI5ZDIxMDNmMWUwMjFkMzVkZTY3ODFiZTI5ZTE3OTY0NmJkMjAxNGI5NmRkMjZiYjcxNDc2ZGE5MDA5MTcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4d638a34a99d419a8ef35511de11905f",
+      "statement": "regulatory.db 是阶段 04 故意删除的：vendor 内核 CONFIG_CFG80211_REQUIRE_SIGNED_REGDB=y 而 wireless-regdb 的签名密钥不被信任，加载必然失败并退化为 world 域，dmesg 里的加载失败是预期输出；IgnorePkg = wireless-regdb 只写在构建用 pacman 配置里，镜像内 /etc/pacman.conf 没有这一项，所以设备上 pacman -Syu 可以把该文件装回来。",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L279-L284",
+          "version": "repo-lines-v1:sha256:b360ef201fe3508108611a12cc8aaa1e2da46ce09bb0a6e33c549b051f70c457:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTcxYWM3NTQ5ZDZhODMzY2Q0MmE1NDVmNTU4YmVmZDQ2MTMxMDcwMzdjZTc2MmY1MWVhMzkxNTZkN2FhNjFiZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTQ0OWJhZTAxNjk5Zjk2MmEzYWY3ZjdhMzQ1M2Y3YTY5NzM4MWIzOGRmMTU0MmQ5NmNjZjc3NDU0NTQwODZjMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODQyZmQwN2Y2ZTM2ZWE3NTdlZmUyOTEyYTg0ZmI4ZmYwMTkxNmJlZjBmNmQ1YTI4ZjM1ZWRkOTBiM2E1YmI4OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOWVhZmFlMTVhZjI0YjJjYzRiM2I2ZTRmM2ZhYWRhZTRmZTg3OGU2MDAwYWNkYjY0NTZmZGMyNDM1YTMwYzgzZCJ9"
+        },
+        {
+          "resource": "repo://notes/porting-checklist.md#L1861-L1865",
+          "version": "repo-lines-v1:sha256:60b16c81b2f26bfa1d5b09d8f863a7b115bc23b38edbfba16ef00cda5dd862e9:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOGM5YjZhZWUxZTdhODZkODdlNzFjM2UzZWNkMmZmN2EzZjhlZjE4NzFkZDdkYmE5ZTE3ZGYwNGVjNjcxYjRkNyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiN2ZhZGEyY2Y1ZmEwY2E3NWU0MWYxMWQ1MTI0ZDVkMzA1NWI4MDg3NTA3N2VkNmE3Yjk0N2E5NTg0ZWU1NjQyYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTVmM2EwN2E4MGYyMDcyNzhhYTQ2MDYxZWFhNWI5MWM1ZDZiZjAwYjU1YzU1NzIyN2QyMTk3NzVmYWU1ZGJjNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTU1NzJjNmVhNDdjOWIwNzUzNTk1NDc0NmY0NjBkZmM0NTRmYjVjODk0YWI4OGFmZWJkZjk3MTU3ZTcwNjE3OSJ9"
+        },
+        {
+          "resource": "repo://scripts/02-pacman.sh#L23-L35",
+          "version": "repo-lines-v1:sha256:bb18136f0c4434c2593cdb73bf5bc8f8889ce2c1fd34667165477194371373da:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA5YzkwZWI0ZjU3ZjEyODFiMTk2ZWVjMWY0NmVjMWNkOWQ2Mjc3ODc4NTY1N2ExZmZiMWFkYTlhNDFkNmY3YjAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIwYTY5NDIwYTM2NDExZTQ0MDQ1MGFjMmE1OWY2OWY0MzM3OTg4YjZiMDBhMTcxZWJhMzIwYTA3NDI0MDY0MTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ2NzlhZDJiZDM3YzQ5ZDRhYWRhYTdlMmY3YmUxNzRhMzhhZGY4ZWNiOWZiMDZmY2U4NzlhZDIzODY1MjdiZjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM2MzgzNDFiYmUzNDU4ZDVkMmM2MzBhNTViY2Y0ZTA5MTFlNjdmMGEyZjc0YjM3YjRiNWY1MzcxNGUyYzQ4OWUifQ"
+        },
+        {
+          "resource": "repo://scripts/04-firmware.sh#L97-L99",
+          "version": "repo-lines-v1:sha256:7db77991034997912cb89929c8e101eb2585fb4f56571ff9fcf57fc7090ab3b3:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzhlZWMzN2JmODc0N2I2YWJiMWU4ZjNkNGIwYmJmMTM1YjFlMjU5ODljM2EyYmNhZjI3OTQ0ZDQzM2RlN2EzZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDBjYjFjNmFiNzFiNjUzNDAwMjBmNTcxZDhmZWY5ZTRlYTIyYjYyZDIyOTE5MGFlNWE5NWRhNjQ4NGI3MTAxMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMzcxYTJlMDVhYmU0ZWI4MDUzMzk0MTdkYTI5OTFlZmNlY2Y3MmQ4NWI1NDRhMDI5NDgyNTEzMTRiMDU5MzU3MCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTRlZTBmOWZmNTE5ZDgwYzFhMDllNDUzMDNlZWIxZTQ4NTc4OGQ3YmI4MmRkYzA0N2Q5NjMyODQwZDg5MTMzNSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_20460849cc804f3cb15d79b1495fcc2d",
+      "statement": "rootfs 布局、fstab 与引导参数必须三者一致：write_root_fstab() 由阶段 06 与阶段 09 各调用一次，09 的 loop 回退分支必须先把 fstab 改成 flat 再 mkfs.btrfs -r，根那一行不能 nofail（否则根可能停在只读导致 sshd/usb-ncm 失败），/home 与 /swap 反过来必须 nofail，挂载选项统一来自 btrfs_opts()。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L136-L152",
+          "version": "repo-lines-v1:sha256:a574ad1c74366116359a4d556d23278cb3da4a0dd5d5dd3673594c21c2e89861:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY0YTViNzkzOGY0ZTA2NDI3MmQ2ZWNlMjRmNmRlYjUzNjhhOGM0MDFiYjNlNGVlMzc5NmNmNjZhOTc1NjJkMGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhlNTY3NGMwYjQ2ZjkzNDNkMzE2ZTU3ZjQxZGVlODJjZjM0YjBjMTM2NDAzMjNkOTQxNzgyOWUxNjFhMzE4NDEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImI3ZjUwZTJkMDM5YTNjNjhjMmFmZjEyZWVhYzY1MjAwYWEyNzU3OGU4YTI3NTZjM2E3YTg2OGY0YjkxZWFmYmUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQwMDgxYTJlYzdlNDMzZjJiOWE5YmM5YTM4NGM5MTNjNTY1ZTVhNGMyZWI2ZmQwN2YwNTE2ODY3Nzc0YzA3MmIifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L395-L432",
+          "version": "repo-lines-v1:sha256:9321d55fc86e40e2ec3b4d288bb4b7421cdd66a715b0f6a7b6a4c24d174d0c7d:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkMjA4ZmJiZDc1YTg1ZWI1MjUzOGVkZGQ1ZTY5MTkzNjhjNjdhYmY3NDQxOTg0OTMwMDM2MDYwZjVhYTIxMWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI2MTQzYjg5ZWViZjBjOTkxZWQ2NzM5MzVmNWVkMjRmZDI3YmYxNTY5ZDRmNmRhMWMwYWU3NDExNGY2ZDUxNWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY2YjBiMTg3OGI0MWFkMGQyMzY4Njc2Yjc1YmU0OWFhZDllYzBkMWM3Y2Q0NjBjODI4NzEzYjk4OTFiNGUxNGYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_fd8050cc1f97491faafa073d430527fb",
+      "statement": "initramfs 顶层必须有 lib -> usr/lib 软链：内核固件加载器只按 /lib/firmware 找文件，缺这个软链时内建 msm_dpu/adreno 在约 0.6-0.9 秒 probe 期间拿不到 a630_sqe.fw/a640_gmu.bin，GPU 会在没有 SQE 固件的状态下初始化，表现为熄屏/开机瞬间花屏（10 秒后从 rootfs 加载已太晚）。",
+      "evidence": [
+        {
+          "resource": "repo://HANDOVER.md#L307-L319",
+          "version": "repo-lines-v1:sha256:cb69677e86e36ce050b599f1edd0e599dc0752c1fa29782ece4c9a494c833d37:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjcxZjk3NmNmMDhlZWRmNzQ3MDZhODNlMTYwZGM1MGI4MDI3NzU1NDM1ZTllNzAwNzYwNmFiMDQ4ODEzMDJhZTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2YmEzZDA0OTljMGJiMjMzODdiODIxZjU2MmYyZTEyNjNkZTUyZjUxNWE2NTViMDZlYWViMWRjYmJjNWU3YTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk3MWNjM2QwZDQyOTlmZGRmYTBlNTlkZmZjYjE2YmUxYmZiZGIxMWUyYzY0ODdjNDdlOGE1ZmZkYjgxYzhlZDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQyOWZhNTBmYmMwZWMxZTBlMGQ5MTEzOTVhMjc5ZDJmYmY3Y2Q5Nzk4ZmNiYzA5MDZjMmI2NTQ2ODkwNmFhNjkifQ"
+        },
+        {
+          "resource": "repo://README.md#L709-L741",
+          "version": "repo-lines-v1:sha256:88b03b3631b9ed9f57c976331b38ec91c234193841dc5d0fd5fb7d0fbfc1e9c0:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVkOTAxMDRlZGYzYTQ4OWJkOWNjNDhiYzFjNDljY2E3ZjhjMDQyMmFlNGNmYWY3YTQ5M2U2NWM2NGI1OWJiZjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2NGY3NTQ4OTRhZGRjYmNlYTc1M2EwYTMxMWQzNWIxNTc0YWIzZDU0ODMwMTE2NTZmYjRmMzMxMTliYTA2M2EiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAxZDBlZTU2MjYzMjNkNWExYWVkYTIzODc5YjVmNDZhMzI0Yzg1MWRkZjZiNWI2MjAxZTYzZDNmZmMxMDcwYTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQyMTJkNjBhMjZjOGY3NDM1ZjJkZGNkY2E1MWE1NzQ5ZGE0MmQ5NjYyNjYyZWNhNmVjYTZkYzU5ODFhMjExMzAifQ"
+        },
+        {
+          "resource": "repo://scripts/08-initramfs.sh#L20-L30",
+          "version": "repo-lines-v1:sha256:4b098ddd7d38ef1c4579bdd24661286644b7067f48f016c82e2ee4861a702627:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4MmFlY2JmMmIzNWY3YzdiYTkzYjVjMWQ0MDhmYmRjMWUwZTJkYmM1MjlhNzQ5NGQ1ZjU0M2I2ZDU5NzRkYmQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ2NTJmMGI3NmUzM2FhODg0OTRjODA0MjlhNjhjNDRlMTdhMzhjNzZjOGIzMTdmZGJjZDI4MWFlOGYxM2RmYmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg2NWQ1OTZkY2FlYzNkOGM5YzU4M2VkNjg1OTMyYzg2NzMzY2Y4ZGQwZDg3NDU2MjlkYmNlZTIzNWRiNDdkNGEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImYxZmMxY2JiZGFhYjUyNDk1ZmI4ZmM0ODVmZDQ2YzcwYjhkNWE0OWUxYzY3ODBhY2JjYzI4NzVkOTRmZWYwNDIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_9b0a89721a844e3fb593d6f5743d6b34",
+      "statement": "阶段 08 对缺少内核版本、缺少 /usr/bin/busybox、busybox 缺 mount/switch_root/findfs 等 applet 是硬失败，但固件搬运本身是静默跳过（[ -f \"$src\" ] || continue），其中 regulatory.db 的两行因为阶段 04 已按设计删除该文件而必然成为空操作。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/08-initramfs.sh#L14-L41",
+          "version": "repo-lines-v1:sha256:2a489b7c313fe16f8c35b698657ee6fc50446ad4a733ca6f3f45fdfdef13ac95:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlhNDY1ODM0MWMxMTExYmIyNDU4ZThiNjdjZDk4YjFhZTFjMmY1ZjY0OWU0OTMxY2NiOTA5NDFhM2VhODZhYjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjFkMTdiNzI4YTAyZWFhZDVlOWE0NjU3ZGY4NDhkMjkzNGY5N2JiZTU1ZmE4MzViMGI0YWIxODAwNzIxZjVmNzciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkyNDU4YzdmNTVkMTA2MDg2OTdkMGU1NmJkODhjM2FkZDdhNWJhNjkyM2JmNmY4ZWI4YzU3ZGM3MGViZjAxYTAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk5MTFiZjk1ODFjYjI1MWE3MTAyODM0YTA4YjUxZmQ4MGNkNTU3M2U1MTI2M2QyOGYxNGM0MTJlNzI5ZDQ0ZDcifQ"
+        },
+        {
+          "resource": "repo://scripts/08-initramfs.sh#L73-L90",
+          "version": "repo-lines-v1:sha256:28ce95d3de1043af9618e671f83337fb8c09e798ca80de9301485a49652aae0d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEzYzQ0MDc3NWZiYmExOWQzNGE0MDE0MmFlYjczYzIwY2RlYzlhMWRhMGQ2YzZkZTZmOTcyYjMwYTg4OTExZTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg3OTI1ZjQ0MjU4Mjg2Y2Y1Yjg4ODFmNTgyYjhjMWEwOGYxMzk2MDIwM2YwMTRiYTg4Zjk2MTQwNGUyODg0ZDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjkyMTk0MTVmYjIwMTMwNTk0ODkzYjdjOWZhZGNjMzEyNDgyMmQ1MGZjYzYwMWFkMDY2YWI2Y2UzMDEwNDNjZTUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_befc268a68744919b80f1f81c3389852",
+      "statement": "阶段 09 在把数据灌进镜像之前硬检查 /etc/systemd/system 下是否还有 systemd-networkd* / systemd-resolved* 的 *.wants 软链，有就直接 die；这守的是 CI 上出现过的\"日志说 disable 了、镜像里软链还在\"那种多一个 failed 单元的情况，而阶段 06 用的手段是 disable + mask + 删残留软链。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/06-config.sh#L213-L239",
+          "version": "repo-lines-v1:sha256:1ae2689be3008095fdc33968f95aa9e522f2c57207f4d533d2afb94824646aa9:eyJzZWxlY3RlZExpbmVDb3VudCI6MjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4ZDA1YmU2ZDM4ZjhkZDg1YTAzMDgzZjhiZjk4NzFmNTA2OGE3MWQyZTRhY2ZlYTZmYmRmNWUxNWVlMTNmNjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjUzZGI3ZjNjMWY1ZDgzYWU4MTM3ZDhlOThmZDNlYjU2MzNhM2MyOTgxNjAwMDc3ZDJkZjc4MDZlZWI3YzMyY2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ4MGIyM2VhNzA1ZDNjMTEwNWI5NDc5NmNmMDAyZGZmMDEzMTc1NDEyNzU3ZmUxNTlmMjAyZTFlMTQ1ODEzMWYifQ"
+        },
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L85-L102",
+          "version": "repo-lines-v1:sha256:3af03c814e82614ee80f353adffeade89d288f46045564fe299ead6946a8dfac:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY0ZTJkNzY3MWViY2RhYTQzYzI3MmRlYThiNzc0NDZlMTljZjZiZWY3ZmJhYjA2NmUzMWQ5YzRiYzMzMGM1MjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM0ODE1MzNlOWYzMDgzYTA4YzE3ZmY2NDAwNjFlNjI5MjI1MTJmOWYzMjg5ZjVjNDZmNjA5ZTUyOTNhMjgwNmQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_50d3261046564e3ab54d6e22acbffd39",
+      "statement": "systemd 的看门狗被显式关掉（RuntimeWatchdogSec / RebootWatchdogSec / KExecWatchdogSec = off），因为 PM8150 硬件看门狗不支持 systemd 默认的 10 分钟超时，设置失败会让重启卡在关机流程（sshd 已停但 USB gadget 仍在）。",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L401-L417",
+          "version": "repo-lines-v1:sha256:00d49137fe587cb78e19a5d508dd411190afe0755132ea37f32c039ed93c342d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM0MGNiYzJmNDNjZTEwZjA3ZmJiYzcxMDkzYTY1YmRlNTRjYzNmYzgxMjA4YzU0NDdkMTQ5ZTdkOWI5YjMzZmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ3YzA2YzU2MWQ1YzMyNzM0MzY4NTI2OGE0NmIzMzkxZjM5OThlZWU4OTBkMmJlNTFmMGQyMWNjNGE1M2FlNmQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjJhYmZkYTA3YmVkZjA5NjJkMTM1NTZiZGNiOWU1YmZkOWNjYjYwYjVhYzgxNWIyYjZhOTAyN2RjNjhmNjVkMWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc2MzgwMTg0YjJhMWE2YTk4MWI4YzAwNTQwNDc1NDNhMmEyOWE2Y2UwZTE3ZjRhNDNkYjUyY2FlNDExMzQzYzUifQ"
+        },
+        {
+          "resource": "repo://scripts/06-config.sh#L960-L972",
+          "version": "repo-lines-v1:sha256:250be952cbeb77377c3084e1d0da71879cef73c35b91876a2cbe35e6a35d1b62:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJhMjFjNWIzYmZmMDI5OWMwMTYxNDcwNDY4ZjM1NWU1YjRhZmNmMTdhNWY1OTNhYjY4Mzk0ZWY3YWYzMTljZGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk1MzVjY2ZkNjdiNjEwZjgyODI5ZDQ2MmIzMWU3NmIyZTJkN2M1NGU3NmMwYWNkZTlkZDk3NDJlYTY1MzA2MjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMxMzQ3ZDgzNzJhNWFjNjBlMjUzMmY4ZjcxYjU0MjYzZTlhZGI3M2NkYjA5MTAwYTZlMmQyNDY2MWQ4ZTI5ZWMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_149af1e55e9845a0b06c60a9bf11309a",
+      "statement": "电源与挂起的所有权是显式分配的：sleep/suspend/hibernate/hybrid-sleep 目标全部 mask 且 logind 忽略电源键，电源键由 KDE 的 PowerDevil 或自研 raphael-power-key.service 二选一接管（有 KDE 时只安装不启用，无 KDE 时 enable），两个同时接管会重复触发。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/06-config.sh#L328-L346",
+          "version": "repo-lines-v1:sha256:e47a80f98dbc29f064c65584bd08b535b3ba33fe2e46b1e043dfa918c994288b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJhMjFjNWIzYmZmMDI5OWMwMTYxNDcwNDY4ZjM1NWU1YjRhZmNmMTdhNWY1OTNhYjY4Mzk0ZWY3YWYzMTljZGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjlmNDAxMjE3MGZjYTZkZWZkMmVlMjM0MjRlMDZjMGM2MjMxMzZiNzNhMGY3ODcxNGQ0MDYzMGI5MmI3MzNmMjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgwOTA1Y2Q1NDQ3MjZhMDk1MzFmZDlhYjc0ODgwNTVmZmM1Y2VhMmY3MGFjNmVkNGFlYWFhYTE4M2QyMTM0ZjcifQ"
+        },
+        {
+          "resource": "repo://scripts/07-desktop.sh#L542-L553",
+          "version": "repo-lines-v1:sha256:9c7f72969468f46fedb0da6c0fe10ad209c5ea345285141d6af0f7f4b1fb1144:eyJzZWxlY3RlZExpbmVDb3VudCI6MTIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI1NWNiM2YwZTY3MGE1M2ZiZTZjNzdlODRkNTlkZmQzNzMxZDcxMjg1ZTA0ZjhiYTliYTYwNGFiNTExMzhhY2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg3ZmY1YzYzNjQ4MGNjMmY5ZTE5MDljMjc2YWQzZmVlNDNiZDE5MTM5MmZlNWI2NjI1YTdjODFhMDYyYzIxNDQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4MDFlZmQ5YThjYTYyMzdkNzI1NTcwYWE4ODgwYTUwZmM5YWEyZDFiMjUwMTEzNGZhYzkwZDk1MTcxZGMxMjcifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f7622cb74eee4ca08321aa940e18fe4a",
+      "statement": "手机形态的输入法只有一个来源：QT_IM_MODULES（复数）通过 systemd user drop-in 只给 kwin_wayland，plasma-keyboard 用 Exec=env -u QT_IM_MODULES 清掉继承值，~/.config/kwinrc 只写 InputMethod[$e] 一个键，且 /etc/environment 里不得出现任何 QT_IM_*。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/06-config.sh#L791-L810",
+          "version": "repo-lines-v1:sha256:85c3ad661fee591f74c560dcd9dc844aece4fab1ac9fa4d55ff5bd8aecd964ad:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjJhMjFjNWIzYmZmMDI5OWMwMTYxNDcwNDY4ZjM1NWU1YjRhZmNmMTdhNWY1OTNhYjY4Mzk0ZWY3YWYzMTljZGMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU1NjllY2JmMWM3ZTk4MDAxOTUzY2E1NGQ5YzExYTA5M2NhZWI3NzA4MTYwYjNmYTgxYjdhZjk0ZDdlOTY1YjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImM1ZTY3ZTg4ZDA3MmM0NWM0MDRjNTU0N2Y4NjA2NTZhMDAwNzBmODcyMzU2MTgyNmI3MjI0ODE4YTBjZGUwM2MifQ"
+        },
+        {
+          "resource": "repo://scripts/07-desktop.sh#L753-L794",
+          "version": "repo-lines-v1:sha256:a8ca99b42bd8e3ef1caa7afaca08766433af626eeafab27a14111affc15ef626:eyJzZWxlY3RlZExpbmVDb3VudCI6NDIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZjMmJjYTliOGNlYTkyMTkwMjhmZGUyYTdkNWY5M2IxZTFjYTEzNWE2MDZmNDUyYzg4NDgyMmJmZjc1YWQwMWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgxZjVlNDNlM2JjZDgzNWQzZDQzNDVhOTBjZDEyMjJjMTYwOTg5NWY1ZGI2OTNiNGJjOTkyNTZjMzAwZWFkYjgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhlMTZhMGFmNDk3NTI5YmIyMTQwYmUwOGUzZDI0Y2M4ZjI2YjJkNGYxM2E2NDE1MWUyNzdlMWE5OWI3NmIyNzAifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0d1eaa4b7c164e75a5b7c721b77ecbe0",
+      "statement": "输入法规则有形态分支：PKGS_IME 只在手机形态为空，选 plasma-desktop 时会装 fcitx5 + fcitx5-rime 等包，此时 07 把 KWin 的 InputMethod[$e] 留空、删掉 kwin_wayland drop-in，并写应用侧 QT_IM_MODULE（单数）=fcitx 等变量；因此 HANDOVER §5.5 的\"PKGS_IME 是空的、07 不再写 fcitx5 配置\"只对手机形态成立。",
+      "evidence": [
+        {
+          "resource": "repo://HANDOVER.md#L335-L350",
+          "version": "repo-lines-v1:sha256:2db3b3802ce383d51630bcac94d86780ea772ab46fac7d2ae5c20dfc92dc82c9:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI0MGYyODk0ZTNjOWE5YWZkNDM2MzY5OTZmNGQ3NDQxMjYxMDNiYWJiNzc2ODhiYmNmZjAyZTY5NDIzODQyOWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1MTE3NTc5MTI3ZmFjYjYxYmI5MDc4ZTRiZjYyZjI4MzlhMjJmZmNjMTYwMzVlYzY3NTA0MjdjYTg0YzAyMDkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYxNDU4MzdmN2JjZTk3MmMwMDg4ZTk2ZDZhNTVkODAzMzAzMDAxMGIwNzYyOGUxMzkxNWFkZDFhMDAwOThhM2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJjZGY4Mzk4MmM4MDRmODM4ODE4YTkyMzgxNjExOGNkMTE3OWI4MzJmNWViZTNhZjc0OTIwMTA3N2ZiOThiMWYifQ"
+        },
+        {
+          "resource": "repo://config/build.conf#L316-L329",
+          "version": "repo-lines-v1:sha256:ea2372f48569a76b2d127aaacb97fcb18e3153164d2cbb0f62d8d8b70b113280:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY1MWM2ZGI4NTBhMDc2MmFjY2M4YzhmZGEwYjkxYTA3OTE0NzljZjFhNmZhM2Y5MWUyODM5MGZkMzc3ZmNhZTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM2ODdlOGM0ZDJiNzlhNTZkYWIzNWUwNTJhOGZkZDQ2YjgzYTZjNmNjNjVlNTg2OGFhOTc3ZDdjNjM2ZGEyZjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAxN2Y4NDQyN2ZhYjA1ZGM1NTFhMGI5ODk5YmRjN2JkYTZhZjQzY2M1N2YxNWNkYTJiMGM3YjM4NTdmYWY2YTYifQ"
+        },
+        {
+          "resource": "repo://scripts/07-desktop.sh#L796-L826",
+          "version": "repo-lines-v1:sha256:9434c1c547233e6622bd4c49c245197006285da69448aa3db3eb99992309c552:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM1ZmM5MGZmOGE0NDE0YzU0NDFkMGY2NzdjNWNiZmRhMzhiNDc0ZTUxYmZkNTU5YTU1NTlkZTBmODc3MDU1MjQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAxYjU4MDgzMDM3MTA3M2FiOGU0OTAzYzljNjE2Nzc0ZjViYTA3NGNkMDljNGUwNDMxYjI4MWY2ZGE5ZTc0YWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjgyYWFiMzc3YjA1NGJjOTZkMjdlYjMxZTAwOWI5NDYxZDU0Y2E2ZmJlYjc3MTc1YTFiMWZiZjYwOTY1NzY5ZTkifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7529af49b2814222ac08641014b41c81",
+      "statement": "阶段 07 存在顺序不变量：13.10 的\"撤销 Shorin 个性化\"会 rm -rf 家目录里的 fcitx5 配置并重写 kwinrc，所以 13.11 的 fcitx5/Rime 收尾（含按形态回写 InputMethod[$e]）必须排在它之后，否则配置会被静默清掉、镜像里只剩 /etc/skel 那份。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/07-desktop.sh#L946-L1056",
+          "version": "repo-lines-v1:sha256:3fff641daeba6ff79dc03944797ca479b6824a26d5df5c3adba0c105b696dff2:eyJzZWxlY3RlZExpbmVDb3VudCI6MTExLCJmaXJzdFNlbGVjdGVkTGluZUhhc2giOiJmYTBjMjFhZWMyOGU2NjIwZmVjMjI0NTg5ZTlhMDI0Njk5ZWYzYmU4ZWZjYWRkYWExNmI0MzUzYmVhYjJlNTVlIiwibGFzdFNlbGVjdGVkTGluZUhhc2giOiIzNzY5ZDIzN2NkNDIwYjlkMzhiOTgxYTBhNGY2NzcwMTkwYTRhODNkY2ExZmU1NmM0ZjViYTFlMmNiYzBlZjc2IiwicHJlY2VkaW5nQ29udGV4dExpbmVDb3VudCI6MywicHJlY2VkaW5nQ29udGV4dEhhc2giOiIwYjFiOTAzMWIyZmVmMDBiODEwMmUzODJhMzFkYjkwMjlkNGE0ZmI0NmYwNGU1YTRjZjQ4NWUzYzRlNWVhMmM1IiwiZm9sbG93aW5nQ29udGV4dExpbmVDb3VudCI6MCwiZm9sbG93aW5nQ29udGV4dEhhc2giOiJlM2IwYzQ0Mjk4ZmMxYzE0OWFmYmY0Yzg5OTZmYjkyNDI3YWU0MWU0NjQ5YjkzNGNhNDk1OTkxYjc4NTJiODU1In0"
+        }
+      ]
+    },
+    {
+      "id": "claim_2726b627d56746f9be59e7c9f29a2db6",
+      "statement": "GNOME/Phosh 的屏幕键盘默认值走 dconf 的 system-db，只有 /etc/dconf/profile/user 存在时 system-db:local 才会被读取（dconf 包不自带该 profile，脚本必须自己建）；而 dconf update 失败只 warn，属于会静默失效的一类配置。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/07-desktop.sh#L219-L253",
+          "version": "repo-lines-v1:sha256:49d0ee6d8172ddf4847760b33320e6edc13af62ca3ae2502c247f74279821dd2:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2NmM2N2RhMjRkNDY5Y2M3OTk2YTM1OWU5YWQzYTQ5OWUzOTk5ODQzZjZmMzI1YjJmY2Q1YzgwYTFiYTJjMjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk3NGFhMDU3MGZjMGJiZDY5YWMzZGMwMGI5N2JkNGEwNzJkYzE2ZjZkM2UxYjMzNTM1NGQ0NTM5ZDA3ZjdlNWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijg5YzBmM2JhMGFjYTdlMDMyNTdhMjZkNzM4ZTA4ZjhmOTdiZWEyNDFiOGYwZjc4YTNkZjJjM2RmYmJhNDE3YmUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_6743bca93cef4f0582418cba2a4785d9",
+      "statement": "蓝牙地址在两个阶段的失败语义不同：阶段 10 对于未提供地址、格式不对、缺 bluetooth 节点或缺修补版 DTB 一律只 warn 并产出合法但\"蓝牙不可用\"的镜像（地址是每台设备唯一、公开镜像本不该带），而 11-flash.sh --bt-mac 与 bt-mac.sh 在格式错或注入失败时直接 die；共用 normalize_bt_mac()，DT 里是小端字节序（与 bluetoothctl 显示相反）。",
+      "evidence": [
+        {
+          "resource": "repo://HANDOVER.md#L186-L190",
+          "version": "repo-lines-v1:sha256:d0069fd55e7a1739c3ea59dd6e258537a07a991ca7b1ed2fd4e28281034d8651:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYTAzOGYwMGU2NjE1MTU1MjIzMTA2ZTU1NDNjMjFkYTg0NjE1MDQ4ODA5ZWJjNmZmZTUxOThjZmVmMGUzMzE0MSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDFiYTQ3MTljODBiNmZlOTExYjA5MWE3YzA1MTI0YjY0ZWVlY2U5NjRlMDljMDU4ZWY4Zjk4MDVkYWNhNTQ2YiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWRjMzI0NjFiY2E1NmRhZDQyZjMxN2Y4NWU5ZjRkN2EzZGYyYjc1N2QwZTFlZTBhZTI4N2I1ZTAzZGE5NmQ0MyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOWExZjZmOTMyMzI0MDJmZTI4MGMxMGI4NmVhMjU4MWE0YWNiZjg2N2VhNmRkODhmNGFlZjQ1YzdmYmQ5MzcwYSJ9"
+        },
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L51-L81",
+          "version": "repo-lines-v1:sha256:b58b3add33c2792d141f13cf5f4510bd4cbc008609dd7f0421203e460e212f09:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhZWFhMWFiNGRlNTM0NDVjNDIzYmU1NWU1NjFjNTg2NjVhMDZmZjlmZjc5Nzc3MjAxODk0MDQzMzkxMWM2ZjkiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY5ZDBjOTFlNjJhMzAyNjJhMTQwZjJhN2QzNTRkMGIyODA3YTUyNDM0MDE1NDBkM2Y1YzExYzExNTAyYzVkNDAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQwNTljNzUyYzcwMzRlZDNkOTYxODgwZGZiNjkyNjc4MzY0NDNiY2QyYjQyYzIxZjMzYmMzYzE1MzJkM2EyY2QifQ"
+        },
+        {
+          "resource": "repo://scripts/11-flash.sh#L88-L104",
+          "version": "repo-lines-v1:sha256:ba6540898b574936d31c8461733d664fef5b4a5fc2f11ba7f5c508a01f8c041b:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFiNGI4MzU3M2IxMDNkMGY2NzRhOGExN2FjMzk2NmZhNDdlNzk5ZDIxMWFjZWRjZTZlNjZkNTI2Y2Q3ZDg0MjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjRmYjVhZDYwOTg0YWYwODMyNWU1OWZhMWRkZjdkOGZiMjQyMzI1ZWIxNDUyNWIzYjJmNzg2ZjQ5Y2YyN2VkYWEifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L357-L374",
+          "version": "repo-lines-v1:sha256:a2a15141236480f78420c0bbc7f68698791567daf8b1bfe50621a21e14bdab10:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk0ZjFkYTA2YWIzOGVlMTQ2NDQxY2M4NTYyYWM4MjM4YjYxNDdjMDVmNzYwY2M5ZWQwMzI4MjA4ZjI2Y2M1MDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQxZGMzYzA1ZTE3MDdhMTAyMzhmOWI3MTc3MTRkZTQyY2VmN2NjMDVmMTg4ODVmMWViNWIxZWE0ZGYyNjMyMjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU3MmU0NmUzZWE4NTY1MjJhZDhjMzNhNGUwZWJiNzYyODhmY2EzMDA1NTdkN2YzYzg1YTU5YTA4MmU3YWZjZjYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_701057aa025747af819389c1aac1e2d0",
+      "statement": "\"设备的唯一值\"相关不变量：蓝牙地址必须靠 config/local.conf（已 gitignore）、CI Secret 或刷机时注入而不能进仓库，且刷机流程会 fastboot erase dtbo 清掉厂商设备树里的原始地址；/etc/machine-id 在镜像里由阶段 06 生成、阶段 09 重置为 uninitialized，USB NCM gadget 序列号依赖它。",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L575-L607",
+          "version": "repo-lines-v1:sha256:8bfefb0d165388ecac4d22ed820c8b9b509be092c199c29c49de848f7b73b221:eyJzZWxlY3RlZExpbmVDb3VudCI6MzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg2MmM0YjE4NzgyYmVlMjQzNGY5ZTMwMzU5Y2VjMmUxYjdhMGE0YWY4OGM4NDA1Zjg5OGFlNzZmNzA0ZTMxNzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY1YWU5NDRlNDM1ZTlkYTZhZjc1Yjg3MjQ0ZmJkOGVhMDIzZTY2YzhkNjAwMDczN2MxYjQ4ZTYyYTcyNjg5OGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImNmMjc4MTIzNjEzNmI5NGI5MTczOWVjYjVkNTI2NmI5ZGViZTQ1OTMyN2QzYWIxMDRkMWIxOWRmNDYyMWQ3ODUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM5ZmVkYjgyZTM2MWI4NzYwM2UzZmVjYTA3NDUzZGZiN2Q0YzA3ZTBhY2NjZTVjYWQxOWExZDkyN2NhNTk2MTYifQ"
+        },
+        {
+          "resource": "repo://scripts/06-config.sh#L747-L754",
+          "version": "repo-lines-v1:sha256:d3b51ea3db0c0455ad330748bde0573c5f7271ec2aa17d7b124f074561539c69:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmEwYzIxYWVjMjhlNjYyMGZlYzIyNDU4OWU5YTAyNDY5OWVmM2JlOGVmY2FkZGFhMTZiNDM1M2JlYWIyZTU1ZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiM2ZhZWY2NGFjNmE3NGZjMDhiNzIxNjYwOWJkZGJiNzhlNjQ2NWU2MTI3MjA5YjE0ZWQyM2EwM2ZiYmFjNjlkNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTg1ZDI5MmJiMGZjYzZiMmQzNDg1OGRmNWNlYzFmNjRlZDY3YjMzYWVmNzhjMjc2MzY2OTBkNTk5Y2U2NDFiMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMTcxYWY1MmI1YWRjZmI0YTY0MGY3YWYyNmM4NjJiYzg3MDMwN2Q5NTI0NmFiYTVjYzdiMjkwMjgyNmM0NjlhZCJ9"
+        },
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L35-L36",
+          "version": "repo-lines-v1:sha256:f05bb0afd342c45035afc0661185b8c816af12ad5f8741744ba840db1dfeb408:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDIwNDQxMTFlODZmZmFmNjdmYjc5MTBlYjU1NzNiM2M3NTI0MTRiMzUyMzVkYzJkYzRhYzQ4NjMyNDRmZmViYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNzViYWEwNmI4MDU3OWFlZGU2OWJkZjM5MDQ1Y2M1NzAzZjAyZmM5MGI0MjQzOTMxMWFmM2U0N2FiNzdiOGMzOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2ZkYjg3ZTVmMDRlODJhYmUyMGEzNmI3NGUzY2EzOWQ4ZWQ3MWRkNmU3ZWQ0NDM1MTY2YTAxNDhlMzkxMWE3MiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMmZlMzA3ZTM0NzYwNTFlZDYzYzhhMTI4Y2U1MzhmZmZmYjFiZjJmMjA3MzY0YWM4OWRkYmQxYjhmMDVlYzExNiJ9"
+        },
+        {
+          "resource": "repo://scripts/11-flash.sh#L88-L117",
+          "version": "repo-lines-v1:sha256:84b148f44ee9c5656c3df14959f6678b917d5287f0f8287bdf981afe9326d038:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhYjc5NTMyYmM0NjM1NGRiNmZhZjZlMDEzYTAzNWMzNjZlM2ZkMDkzYjljZjgzM2FiMmY2NmJiMmJlMjRmOTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFiNGI4MzU3M2IxMDNkMGY2NzRhOGExN2FjMzk2NmZhNDdlNzk5ZDIxMWFjZWRjZTZlNjZkNTI2Y2Q3ZDg0MjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY2ZDVkYWE4NjMyMzk0Y2I4YTIzNmJmZTQyNGY4N2M5ZDU0YmMwMDIzNjkzNGU3NzEwMzM1MGFlNzhjODJkZDEifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_3e03e829fbeb4deb9a8d8c324f7cd507",
+      "statement": "增量重建（复用 work/root）需要显式\"拆弹\"：阶段 02 用 -Rdd 逐个删除 PKGS_PRUNE 里的包（只装不删会让上次的去重包留在树里），阶段 07 的纯命令行分支删除 display-manager/sddm 软链与 sddm 配置并 set-default multi-user.target，阶段 06 的 13.8 段清理 AUR 首启动安装的脚本/单元/定时器/免密文件与 motd 提示。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/02-pacman.sh#L160-L170",
+          "version": "repo-lines-v1:sha256:2a0c542c05ce7c9a43c69d653fe0be2af5c44117b34059fb42626b0f337f1a50:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdlMDJhNzE5NWMxNWFiNTU0NDJiMDVkN2VhMWY4NDEwZjA3NTFkOWMzZmY1YzIyOTJhMzZiZjAwNzY5NTgyM2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ3NmRiZDVjYmU1ZTgyYmQwMTU0NjNiODUxNWVkYzExMTJlOWIyYWM4MzViMzIyNzgyYmU1YmJiZmQ5ODBkZTgifQ"
+        },
+        {
+          "resource": "repo://scripts/06-config.sh#L1079-L1110",
+          "version": "repo-lines-v1:sha256:8bda71843f1fb2e2b180cb85598012279453a1eff65f70ff99d781b729c10068:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVmZTBjZjBiZjE0YWZlNzc5ODI0NTMzY2U1N2U4N2NlODAxOWJmY2FjMWRkZmFiMWUzNjUwYmE1ODA5M2NiMTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjE0OTZlNGMyY2EwYmI2OTgzZTEwMWU4MGJmNWVlODhiMjllY2JiZTMxNGZhOTM4MjFhOTY3ODg1NmMyNmMxOTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImJjN2NkZDdkYzBlYWU1YTEzZmNhOTU3MWU5MDNmNTkyNGJhYWVmNzEzMzc1MTUzNGJlNTM2YzRkYTZmMTA5MzgifQ"
+        },
+        {
+          "resource": "repo://scripts/07-desktop.sh#L301-L320",
+          "version": "repo-lines-v1:sha256:181c59c0313c8f8a8f33856834d6e0fe241d669badd16ee9f5a3d136743345c8:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJkNWI5OTdiYmQ0OGMxNTg0Yzc2MDNiNjRhZjVmZTRkNmZkOWZmYzcwMzgzZDNmNTY5OTU4MGM2OGVhMGFhNzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg0MTllNTg0OWJkNmY1MDQ5MWE3NDkyNGY0N2VkYjk5NzlhZmQxZjJlYjE0YWM0NTU5NWE1YmFmMGQ2NmFiY2MiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI1MDJhODJlNGYxOWMyOTIwNTNjNzNiMWRjM2JlNzIzNmYwOGUyMTRhYjE5ZTExY2JhODEzZDFhMzczYmIyOGIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImI4YWUwMjdjM2FjZDI0NzJkMjY4NzQ1OGZhYTZkZWEwZDVlNDNiZDRlNGJlM2Y0MTYyYjVkNmNmMzBlZTNlZjUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_92a278fda36849eba835e44928e4ea95",
+      "statement": "阶段 09 成像前删除 $ROOT/.raphael-build（qemu 宿主垫片），因此单独重跑需要 chroot 的阶段（05/06/07）都必须在开头重新 setup_qemu_shim，否则 enable_unit / ldconfig 等会静默失败。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/05-qcom.sh#L20-L24",
+          "version": "repo-lines-v1:sha256:03607de38758a1b05d002f8576924d807fe0ecf71b60972473276c194e234682:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODExODE0ZjkyZmZkZGI1NTFhMTRmYjY1YmYwN2VlMjk4YjcyNDg2MzUxNjRjNTE4Y2YyZDJmNzU2MTE4NzUxNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWMwOTEwM2MyMGJlNjYxODk0MTc4Nzc4OTI0NGZjM2RkNjE1NDI3ZTExYTQzNWQyMjQ3MTc4Njk5YzcyNDM5NSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZDQ4NzJmMzcxN2IzNmJjN2JiODU4NmIwMjk1MjIzY2E2M2MyNWJlMmMwN2U2YWY5MDMyOWE0NDE2NmU0MDFmZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNWE3NTAxZDUwNWZjNDlhYWY5M2YwN2RkY2Y2YjY2OTBjNDg5ODE0OTc3OTRiNWM3YTQwMGM1ODE4YzY4OTA2OSJ9"
+        },
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L23-L25",
+          "version": "repo-lines-v1:sha256:1f8c181bcbc1d1ba4b99c902d64b490a1b09c9185f74b07363803da108580c9d:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNDk0ZGVmNjkwZjUxMzk3MDdlYTU5ODIwN2E2ZDIwYjJkZjYyZTE1N2Y3N2M5MjU3NGE4MTYxMTZhZmU1NDFkNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzViODM4YjQ5ODBkNmFmY2NlMTRhYjFmZjY0ZDMxYTMxOTUyYzUzNDA2OWNjMWFjM2YzOTk2ZmVjMTc3YjE3MiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYWVmZDQzNDQ4NGU4M2FiODc4NTJiMWUwMTM4MWRlZjg3NDBlMmNlYmEzNzRjZmNlMDRmYWZjNWJmZmYwYzhhOCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTZhZTliNjc3NmU3OGJlNDZhMzU3MWI1MjBkYjdlOWQwZmZiNjA4ZDQ1NDJjNzI3NzFkNGJkMGRkYjU3MDViZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_fd8066b46b574c498248c0094ee26a6a",
+      "statement": "必须把 /usr/bin/zsh 写进镜像的 /etc/shells，否则 pam_shells（SDDM 自动登录走 sddm-autologin 栈）会以 invalid shell 拒绝登录。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/07-desktop.sh#L645-L652",
+          "version": "repo-lines-v1:sha256:85d46a9348f8c16b5c09366e206ad18cb0dc1b128954478f927580a55e07a4eb:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2M2YWYwYzllNjk0MTYyYTZmOTViMTRkZDk4MGYxZWRjYjIyZjRmYTY3Nzk4ZjI3NjZmMmY5NTExZjllNDJjYSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzQ5ZmFiOTliNmZjOTg0YTcwNDI0MTI2NjFmNjVjYmEyNTk0NWQzMTU4MTY0ZWYxMWEwN2ZlMzIwNDZhMDM4NyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTVjZDEwZjZjNmM5ZmJhNTBiNzg0ZGMxNThjODZhYjE4MTYxYmE1Y2E3NmM2MTFlYWMyNDk3NjNmYWQ2OTllNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjlhMGZkMDJmNzVhYThjYjVkMThmZjI4YWViNzNkNzQ1NGJjNjJmYTM2ZjFhOTAyMjMxOTI3YmNkYjg1MDFmNCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_adda52a6f8824473b9c2a6babe78787a",
+      "statement": "同一套脚本在本地与 CI 会因三处平台差异给出不同结论：是否真 root 决定属主断言是否生效、/dev/loop* 是否可用决定阶段 09 产出 @/@home 还是回退单子卷、rootfs 是否干净决定 libqrtr 软链缺失与半升级这两类问题是否暴露（CI 会显式 mknod loop 设备并自检）。",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/build.yml#L170-L188",
+          "version": "repo-lines-v1:sha256:cddc29648b971004aba241f4c8fe3b399a657671f0897655788e4122a3cf32f5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVkZDJlODY4ZDM5Y2FlODQ5MTNhYTY3ZGFlMDlhMjAxZGEwNTk3OWRhZTk2MTlhYTQ1ZDUxZDFlNjY5MWJiZjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1YWQ5OWU3NjQyZWQ3NTJlN2IyZDYyZGY3OTE2MzUxMTllMDcwN2U3ZDk4NGUxMDBmMzQwYWNjZmFkODE4ZDkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMwY2I4YjNiY2RjZGQ0NGQ5NDVlZjRjMWI3NjVkMWNlNzA3ZWZjNzhiZjJiZmY1NzcyOGFhZmM3ZTYwZWIwNDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFkZDNmOTVjZmZjMGY3ZTkyOTA5YmEyZjliNGU0NTA5YTRiNjhjZGQwMjc3MDdiZTExNmQ5MmIzNzI0OGQ0NjEifQ"
+        },
+        {
+          "resource": "repo://HANDOVER.md#L441-L458",
+          "version": "repo-lines-v1:sha256:62cfbbd0a0a0471701b05bfa6bcfa1f9047b0c19cba2599562145b4d2512f73a:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwNjE4Njk1MmQ2Y2QxMmIzMGI4YTBmNjg4NzJkM2RlZDAzZTliNzUzOTJkOTcxZWQzOTc0YTgyYWU2MWE3YzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRjMjBhNmZjYTVjM2UxMDhhZjVlNzRjNTBhNGNmMjE3NmQwNTc1ZGQyNmVlYWM2NzZhYjlmOTliNDUwYjQyYWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L317-L354",
+          "version": "repo-lines-v1:sha256:b138836cce2e7f457d54ceae9bb8e198e644e14fef64b2e105f1dbfd0d43180f:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNmYWM2MTc3ZDNmYmY1MTQ3NTc1OTIxNjg1MDU4NTg4OTYwN2U3ZTYzZmQyOTM1N2E5MTUxZWJkMTNjOTU4ZTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImJkNTE1YWNjMzI5ZmU1YzFmN2ViYjM3NGEwMjA3YzY2YzVkMGU2NmRkYWRmOTQ0N2ZjNWQ2MjhmOGNhNzkxYmEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMxZDQ4MTNiNDM4Nzg1MDVkNWJlNTk2N2VlNDE0Mzg2N2E5MjAyMDYwOTQ1OWYzODczYjgwZWI4Yzg3MjJiYzYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_70dc6f6d1d1b49c99b099c6e1623f198",
+      "statement": "build.sh 逐阶段执行 `bash scripts/<阶段> | tee logs/build.log`，任一阶段非零退出即整体中止；而阶段脚本都通过 lib.sh 的 set -euo pipefail 生效，因此 --from / --only 跳过某阶段时，该阶段的硬失败闸门也一并被跳过。",
+      "evidence": [
+        {
+          "resource": "repo://build.sh#L88-L102",
+          "version": "repo-lines-v1:sha256:099a7ff7b38992280db385419fe2118aa212a17ad9bf7c46afb86a9dfa125982:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmNGExNGIwODNmYjMyYTU2NjcxYjYzYzMyNWI2MWE1ZGM3ZTlhZDBjYWNkM2ZjYTBlNmY0ZTBlODNlNWQ3NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ4NDQ0NGFiZDFkMThhODZlNzYyM2I3ODhhYjIxMDM4Mzk0MWM2NGMyMmE4ODNkMWJhNjIwNWRjOGUwODI5ZjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVmMWRjMmFkODg5YmY3YWQ1MGI5NGFjYjM0ZDZlNmY5YjcxMjYxZmZiNjNjMDE5YzNhZjA3Mjk5YThkYWNjMjUifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L9-L13",
+          "version": "repo-lines-v1:sha256:f368a34192bc8a8fa1cd48dca10226f5344a57fcea9731897ad9265e3e7c4375:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODhmYzYzMzY2N2QwMzAwNzMxYmRkODQ0NzJkYzQyNGUxZjljNjQxNzVlYTJiYWRiNjY2NDcyZDkxYWViNGVmYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTM2OWQ0NTQzOGFiYzNmOWFiNGViMWVhYWZhNTMxNmIxYjgyOTM4N2ExMGY3ZDIxMDYxNmU4ZWYxZDIwMjI5NSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGI0NzhlMzdlOTY5NjJlYzI0NWUwYTRhODMzOTU4NDljZWI4MGZiMmNjMTQyOWJjNDMxNjlkMGFkNWRhOWZjYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGViYzNjZWY5Njk5N2UzOGQ1N2IyZWZkOTIyOGYxNmQ2MWYxNmI3NjhhZTE4NzUzZThhOGY5YjYwZmIxYzlhNiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_a57219208ccc4df2893341826c54caa7",
+      "statement": "项目把\"产物校验不要降级成 warn\"写成明文规矩（HANDOVER §8 雷区第 6 条）：阶段 05 的硬失败与阶段 02 的烟雾测试都是防止静默产出残废镜像的保险，删掉等于把坑留给用户——这也正是本页用来标记属主归一化、固件自检等只告警路径的判据。",
+      "evidence": [
+        {
+          "resource": "repo://HANDOVER.md#L441-L459",
+          "version": "repo-lines-v1:sha256:02555846419f92385244d3323e78c5ffb694453df51a240af9e874d0e9a867c1:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwNjE4Njk1MmQ2Y2QxMmIzMGI4YTBmNjg4NzJkM2RlZDAzZTliNzUzOTJkOTcxZWQzOTc0YTgyYWU2MWE3YzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU4ZjlmNDU2YTM3N2NhYjY3ZDQ5NmUzOGI4OWYyN2EzOGY4OTAwZjUzNzQ4YmM1NzViMmNjYTBkODJmMDlhYzcifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-10T11:58:54.634Z"
+  }
+}

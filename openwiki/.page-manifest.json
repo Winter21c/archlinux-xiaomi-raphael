@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "pages": {
+    "/openwiki/architecture/overview.md": {
+      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
+      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445",
+      "pageVersion": "sha256:8ac821783c11fe895d672d74d530e6177b772f40415532a41c154bff0bd497da",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+    },
+    "/openwiki/architecture/repository-layout-and-entrypoints.md": {
+      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
+      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445",
+      "pageVersion": "sha256:1e621640125130b1b1dadbb66063302454ad4aef9acaba47e39bf5347206a2ee",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+    },
+    "/openwiki/architecture/rootless-build-runtime.md": {
+      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
+      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445",
+      "pageVersion": "sha256:c1b0441a6ac558d87e0ea5a33f9ebcc8c25dd1b4700f460869402244697ad5f6",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+    },
+    "/openwiki/concepts/failure-modes-and-invariants.md": {
+      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
+      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445",
+      "pageVersion": "sha256:88e8c2e52dc6e4efb0f8969c4851f8e51f8a8a8d5950f6104a14fd0e7a00fa7d",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+    },
+    "/openwiki/concepts/rootfs-layout-and-fstab.md": {
+      "pageVersion": "sha256:beab27175417b696bc35816f0fb104a9d6e89e74e7bac5c611ef2f5f9614603d",
+      "completedBy": "openwiki/0.7.2",
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
+      "gitHead": "82919befe0d4c8dd63463e52e1b7e0a33f6e100b",
+      "sourceFingerprint": "sha256:cefd61c4dea955a8860c7a1edc225a2ee9ada267377178f5327e1d11d5c76445"
+    }
+  }
+}

@@ -358,6 +358,20 @@ EOF
 enable_unit fstrim.timer
 # ALARM 镜像首启动交互式初始化会卡住无人值守启动, 直接屏蔽
 mask_unit systemd-firstboot.service 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
+# 清掉 mkinitcpio 的 preset (2026-10-15 真机踩到)
+#   ALARM base 带了 /etc/mkinitcpio.d/linux-aarch64.preset, 而那个包根本没装;
+#   于是每次 pacman -Syu 的 "Updating linux initcpios" 钩子都会报:
+#       ERROR: '/lib/modules/7.1.6-1-aarch64-ARCH' is not a valid kernel module directory
+#       error: command failed to execute correctly
+#   本项目 08 阶段是**手工组装** initramfs 的, 完全不需要 mkinitcpio preset, 清掉。
+# ---------------------------------------------------------------------------
+if [ -d "$ROOT/etc/mkinitcpio.d" ]; then
+  rm -f "$ROOT"/etc/mkinitcpio.d/*.preset
+  log "  已清掉 mkinitcpio preset (initramfs 由本项目的 08 阶段手工组装)"
+fi
+rm -f "$ROOT"/boot/initramfs-linux.img "$ROOT"/boot/initramfs-linux-fallback.img 2>/dev/null || true
 rm -f "$ROOT/etc/machine-id" 2>/dev/null || true
 echo "uninitialized" > "$ROOT/etc/machine-id"
 
@@ -462,32 +476,56 @@ ucm_copy() {  # ucm_copy <src> <dst>
 
 if [ -d "$UCM/sm8150_raphael" ]; then
   UCM_SRC="$UCM/sm8150_raphael"
-  HIFI="$UCM_SRC/HiFi.conf"
 
-  # Q6 路由必须在 verb 级常开 (见 HiFi.conf 文件头注释)
-  if [ -f "$HIFI" ] && ! grep -q "MultiMedia1 Mixer SLIMBUS_0_TX" "$HIFI"; then
-    sed -i "s|^\t\tcset \"name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1\"|\t\tcset \"name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1\"\n\t\tcset \"name='MultiMedia1 Mixer SLIMBUS_0_TX' 1\"|" "$HIFI"
-    log "UCM: 已在 verb 级补上采集侧 Q6 路由"
-  fi
+  # ---------------------------------------------------------------------------
+  # ★ 2026-10-15 真机定位: 声卡"没有声音"的真凶在这一段
+  #   1) PipeWire 的 ACP 是按 **conf.d/<声卡名>/<声卡名>.conf** 找 UCM 的。上游重新
+  #      打包内核后声卡名从 sm8150_raphael 变成了 **Raphael**(取自 DTB model),
+  #      而这里只建了 sm8150 / sm8150_raphael 两个目录 -> ACP 找不到 UCM ->
+  #      退回通用的 **pro-audio** profile。
+  #   2) pro-audio 打开 PCM 时的参数不对 -> Q6 AFE 端口使能失败:
+  #        qcom-q6afe: AFE enable for port 0x1006 failed -110 / -22
+  #        ASoC error at snd_soc_dai_prepare() on QUAT_MI2S_RX
+  #      -> 数据到不了功放 -> **完全没声音** (裸 aplay 也一样)。
+  #   3) 换成正常的 stereo profile 后实测: PCM state=RUNNING、dmesg 零报错、有声音。
+  #   修复: 给所有可能的声卡名都建目录, 并且把 HiFi.conf 裁成"只留真能用的扬声器
+  #   通路" —— UCM 里只要有一个打不开的 PCM(这里的 Headphone/SLIMBUS 链路, 上游
+  #   DTB 里没有 slim-*-dai-link), ACP 会**放弃整个 UCM**, 卡片又只剩 pro-audio。
+  # ---------------------------------------------------------------------------
+  HIFI_TRIM="$UCM_SRC/HiFi.raphael.conf"
+  cat > "$HIFI_TRIM" <<'HIFIEOF'
+# UCM2 for Xiaomi Raphael (SM8150) — 只暴露能工作的扬声器通路
+#   耳机(WCD9340/SLIMBUS)与麦克风通路在上游 DTB 里缺 slim-*-dai-link, 打不开;
+#   而 UCM 里出现打不开的 PCM 会让 ACP 放弃整个 UCM(退回 pro-audio -> 没声音),
+#   所以这里只留 Speaker。等 DTB 补上采集/耳机链路再逐步加回。
+SectionVerb {
+	EnableSequence [
+		cset "name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1"
+		cset "name='QUAT_MI2S_RX Audio Mixer MultiMedia1' 1"
+	]
+	DisableSequence [ ]
+}
 
-  # ⚠️ 千万不要在这里加 SectionDevice."Mic" / CapturePCM！
-  # 实测: UCM 里一旦有打不开的 CapturePCM (采集链路没通时 hw:0,0 capture open 返回
-  # EINVAL), PipeWire 的 ACP 会**放弃整个 UCM**, 卡片只剩 off / pro-audio 两个
-  # profile -> 连 Speaker/Headphone 一起消失, 并且 pro-audio 会暴露打不开的
-  # hw:0,0 导致设备反复"识别到/识别不到"抖动。
-  # 等采集链路真的能录到数据之后, 再考虑加 Mic 设备 (见 README §8.10)。
+SectionDevice."Speaker" {
+	Comment "Speaker (TFA9874)"
+	EnableSequence [ ]
+	DisableSequence [ ]
+	Value {
+		PlaybackPriority 100
+		PlaybackPCM "hw:0,1"
+	}
+}
+HIFIEOF
 
-  for name in sm8150 sm8150_raphael; do
+  # 声卡名在不同内核构建下都见过: 官方内核 sm8150_raphael、自建 sm8150、
+  # 上游重新打包后变成 DTB model 里的 Raphael(以及 longname 形态)。全建上。
+  for name in Raphael sm8150 sm8150_raphael xiaomi-XiaomiRedmiK20Pro; do
     mkdir -p "$UCM/$name"
-    for f in HiFi.conf sm8150_raphael.conf; do
-      ucm_copy "$UCM_SRC/$f" "$UCM/$name/$f"
-    done
-    # alsa-ucm2 也会按 card name / longname 找同名 .conf
-    for alias in Raphael xiaomi-XiaomiRedmiK20Pro; do
-      ucm_copy "$UCM_SRC/sm8150_raphael.conf" "$UCM/$name/$alias.conf"
-    done
+    ucm_copy "$HIFI_TRIM" "$UCM/$name/HiFi.conf"
+    printf 'Syntax 3\n\nSectionUseCase."HiFi" {\n\tFile "HiFi.conf"\n\tComment "HiFi quality Music"\n}\n' \
+      > "$UCM/$name/$name.conf"
   done
-  log "UCM: conf.d 下已备好 sm8150 / sm8150_raphael 两套名字"
+  log "UCM: conf.d 下已备好 Raphael / sm8150 / sm8150_raphael / xiaomi-* 四套名字 (精简扬声器版)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -514,7 +552,8 @@ cat > "$ROOT/usr/local/sbin/raphael-audio-init.sh" <<'AEOF'
 #!/bin/bash
 # Raphael 音频初始化
 #  1) 等 remoteproc 就绪 -> 重启 pd-mapper (重新枚举 .jsn) -> 手动加载 slim-ngd
-#  2) 等声卡 -> 以用户身份重启 PipeWire、选 pro-audio profile
+#  2) 等声卡 -> 以用户身份重启 PipeWire、选**能工作的立体声** profile
+#     (2026-10-15: 原来是 pro-audio, 实测那个 profile 会让 Q6 AFE 使能失败 -> 没声音)
 #  3) 写 Q6 路由 mixer, 并在 60 秒内反复确认
 # 不要 unbind/bind slim-ngd: 内核 qcom_slim_ngd_remove 会 WARN 打栈回溯。
 set +u
@@ -560,7 +599,10 @@ for i in $(seq 1 60); do
 done
 as_user systemctl --user restart wireplumber >/dev/null 2>&1
 sleep 4
-as_user pactl set-card-profile alsa_card.platform-sound pro-audio >/dev/null 2>&1
+# ★ 2026-10-15: 这里原来是 pro-audio, 实测 pro-audio 打开 PCM 的参数会让 Q6 AFE
+#   使能失败(-110/-22) -> 完全没声音; 换成普通立体声 profile 后 PCM RUNNING、零报错。
+as_user pactl set-card-profile alsa_card.platform-sound output:stereo-fallback >/dev/null 2>&1 \
+  || as_user pactl set-card-profile alsa_card.platform-sound HiFi >/dev/null 2>&1
 sleep 2
 
 apply   # 后续由 raphael-audio-routing.timer 每 20 秒兜底
@@ -610,6 +652,29 @@ cat > "$ROOT/usr/local/sbin/raphael-audio-routing.sh" <<'REOF'
 #!/bin/bash
 set +u
 aplay -l 2>/dev/null | grep -q '^card 0' || exit 0
+
+# ---------------------------------------------------------------------------
+# 声卡 profile 兜底 (2026-10-15 真机定位到"没声音"的真凶)
+#   pro-audio profile 打开 PCM 时的参数让 Q6 AFE 端口使能失败:
+#     qcom-q6afe: AFE enable for port 0x1006 failed -110/-22
+#   结果完全没声音 (连裸 aplay 都失败)。实测换成普通的立体声 profile 后:
+#     PCM state=RUNNING, dmesg 零报错, 有声音。
+#   这里每 20 秒检查一次, 发现是 pro-audio 就切回来 (幂等, 卡没插好也不影响)。
+# ---------------------------------------------------------------------------
+as_user() { sudo -u @USER@ env XDG_RUNTIME_DIR=/run/user/1000 "$@"; }
+CARD=alsa_card.platform-sound
+if as_user pactl list cards >/dev/null 2>&1; then
+  CUR="$(as_user pactl list cards 2>/dev/null | awk -v c="$CARD" '$0 ~ c {f=1} f && /Active Profile/ {print $NF; exit}')"
+  if [ "$CUR" = "pro-audio" ]; then
+    # 优先 UCM 的 HiFi; 没有就用 ACP 的立体声兜底 profile
+    for p in HiFi output:stereo-fallback; do
+      if as_user pactl set-card-profile "$CARD" "$p" 2>/dev/null; then
+        echo "raphael-audio: 已把声卡 profile 从 pro-audio 切到 $p"
+        break
+      fi
+    done
+  fi
+fi
 # MultiMedia1 就是 ALSA 的 hw:0,0, 也是裸 aplay 的默认设备; 不给它接后端就会报
 # "ASoC: no backend DAIs enabled for MultiMedia1" 而且一点声音都没有。
 # 下面 SLIMBUS_0_RX 那条是历史遗留 (slim-*-dai-link 已从 DTB 删掉, 控件不存在),

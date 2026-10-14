@@ -1,0 +1,286 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:beab27175417b696bc35816f0fb104a9d6e89e74e7bac5c611ef2f5f9614603d",
+  "claims": [
+    {
+      "id": "claim_d80c8799814c4b8bb8ab66441bf8c68c",
+      "statement": "fstab 挂载选项、镜像实际布局与 loader 的 rootflags 三者必须一致；历史事故是 work/rootfs-layout 缓存声明 btrfs-subvol、阶段 09 的 loop 挂载失败实际回退成 btrfs-flat，而 fstab 仍按 subvol 写，导致镜像里没有 /@ 却让内核挂 subvol=/@ 而无法启动。",
+      "evidence": [
+        {
+          "resource": "repo://HANDOVER.md#L195-L205",
+          "version": "repo-lines-v1:sha256:4bb576b3f1e39ae87b1908a903fb6137efd9a376836de32f3e321874ad4ffc30:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjE2NGE5ZTk0ZGM2ODkwZTNlNzE1YjhlZmZiOThjZTMxZTk3MWFjM2VhYjA5MTBiYTA4ZTA1NGYxMWY5ZTU2ZGMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlkYjJhZGI3MzcxNjc1ZDFkZTRlNmIxNTFkMTMyM2VkNDQzMGM5NjFhZTJiNzk5ZDIyZjIzMDkwMTZiZGE3NWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImYxZjIwZjJjNzhlNDczN2I4MWIxZmU4YTgxNzE0Nzg2NjI4MWIyM2RjMGNmZmViYjIzOGM3ZTQ1MmE0OGQ2NzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjU4ZTA2MDdlMDY4ZjA1MGQ4ZDdjNmM4NzllZTBmYjU1MDcyMTQzMmY4ZDFiZWM5Mzk3ZDZhMWVhMzYzNzIwMzUifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L396-L400",
+          "version": "repo-lines-v1:sha256:82d031086887d8aaa12e542d6f2f9affc94ea0af00eaa2ad73ef2391fa181151:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiN2U2OWJkMzE1ZTIxZmFmMGRkZTFlY2E4MmViYjY5OTZhODlmZTRkNjkxMjM3ZjNlZGNjZGQwMjFmMjRkMjM1OSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDdiMmE2MzFhNTVkZTRkZDI4NjVjYTgyYTRmNTkyNTA2NzdlZGNkYTVjNzI5MGIwZGQzNzcxYmQ1MzFjZWE4NSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2M5YmJmMjdhNzhlZmExNDMxNDI0OWUwZThhNThlOWFkNmNiMWVhYThhYTAwZTE1NzVkZDMzMTQ4YjY1ZmZiZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjllYTVjMzNkOGJmMWEwMDgxZmI5MTQzZDI1OTE2ODAzODA2OWJiYzkwZDlhZmNkYjEyOGY1ODI4NGQyNWVjZiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_2caf3ad2958e44bcac52e1851899b910",
+      "statement": "lib.sh:rootfs_layout() 是 rootfs 布局的唯一决定点，按 RAPHAEL_FORCE_LAYOUT、ROOTFS_TYPE 是否为 btrfs、uid 是否为 0、是否存在 mkfs.btrfs、256MB 探测文件能否 loop 挂载的次序判定，只返回 ext4 / btrfs-subvol / btrfs-flat 三种取值。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/lib.sh#L310-L354",
+          "version": "repo-lines-v1:sha256:244e0f3c0859ff52bb5389f0835055c734c19d3636358b2acb04f267fef5f14a:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2ZjhhMDc5YTQ4NzJmYjY5YzVkMDI0MTdjM2Q2ZjUzN2U0N2Q2OTcwZmI5ZmRhNjVjYmRlYWQ1NmQwNjU2ZWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI3MTY1Y2M5YTQyNzBiNjcwOTMxZjY5ZWY0ZGQ3Y2RiMWI1NGYxYzZkYjZlOTViNWZkOWFhNjg4Y2FkNTYyYWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMxZDQ4MTNiNDM4Nzg1MDVkNWJlNTk2N2VlNDE0Mzg2N2E5MjAyMDYwOTQ1OWYzODczYjgwZWI4Yzg3MjJiYzYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_a52538ea448f42a49d8d24d97b4db339",
+      "statement": "布局结果缓存在 work/rootfs-layout：缓存非空且未设 RAPHAEL_FORCE_LAYOUT 时函数直接返回缓存值而不重新探测，且强制值也会被写回缓存，所以环境改善（后来获得 root 或修好 loop）不会自动把布局升级为 btrfs-subvol，换布局必须删除缓存或显式强制。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/lib.sh#L317-L320",
+          "version": "repo-lines-v1:sha256:811befd13163f9aaff6c715948260886c3801f9a380b041dfa1c799bd1ff2912:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2ZhYzYxNzdkM2ZiZjUxNDc1NzU5MjE2ODUwNTg1ODg5NjA3ZTdlNjNmZDI5MzU3YTkxNTFlYmQxM2M5NThlNSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzVmYzkwZmY4YTQ0MTRjNTQ0MWQwZjY3N2M1Y2JmZGEzOGI0NzRlNTFiZmQ1NTlhNTU1OWRlMGY4NzcwNTUyNCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYmQ1MTVhY2MzMjlmZTVjMWY3ZWJiMzc0YTAyMDdjNjZjNWQwZTY2ZGRhZGY5NDQ3ZmM1ZDYyOGY4Y2E3OTFiYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTQ1MTU0MTFjMDkyNDQ3MjU1ODNkNzllMDg5Yzc4ZDc2MzAyNjYzZjM0ZGRhZWZiMjY5MGRhNWY4OWY3Njk3ZSJ9"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L351-L353",
+          "version": "repo-lines-v1:sha256:ad798d55c76d7e22fe6a018c17c813c7cfe679647fc2dccd1348f27be4295276:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2NkNjg1ZDJiMTNhMjg5MGJhYmE3ZTQ0MmI2YmI0ZjFiY2FjYmM4NTE4ZDI1NTg0YWU0YWQwOTNlNWE2ZTk1OCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTAzOThmM2U4YzU3ODRhMzk2MjEwMDg4MzUwNzAyOTE3NDY1YjQ5NmIyYjExZDc0ZjgxMDQ4NWE5NmY0MTAzMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGFiYWJhNTY3Y2QxMDZlNDk0MzY5NTE1Y2VhYTQ3MjIzZWI4NWMzYzBjOWYwZGYzOGUwYmUxMDQxOTMyM2ExYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDFkYzNjMDVlMTcwN2ExMDIzOGY5YjcxNzcxNGRlNDJjZWY3Y2MwNWYxODg4NWYxZWI1YjFlYTRkZjI2MzIyMCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_7d733d87519f4b6d9cb2cfac51394366",
+      "statement": "阶段 09 按布局选择成像方式：btrfs-subvol 走空 btrfs + 带 compress 的 loop 挂载、建 @ / @home / @swap 子卷后 cp -a 灌数据（这样写入的数据才被压缩），btrfs-flat 用 mkfs.btrfs -r、ext4 用 mke2fs -d 把 rootfs 树直接写进镜像。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L106-L172",
+          "version": "repo-lines-v1:sha256:0b467e3a4f6146d3c9eff90f8b43e2a4796e77da07be405e0dca0e27e0f4e909:eyJzZWxlY3RlZExpbmVDb3VudCI6NjcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRmMzhkYmUwZTU2YmQzM2E4MTk3NTE2ZjdmNTRkMGM1MDM1ZjRiZjgxOWU5MTIyMDg3Y2FkYzY4ZDJmYjA4ZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM0YTJiZWNmZjhhZmIzNGRiMjYwZGFiYzk2OTE1ZmZlY2ZkZTg0ODkyOTU0MWM2MTkzZGU2ZDE2NGMyMWU4ZGEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImM0ODE1MzNlOWYzMDgzYTA4YzE3ZmY2NDAwNjFlNjI5MjI1MTJmOWYzMjg5ZjVjNDZmNjA5ZTUyOTNhMjgwNmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAzZTg5N2Q0YTIyN2FhNDQ5OTU5MjY2ZTA5M2Y2Nzc1OTM3MGNlYjAxZGJjZGE1ZDk5NTE2ZjhlNTAzMGVhM2YifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_17d35c8e197e4ef8be9faeee2ba172fe",
+      "statement": "阶段 09 在 loop 挂载失败时先把 work/rootfs-layout 改写为 btrfs-flat 并重写 /etc/fstab，然后才执行 mkfs.btrfs -r；成像末尾再把最终 LAYOUT 与 UUID 写回 work/，使阶段 10 读到修正后的布局。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L137-L146",
+          "version": "repo-lines-v1:sha256:c334c2cbd029cbff01e1892d2b6aee76904062dee5f61307e1ee33592896a935:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM0NDQ3YTg2YTVkM2MzOTMzN2M4NmM3MWQyZDkwZjk3Y2MyZTFhYjhjZjI5YjA2ZTZiZDY4MjA4YjU0ZDZhM2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQzNDE4ZjUzZDRhYTE4YTMwMWIxNmIzYzg2OGZkODAyZjNlZmE5MWVlZDc3Mjg2M2NhMDQyNDc5OTM2MTQ0ZWIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcxOGM3ZjgzNGFmOTliZGRmNWFkZTA4YTg5YzA2MWRjOGE1ZDg5OWYxZWM5Y2Y0YzM0NDliMWM2ODA1MjQ2YWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY1N2VjNTk1MzBhM2IyOTI5NTc0M2U1OTg1ZjdiOWZiMGY3MTExNTFkOTEyNTE0MGY0OGNhODVmZDY4NDliMmUifQ"
+        },
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L183-L185",
+          "version": "repo-lines-v1:sha256:0cbe87c9b81c6ddc23d6557d821305cbf50f57c120400e3fbca36192255e73dd:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNmQ3YzYwZTcwYWQ3MDA0YzBjM2UxNDk5ZDBiZTJmMGJjZTVmODY3NmFlYTIxNjMxYWE5ZDgzMGFiNDU5MjI0OSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDc1OTk3ZThjMzRlNGQ0MjQzNGM4ZWRkMWI0NzUzYTZiMTc4MmNmMWUxNGI1MTA0NGVkOWQxNmM3ZTZjYTcxOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDIzMjJlMmQ4YjY3ZThmZWIzMjdlZmE0NTVmMjVjZDUxOGM4NzAzNjdmNjM1N2YxM2I3NzczNDIwNzNlMmYwNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_d4a3b1b49a844f479aff1320241c7425",
+      "statement": "rootfs 的 /etc/fstab 只由 lib.sh:write_root_fstab() 生成，阶段 06 写系统配置时调用一次、阶段 09 在实际确定布局后再调用一次，两次都是幂等覆盖同一个文件。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/06-config.sh#L64-L70",
+          "version": "repo-lines-v1:sha256:89766b57a67ba8b47ff48840165ebee15600bdfca8c888d935bfad0e91cbcf9b:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiM2QwNDhhMDQyMmUxNGU5NWRlNDNiMWQxNGU2ODA1MWFlZjdhMzY2MjY5ZDIwZWMwN2NmYmNhZjE4NzNjYjc2NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzE5MTZkMTViYjNlMGIxNDVlNzllNGRjZmJlZDRlMGE0ZjJlOGRiNDg5MWVkZjUxZDJjZjAyZTNkYWY5MTI0ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWM1NTFkZDYxYTZhMWVjMWEwNTU3ZGY0NWFiMDgxODk4NjY5NjY5ZGMyYzRjY2Q3OTk0ZWRmMGFkMmVmYzk5YSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMjk1NjRlYTViOTAyM2QwZjdkZjAzZjBkYTIxZjM2OTVmODUxZjYxMzdjNjAxOTc1N2FlMDBiYTg0OGY2ZGI1ZSJ9"
+        },
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L137-L152",
+          "version": "repo-lines-v1:sha256:d1c1200aaf2a59f1fb4c297dc95e65c725d6519e232a5fc0507466ed2342764d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM0NDQ3YTg2YTVkM2MzOTMzN2M4NmM3MWQyZDkwZjk3Y2MyZTFhYjhjZjI5YjA2ZTZiZDY4MjA4YjU0ZDZhM2MiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhlNTY3NGMwYjQ2ZjkzNDNkMzE2ZTU3ZjQxZGVlODJjZjM0YjBjMTM2NDAzMjNkOTQxNzgyOWUxNjFhMzE4NDEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjcxOGM3ZjgzNGFmOTliZGRmNWFkZTA4YTg5YzA2MWRjOGE1ZDg5OWYxZWM5Y2Y0YzM0NDliMWM2ODA1MjQ2YWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjQwMDgxYTJlYzdlNDMzZjJiOWE5YmM5YTM4NGM5MTNjNTY1ZTVhNGMyZWI2ZmQwN2YwNTE2ODY3Nzc0YzA3MmIifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L395-L432",
+          "version": "repo-lines-v1:sha256:9321d55fc86e40e2ec3b4d288bb4b7421cdd66a715b0f6a7b6a4c24d174d0c7d:eyJzZWxlY3RlZExpbmVDb3VudCI6MzgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNkMjA4ZmJiZDc1YTg1ZWI1MjUzOGVkZGQ1ZTY5MTkzNjhjNjdhYmY3NDQxOTg0OTMwMDM2MDYwZjVhYTIxMWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI2MTQzYjg5ZWViZjBjOTkxZWQ2NzM5MzVmNWVkMjRmZDI3YmYxNTY5ZDRmNmRhMWMwYWU3NDExNGY2ZDUxNWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY2YjBiMTg3OGI0MWFkMGQyMzY4Njc2Yjc1YmU0OWFhZDllYzBkMWM3Y2Q0NjBjODI4NzEzYjk4OTFiNGUxNGYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4044ff0c608247eebca630d3560cff19",
+      "statement": "fstab 的根挂载行用 UUID= 而不是 PARTLABEL= 定位设备，因为 PARTLABEL 解析不到时 systemd-remount-fs 会失败、根可能停留在只读；/boot 行则用 PARTLABEL=cache + vfat + umask=0077,nofail,noatime。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/lib.sh#L404-L431",
+          "version": "repo-lines-v1:sha256:abd2c7c0e6ad8feaa955d7c8969280debcc6e1c7a955c430476d4db23ebf66b0:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIxMTFmMjM5YWM2NWM5ZmVjZDRmNzk3NWQ0ZWUwYzY3N2I1OGE4ZWE2Nzg1MmVhMjVkMjc5MjM5MjUxOGQyZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3MTU5YzJiMjc4ZWUwZDEyYzBlYTE3NTliYWY5NjNhODg4NGJiMWY3OWZiYjcxNzQxY2IyOWU1NjJkOGY1OTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY5ZWE1YzMzZDhiZjFhMDA4MWZiOTE0M2QyNTkxNjgwMzgwNjliYmM5MGQ5YWZjZGIxMjhmNTgyODRkMjVlY2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ4MGZmYTk0ZGNlNzBmNDBkOGQ1NGY0YjMwNjdkNjBjMGQwZjhmNTlhYzM5MGU2ODlkZTZiOTdhZjI5Y2FiYzQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_cb6be52a1b524a42b2f1950a85e920b0",
+      "statement": "fstab 里的 btrfs 挂载选项与阶段 10 写进 loader 条目的 rootflags= 都来自同一个 btrfs_opts()（compress,noatime,ssd,discard=async,space_cache=v2，有子卷时加 subvol= 前缀），因此两者不会各写一套。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L96-L118",
+          "version": "repo-lines-v1:sha256:635d9de8cb55f1878d12231d726ba7112046ab85136e02719b076d5c90ad45ec:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMxODgzMTFhNjJhOGMxMzRhYmVjODE2ZTVkNWM5YmFlMGRhODYxODYzZTQwZTU4Y2EzMzg4NDNiNGFhNDAxNDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNmNzM5M2JlOWQzNTBlZTNmOGExNTY2NGIyNTViMDRjMTQ0NzczM2Y4MDcxOWE0NzJhZWIwNzExMDcxNjE0OGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkzMWRmNTU3ODhmZTZhNjU5YzIxMWEyYTJhNmMyNmZlMGI1MmEzMmZhODEwN2QxYmQxNDViYjVlYjNjNmNkODQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc2ODlhYmZjMTEyMDM2ZTAwYzRhNmJjMjk5NjdlMmE0NzYzNDI1ZjgzZmFkOThmMGU0ZTAxOTdkOGMyNDk3MGIifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L434-L439",
+          "version": "repo-lines-v1:sha256:788f416412f681268c9b1478953d8a421b5e542df05777a87231ff5c46fba869:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTRmZWQ5NDVkZGM1YmE4ZDQxZWE1MTQ3NzcyY2Y1NTY2NjQ0NzI5ZTVhNTg5ODg0MjM2NDkyMmU2YTAyZTUxOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjczOTVhMjU3MzBiMjY1ZDM4NTY5MzQ4MjhhM2FjMjg5OWQ3ZDUwMWVhYmEwMTllYmQ4YzBjNTQ2ZDg2NWZhYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_e276ea53b8074752af56e9dbe497307c",
+      "statement": "fstab 根行刻意不加 nofail（否则 systemd 可能跳过把根重挂成 rw，根停在只读会让 sshd 生成主机密钥、usb-ncm 写 configfs 等失败），而 /home 与 /swap 行必须 nofail 并带 x-systemd.device-timeout=10。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/lib.sh#L408-L421",
+          "version": "repo-lines-v1:sha256:048c7cf8270c76e63624feff9e954415d3b982ad25fe7570fb474caa65e6f0ea:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQ4NmJjZWEzNmY0NjliMDc5OTQ2NWI1ZTZmNmZmNDY4ZmUyNzMyMmE3MTk1NGVmNTZkNjE0YzhkZDIzZWEwMmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZkYzQzM2JjNzgzZjJlM2FiY2JiNDcyNzVlMGRhZjdlNGU3MmNmYTc5OGY4MGQwMjIyYTM5ZDM3NTU4NTU5ZDYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjVlYmEyYTQ4YjIzOTM5MzQ3MDU5ZTJiNTkxNjM5YTc5NGE1NzlkM2JkOTQ0ZDU1ZDlhMzA2M2M5MzdlZWRjMGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjE3ZmI4NGY2ZmQ3NDY3ODdhM2FlMTU4ZGYwOGU3MmNlMjVjOWFjNTgxYzliNjQ3NDVlNzcxOGFmNzZhYTM3Y2QifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_ec3838977a7d4d0fb3d84b4880d42a4c",
+      "statement": "btrfs-subvol 布局下 /home 的数据在 @ 和 @home 中各存一份：阶段 09 把 @/home 的内容 cp -a 进 @home，配合 fstab 的 nofail 使 @home 挂载失败时仍能用副本；这是为修复 @home 缺家目录造成 user@1000 Dependency failed 与 SDDM respawn 循环而设计的。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L123-L129",
+          "version": "repo-lines-v1:sha256:1397d08faf6585df477353d650e3f9c0f838ab8cb7f86068d626b1e504e62d29:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODFhYzdmODEyODRlNGIwZWQwYTE0M2E3MTM3YjM3YzJkOTVlM2U5ZmYyMmYyY2VmNjdmZDM4ZWViY2NlZTY2MyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDdmYTYzY2RkMzczM2M5MzQwZDczY2VmMWI2ZTdlZjM5ZjQ2MWEzYTM3NDU1OTVjZDYwM2M1NjZmMWVlMzFiOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNGVmYmU4YzZjMTAzNjliZWM1MjQzZTU2NzllMTczM2QzM2YwMDFhNzYxM2YyNGNkOWE3NjMwNTYzZmZkMTE3MCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiY2VmZTZmMGQ2MzVlNWY4NmZkOGVlM2I3NWQ3YjNhNWY5ZjZkMmE0MzJjY2NiMjc3ZjFjNDc5MDlmNGNlNjY4NCJ9"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L413-L418",
+          "version": "repo-lines-v1:sha256:c0252f1b2b47d713523e65d53a53cb7fd4bfce39062c8b91a251daf60b6ca839:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTNjYzZmNDhlNDc2YmFmMDJlYzAwOTEzNmU2MjY5NzAzZmRjNTdmOThkMTI3ODdjNTQxNTljNmM5ZWE4OGQ2ZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNWY2MTdmMDFiNDUxZjk2YWFkMGIxNTI4ZjQ4NGUyMmY2YWVmZjA5NDQ3YjE4YTk1ODIzYTQ5ZWI0MGE2ZGE3YSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZjI4ZjE4ZDdmNjZjNmQxNjg1ODMwZWRmZjU1OTRmMmYyM2E5Yzc0NDFmNDgzOTEzMmM4MTUxYmUyNDFjYjQ4NiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYWE4MzQ1NGFiOGJhMWY5NGZlMzRlZjkxYjVkYjI2NjdkZGQ5MzIzOTUzZTRmOGFmYzQ1ODc0MGU2Nzg2NmE0NSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_79e1f1beefad4ee1af8891b9206a3905",
+      "statement": "@swap 子卷以 nodatacow,compress=no 挂到 /swap（btrfs 交换文件必须 nocow 且不能被压缩）；交换文件不预置进镜像，由首启动的 raphael-swapfile.sh 用 chattr +C 建 nocow 文件、mkswap 并把 swap 行追加进 /etc/fstab，BTRFS_SWAP_SIZE=0 时不生成这套脚本与单元。",
+      "evidence": [
+        {
+          "resource": "repo://config/build.conf#L36-L38",
+          "version": "repo-lines-v1:sha256:7270cc2295a3b3b7759e6533c82ac05e3a01f729ca61d6413db004f9c7d658b7:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODJjNjE3NDFhZDY4ZDE2OGM5YTEzZTI1YjkyOWFhOTNkY2VjZjZiZGZkNDQ1M2RjM2FlODc2YjczZmM5N2Y1ZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiY2Q3M2VhZTQ5ZDlkYzAzNjBjMTk4NDY2NTg5ZWJlMmUwNzgwOThkNGU4NDI3Y2E0ZjVhN2ZhMzIxYWE2ZjZkMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZWNiODk2ZjQ0MjM5ZGVhOWU2OTBkMjRkMzFjMzc4NmUyNzBhMmJhMGUyNWI0NmQyY2JhYzlkZDFiMmY5YzZiYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDFhMGIzZDA5OTRjMTk2NDc0OGY4Mjc2Y2M0YWYwNWE1MDIzMzY3ZDQ4NjZmMWYwOTA2ODRkMGNiNjMwZjFlMSJ9"
+        },
+        {
+          "resource": "repo://scripts/06-config.sh#L398-L444",
+          "version": "repo-lines-v1:sha256:b0e210154906e19f8761ef045bdc28ce24f0e5af0f49f06331b2e76fce6bee0d:eyJzZWxlY3RlZExpbmVDb3VudCI6NDcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZhMGMyMWFlYzI4ZTY2MjBmZWMyMjQ1ODllOWEwMjQ2OTllZjNiZThlZmNhZGRhYTE2YjQzNTNiZWFiMmU1NWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ0MDJkZDlhYmVmNjI1NWU0MWFmZGUyMGZjZmMxMWIyMjFlMTZjMmVkZmNjZWQ4NTlhOWYyMDE1OTljODJiMWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUwYzRlNmIxNzgxODRkNWZmZGU3NDhkM2Y1ODBmYTE5NTlkYjE5MmRhNGQ4MTljYWE5YzZhYzM4MjhmMzhjODUifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L419-L420",
+          "version": "repo-lines-v1:sha256:390b439c0e59f92b189552e18a63a0e8fc262b800e10411be704ab5b772d500f:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZGIxZWRmYzNmMTk2NWFkNzFjYmUwOTc0MDk1MmExNzZiMWQ1ZjFlYWY1MGViYTIwMGZlMDI0NDM4YWI1ZDUzMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTg4YTQxZGFmODBlYTc5MTBjNzMwZGY1NDcwYTRhNGFiZmYyMTAxMjdlMDJkMTcxZDg0YzU3ZmM3OGM4OTY3OCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWE0YTZhNmY4MjkxNDNiMWJlNDU1YzFkOTY0Mjg3YzczNzEyNDc1YzMyMzIwMDg0YTg2ZGQ5NDdkMTY3MTZjOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMWM2ZmQ1NWNlMzBlMzFhZjRjNGRmMzc1YWJiM2VjZWExMjkwYWE2NmQ5NzRkYWRiOWQzMzcwZjRjMTY2ZmJmNSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_db074a2c55db4bc29f48758db96c4826",
+      "statement": "首启动 swapfile 脚本在 /swap 未挂载时打印提示并以 0 退出，所以 btrfs-flat / ext4 布局（fstab 里没有 /swap 行）下不会创建交换文件，系统只剩 zram-generator 提供的 zram0 交换。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/06-config.sh#L320-L326",
+          "version": "repo-lines-v1:sha256:1864a9c22f9dee1df46f780276d67daef086b185f7ba4a04cbb29bc174e31df2:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMmQ4NjA0NDg0N2Q4ZDgyYzI3MWM5M2EyOWUzOWUzNmU1NTI4MDAwNDViM2VlMDY2YTA4ZTkzZDJkZTcyYTM1MCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMmEyMWM1YjNiZmYwMjk5YzAxNjE0NzA0NjhmMzU1ZTViNGFmY2YxN2E1ZjU5M2FiNjgzOTRlZjdhZjMxOWNkYyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMTM5MDVhMDI5ZTBlNGVhNmFkYzRiNGE2MzYwNWQ3ZWVlNDc2MzIwZmQzYjFiN2Y2MmVmZTNlOGUxNzhmY2ZhZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDgxNTkyZGU0ZTYwM2UzYjQxMmIwYWIwM2E0ZGZhYzEzMWFkODUzZTY0ZTcyMWUxNzZkZDZmYzdmMDI5YzBlOCJ9"
+        },
+        {
+          "resource": "repo://scripts/06-config.sh#L409-L411",
+          "version": "repo-lines-v1:sha256:6b953b80fe75a2da19e7896d64016aa6f958ba76ebcd0e4b5557235529b53dc6:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYmZkYmRiZjIyNThjZDYyZjY1YWNlMDBiODFjOTVmMjczYTc3N2QyYmE2NWJiNzU4ODZjMTU2ZWM5MjVmNTIyZCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNmViYjNkNDc4MzNjNzhjMzI0ZDI4MDA2NmE3MDFlYWUzMGFiOTkxMzUzMGYwMjM4N2UyODQ3MmEyZDcwYTYyMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNTEwZTk2OGYzZmE4YjcyMzI0NjQ5ZGI0NDM1OTVkYTUxN2U0Y2NkOWUyODIxY2NkZGMyYjcxZDQ4ODhmZWRlOSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiYjM4NjgyY2RkOTgxMjI2MWNlZjA0YTNkNjBlMmZiNTU3NTMzMWMyNDRkZTAzOTY0MmU5Yzg1NzE3MjFjNTk5NCJ9"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L422-L426",
+          "version": "repo-lines-v1:sha256:276eb4a3b4758522ee555b71c93bd7d3d9763fe2e72091889cf8b7cbd32fd844:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjBhMDU0ODRjZDg3ZWM1NzIxZTMxZGIzOGQzY2MxMzJlNzU5ZmYyYTBiOTIxN2QwZjMzMTliZTc3NmUxMDQ3NiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDNjN2Y2YTI2MmZjNmFmM2VkODAxZmE4ZGM3ZTdjNDRkMTcxNWRlMjc0ODRkYzI2MTYxYWM3NThjMTUyYzM5ZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYWE4MzQ1NGFiOGJhMWY5NGZlMzRlZjkxYjVkYjI2NjdkZGQ5MzIzOTUzZTRmOGFmYzQ1ODc0MGU2Nzg2NmE0NSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNmRjNmNiMTBhNjgwNGQwNDM3MjA0YzE1NTBiMDczMDM1YTVmZWE1N2JjZjhkZjMwOGE3NjVkMzlhODM2NGMyMSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_c85f1cd29de4491fab3c800de6f24ceb",
+      "statement": "fstab 根行的 x-systemd.growfs 在首启动把根文件系统扩满 userdata 分区；若镜像缺少 systemd-growfs@.service，阶段 06 会安装 raphael-growfs.service 兜底，按 blkid 识别的文件系统类型调用 btrfs filesystem resize max 或 resize2fs。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/06-config.sh#L71-L105",
+          "version": "repo-lines-v1:sha256:242d44892be1c3f5400b1d312db9aa4759862f3d1fa5e836849faf478717ad18:eyJzZWxlY3RlZExpbmVDb3VudCI6MzUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlmNTdjMDExMGY5MjgwM2UyMjcxMjE1Zjc5MDU0MWJhZTRmMWRiN2ZiY2Q5YzkwZDcyYzAxNWQ3OTFiYmFhODciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjA0MmVhMWVmOTU3MzAxYmNiMmVjZDAyN2Y3ZmNjOGNiMjBiNDQ2OWMwODZhYzNhYTZmMzViYzQzNzU3ZmExNjciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZlZWVmZmU1MzBhYjdkN2JmYWYyMjRmZDlkODExZmM1Njc0YWM3ZWJiZjYwYTVjMDFmNGNhNGEwYmFlMGFmMjIifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L412-L412",
+          "version": "repo-lines-v1:sha256:d3d42a2115be91d5e2c57daea7aff1a750ea8318825f7c2799e97db0d66bb402:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDNkNDJhMjExNWJlOTFkNWUyYzU3ZGFlYTdhZmYxYTc1MGVhODMxODgyNWY3YzI3OTllOTdkYjBkNjZiYjQwMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZDNkNDJhMjExNWJlOTFkNWUyYzU3ZGFlYTdhZmYxYTc1MGVhODMxODgyNWY3YzI3OTllOTdkYjBkNjZiYjQwMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMDc5MDQ2Yjk4MGYyNGY2MGNhOWE4ZWY3YTVkMjE0NDllYTQwN2M1OTE4NmFjMjNkYWYxMmUxMjg3YTNjOWEzZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzdkYzRjMjRlNGI5NTc1YjY3OWVlYzA4NGQ0YjM1N2Q4ODFiYzJjMTRhMDE2MTFhN2VhNjg4NzE4YTEzOGIxMCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_d8f14d7fb5294a93be414ccb72a9d0e8",
+      "statement": "阶段 09 在 btrfs-subvol 布局下把 @ 设为默认子卷，作为引导参数里 subvol= 丢失时仍能挂到 @ 内容的兜底。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L131-L133",
+          "version": "repo-lines-v1:sha256:59cb5c8cef38bfc3bae238f0bd991a58ca8d447d5bfd5e19707b2a7fb9b3ef9c:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiN2VmYjA0NWRhYTRiNjU0ZjAyMmI5MjY3Mzc3NGMxY2RkNWUzMjYyNzQ2NmU2NzMxMGFjMjRiYzU0N2U5NGQ3NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiY2MwYzZhOTI3YjBmOTY3NzhiYzEwZGQyNGViNzE4Y2M3ZDZhOTE5NjhhMmQ1OTc3ZDRlMmJlMjMxZGMxYTg0NSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMWNlNDg1OGI3ZDE0OGJiNzUzNzFkMzY2YjRiZDViMzM5MTI4YzFjYWU3NzUyMjExZjM0NTY4ZjY4YjE1YTZmNCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNzE4YzdmODM0YWY5OWJkZGY1YWRlMDhhODljMDYxZGM4YTVkODk5ZjFlYzljZjRjMzQ0OWIxYzY4MDUyNDZhYyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_40978ea916f24498a07bcb0051b49469",
+      "statement": "阶段 10 依同一布局生成 rootfstype= 与 rootflags=（btrfs-subvol 时 rootflags 带 subvol=/@，btrfs-flat 不带 subvol，ext4 不写 rootflags），而阶段 08 的 initramfs 在运行时解析 root= / rootfstype= / rootflags= 并用它们挂载根，因此引导参数是布局的第一道运行时消费者。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/08-initramfs.sh#L114-L159",
+          "version": "repo-lines-v1:sha256:26b2864696529959856dbe86af0ddf73a15c9f8993d5d484c12e49746a06bb69:eyJzZWxlY3RlZExpbmVDb3VudCI6NDYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzYjJkODg4YTc2ZWM2NjNjYzM2MTAxYjg2OWIyYmM1ZmZkMzM2YWU2ODkwMzA1YmZhZDFkM2IxYjIzYWU4NmEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjYzZTk0YTU0MDVjODViNWZlYmRmNDQ0YWRiM2ZjZTcwMWU2MmYxNDNmM2I0OTRhYmJlZDQ1NGJlMmYyMWNmZjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk0N2JmMmE5MjRjZDc0ZjBlZGZhNDZkOWNjOGUyNjkzMjMwZGE4OTlkMDJhNTJhOGY3MjliZjZlMTk3NTYyOTEifQ"
+        },
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L96-L118",
+          "version": "repo-lines-v1:sha256:635d9de8cb55f1878d12231d726ba7112046ab85136e02719b076d5c90ad45ec:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMxODgzMTFhNjJhOGMxMzRhYmVjODE2ZTVkNWM5YmFlMGRhODYxODYzZTQwZTU4Y2EzMzg4NDNiNGFhNDAxNDMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjNmNzM5M2JlOWQzNTBlZTNmOGExNTY2NGIyNTViMDRjMTQ0NzczM2Y4MDcxOWE0NzJhZWIwNzExMDcxNjE0OGYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkzMWRmNTU3ODhmZTZhNjU5YzIxMWEyYTJhNmMyNmZlMGI1MmEzMmZhODEwN2QxYmQxNDViYjVlYjNjNmNkODQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc2ODlhYmZjMTEyMDM2ZTAwYzRhNmJjMjk5NjdlMmE0NzYzNDI1ZjgzZmFkOThmMGU0ZTAxOTdkOGMyNDk3MGIifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7d9b47cb19cd419db71416caa9ed66f3",
+      "statement": "rootfs UUID 由 lib.sh:rootfs_uuid() 生成一次并缓存到 work/rootfs.uuid，同一个值被用于 mkfs 的 -U、镜像内 fstab 的 UUID= 以及 loader 的 root=UUID=。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L113-L113",
+          "version": "repo-lines-v1:sha256:e2d93824c8ac5c7bb5d6d10c9e33621a47a110507ab31102d8f4191628e3e9d9:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZTJkOTM4MjRjOGFjNWM3YmI1ZDZkMTBjOWUzMzYyMWE0N2ExMTA1MDdhYjMxMTAyZDhmNDE5MTYyOGUzZTlkOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZTJkOTM4MjRjOGFjNWM3YmI1ZDZkMTBjOWUzMzYyMWE0N2ExMTA1MDdhYjMxMTAyZDhmNDE5MTYyOGUzZTlkOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZDA0ZDkwNDIzNzVhYzBmNDdlMzA2YmZlOThmMjJmYWFlNGIxMTMyM2RhMTI1NDNiZTE3YTEzMWRlZWNlODBhZCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZWQ1ZjlhYjNkNWFlMmQ4ZjllZmY2YTMyYjVkNzk3MGFkNGRjZmIzMjUzMGE4N2RiMTUzNmIwY2U1ZjM0NzI1NiJ9"
+        },
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L112-L112",
+          "version": "repo-lines-v1:sha256:5272e9fc76845b8cd89e95daa109f26e8477504197c9686abddc59db5590e13b:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNTI3MmU5ZmM3Njg0NWI4Y2Q4OWU5NWRhYTEwOWYyNmU4NDc3NTA0MTk3Yzk2ODZhYmRkYzU5ZGI1NTkwZTEzYiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTI3MmU5ZmM3Njg0NWI4Y2Q4OWU5NWRhYTEwOWYyNmU4NDc3NTA0MTk3Yzk2ODZhYmRkYzU5ZGI1NTkwZTEzYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiN2M0Nzc4NjY1OWIzODAyNWEzYzY4ZTVkNGUwMjI4ZTdhNTFjNDU3ZjNiMWFkM2Q1ZWYwZmEyZmZhNDNlOTEzNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDg0MDZmY2JmMjZkN2Q4M2ZjNzNkYjA3YjRiMGViNWZjMWY0NDgwYTJlMmMzODIyNjk5MWI0NDY0ZGFkZjRiMSJ9"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L157-L166",
+          "version": "repo-lines-v1:sha256:97c438e8b44b02d13534fb29936770c07e23de20f0d0543fafc8e413afd40343:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3MzdjYmUyNjFlYjJjY2ViMTU2OWRlNmY3YTE5OTdjMzliZDYxMThkZWU5MmVmMTMxYmVmODg0ZjIxNmZlNzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRhNjE2ZDYzY2U0NWQxNjczZDQwYmMwMWQwODJmMzdlODA1NTIxYTVmNWZkYjQ3M2NiNDVlZjFjMmJhYWIyNWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJkYzU1Zjk3NDAzMWI2YTk3ZGU5Y2RiM2MyZmI5YTRjNzU3MTUwNTc5MDNhODQ1NWI4MDQyNDJmMmY4NmRiN2UifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_0004d859694e46c084ec49062996b1d3",
+      "statement": "因为根设备身份只由 UUID 绑定，rootfs 镜像与 boot-cache.img 必须成套构建并成套刷写：删掉 work/ 后只重跑阶段 09/10 会生成新 UUID，新的引导镜像配旧的 rootfs 镜像时 initramfs 无法解析根设备并落到救援 shell。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/08-initramfs.sh#L125-L150",
+          "version": "repo-lines-v1:sha256:caef5004692017b456b29e98b925558e0451be4fae058b48196482a0cf5cd1e7:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ5ZWQwNmEyMDNlYTBiZDFmZTU0Nzg5YjA5NmEyNzY3YTY2MTY3MmI4N2Y4NjAxN2M0N2JhMzFiM2JmZDM4NmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFlNmY1ZjU1ZWYzYWRjMDBjMmY0MDZkYmFiOWRjZjQwYmNiZDQ5ZmNiZDBiODM0Y2JmZTRiYzZjZjIwMzI1ZmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ4NDA3NGQ1YmY1NWE3NTVjOWY5ODEwMGI0NmM0NGFhNTI0MWVhMjZjMWIyYzllNDFmNGVmYmRkNTA5ZGQ5NTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZlYjMyOGEyZWE3NjQxMzY0YTFmYjlmYzRhZWY0MzM1MTgwYWFhNTJlNzk0MTQwNzBlZGRmNTJlOWQ1NWI5NmQifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L157-L166",
+          "version": "repo-lines-v1:sha256:97c438e8b44b02d13534fb29936770c07e23de20f0d0543fafc8e413afd40343:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA3MzdjYmUyNjFlYjJjY2ViMTU2OWRlNmY3YTE5OTdjMzliZDYxMThkZWU5MmVmMTMxYmVmODg0ZjIxNmZlNzQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjRhNjE2ZDYzY2U0NWQxNjczZDQwYmMwMWQwODJmMzdlODA1NTIxYTVmNWZkYjQ3M2NiNDVlZjFjMmJhYWIyNWEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJkYzU1Zjk3NDAzMWI2YTk3ZGU5Y2RiM2MyZmI5YTRjNzU3MTUwNTc5MDNhODQ1NWI4MDQyNDJmMmY4NmRiN2UifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f04defba137f4a27907b11063da24b21",
+      "statement": "首启动的 raphael-snapper-setup.sh 自行探测布局：根不是 btrfs、或虽是 btrfs 但 btrfs subvolume show / 失败（单子卷布局）时打印原因并跳过，因此快照配置只在 btrfs-subvol 布局下建立。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/06-config.sh#L1030-L1046",
+          "version": "repo-lines-v1:sha256:7bdd43d369becbe42a93c1f8f31e31caaff621dd46579dd82f7449e78d072d00:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI5N2UzZDZmMTFjM2EzNjJiNzE1ZmFmZDE5ZmYwYTg0Mzk5ZDE5M2NlNjRiODU0NjljMjI4YjRmMzRkZDQxY2EiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjkwMjBmZGQxMjcxZjUyODY0ZDdlZDhhYTU5MDYyYjk3MzEyNTI4MjNhYTUzMDE2ZDk5OTk2MjAzYjA4YzNlMDgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjdiNzgyMzNhMmUxMzkxMWRkYzFmNmEwYjNlMzBmMzQ5NTYyMmY0YmUwMTdhYTE5ZDFkM2E1ODA2NDEwNDM3ZDQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_144993830bf642899cdcf2201d6e2592",
+      "statement": "三处一致这条不变量没有自动化交叉校验：CI 只在构建前探测 loop 挂载能力并给 warning；阶段 09 只对成品做 btrfs check / dumpe2fs，阶段 10 只列一遍 FAT 内容，没有任何步骤比对 loader 的 rootflags= 与镜像内 /etc/fstab。",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/build.yml#L170-L188",
+          "version": "repo-lines-v1:sha256:cddc29648b971004aba241f4c8fe3b399a657671f0897655788e4122a3cf32f5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTksImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVkZDJlODY4ZDM5Y2FlODQ5MTNhYTY3ZGFlMDlhMjAxZGEwNTk3OWRhZTk2MTlhYTQ1ZDUxZDFlNjY5MWJiZjciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImE1YWQ5OWU3NjQyZWQ3NTJlN2IyZDYyZGY3OTE2MzUxMTllMDcwN2U3ZDk4NGUxMDBmMzQwYWNjZmFkODE4ZDkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjMwY2I4YjNiY2RjZGQ0NGQ5NDVlZjRjMWI3NjVkMWNlNzA3ZWZjNzhiZjJiZmY1NzcyOGFhZmM3ZTYwZWIwNDkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImFkZDNmOTVjZmZjMGY3ZTkyOTA5YmEyZjliNGU0NTA5YTRiNjhjZGQwMjc3MDdiZTExNmQ5MmIzNzI0OGQ0NjEifQ"
+        },
+        {
+          "resource": "repo://scripts/09-image-rootfs.sh#L156-L171",
+          "version": "repo-lines-v1:sha256:5b5a7abb0dbb9751bbbd7c271d267fbe0d4aa3ad24fc7b3b3b345c232eac4dfa:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImI2NzZmOTIyYWM5ZjY1MDU1YjQxMjdmZmNlYzE1ZmVlNjE5YTYzMTJmMzQxNjk4ZjcwM2E2MGJhOGU1NWNiYzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJmMzA0NjhlNTliZjc3YTVlZGQ5ZWVjMzQzNGQ1ODU0MTU3MDg1ZmU0MmViYzExMmUzOWNiYzk5OWFiOWVlZjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQwMDgxYTJlYzdlNDMzZjJiOWE5YmM5YTM4NGM5MTNjNTY1ZTVhNGMyZWI2ZmQwN2YwNTE2ODY3Nzc0YzA3MmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc3MzczNzAzNTZjZWQyNzAxMzJlMzk2ODRhMmU5YmY2YzYxYjMyMGNlZjdjYWM2MmZiODM3YThmNjY0MzU0NjYifQ"
+        },
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L187-L193",
+          "version": "repo-lines-v1:sha256:306368fe72ef20860af9ac4875a3525838364789e37b83c08ddb6ef134bf86bd:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOTI2Y2NmNzg1YjBiYzViY2RmZmIzYmNjNzk5OTk0MzcyNDZmMTY2MmM1M2VjZTdlZjViYzFlMTRlYTVmMzliMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiM2FjY2U1MDE5OWNiOWZjMDRiZjIwZDIyMGQwYTk1YzFlNzhkNDA1MGM1OGRlMTg0MmYyYmIxNzBlOWZkZWFmOSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDY0ODU1Zjk3ODdiNTMzZGZkNWQ1MjY5ZmJlN2YxY2I4ODExYmY2ZmExNjk0YjAyNzNlMThkYzc4NDNjNjcxMiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjIsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOGE5M2I0NWE5ZjUwYWM1ZGI2NDY5MmNlMGJjZDY0YjViMzlkNmY2NWRmYmU0ZDY3YmVmYWRkZWZhMDc1MWM1MyJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_4094c0327ff34c1d99e46b7dc87c2af3",
+      "statement": "README §1.1 的 fstab 示例仍是旧的 PARTLABEL=userdata 形式且 pass 列为 2，与 write_root_fstab() 当前写出的 UUID= 形式不一致，排障与改动应以生成器为准。",
+      "evidence": [
+        {
+          "resource": "repo://README.md#L97-L127",
+          "version": "repo-lines-v1:sha256:8f060ccf09e5a28a5ee513ceb35101ed70c8e3fd94a222b54e9b6a99c517029d:eyJzZWxlY3RlZExpbmVDb3VudCI6MzEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjgyMDI4MTg3ZTEzYzQ5ZDNiOWU4MDJmZGUwMTczOTg0NzM1ODEwNWM5NTVmMjQ0MGI4NjZjYTkzZGI1NDRiNTQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAyNDkxZTg3ZGM0NTBiZDAyMjMzYzE3MDcxNzYxYzlhNDNmNzY1MDhjYmJlMjY0M2RhOTUwZjIzNWI0MmIwNmUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk4ZWIyNjNkYTJiNzkyMzYwNDhlMzU4YmY4NmYxMzRjY2YyMWNmNGFmNjNjMzQyYmI1NTE0YWYxNWZmNjQyZjYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjAwMWYyZWMxNzU5M2MxMDU0ZWI0NjM2N2Q4NDUzZWYyNGExNzNjZTk2YjcxMTdkOTFmOWE2OGQ0NGZlZjhiMDEifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L404-L431",
+          "version": "repo-lines-v1:sha256:abd2c7c0e6ad8feaa955d7c8969280debcc6e1c7a955c430476d4db23ebf66b0:eyJzZWxlY3RlZExpbmVDb3VudCI6MjgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIxMTFmMjM5YWM2NWM5ZmVjZDRmNzk3NWQ0ZWUwYzY3N2I1OGE4ZWE2Nzg1MmVhMjVkMjc5MjM5MjUxOGQyZjgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImY3MTU5YzJiMjc4ZWUwZDEyYzBlYTE3NTliYWY5NjNhODg4NGJiMWY3OWZiYjcxNzQxY2IyOWU1NjJkOGY1OTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY5ZWE1YzMzZDhiZjFhMDA4MWZiOTE0M2QyNTkxNjgwMzgwNjliYmM5MGQ5YWZjZGIxMjhmNTgyODRkMjVlY2YiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImQ4MGZmYTk0ZGNlNzBmNDBkOGQ1NGY0YjMwNjdkNjBjMGQwZjhmNTlhYzM5MGU2ODlkZTZiOTdhZjI5Y2FiYzQifQ"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-10T11:58:54.634Z"
+  }
+}

@@ -1,0 +1,338 @@
+{
+  "schemaVersion": 1,
+  "pageVersion": "sha256:1e621640125130b1b1dadbb66063302454ad4aef9acaba47e39bf5347206a2ee",
+  "claims": [
+    {
+      "id": "claim_3e2f38bb0f2e4005908977d10c9b07e1",
+      "statement": "`build.sh` 是仓库唯一的构建入口，用 `STAGES` 数组驱动阶段脚本，只支持 `--from`/`--only`/`--list`/`-h|--help` 四个开关；`scripts/` 里未被列入该数组的脚本永远不会被构建执行，因此新增阶段必须同时修改数组。",
+      "evidence": [
+        {
+          "resource": "repo://build.sh#L26-L49",
+          "version": "repo-lines-v1:sha256:92f8b08227afd4651f4f369a7b3feff5d824c2fc00c2bc60cbdba3399dd37511:eyJzZWxlY3RlZExpbmVDb3VudCI6MjQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjZjFhZWE2MTIyODFiY2ZmYzk5NTYxZGI3ZjQ1MGQ0NmZhZTZjZDA0NDhiMDc0ZjQ1YThmNzRjNmVjNTFjOGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjEzMWIyMzEyMmRhNTQwNzhmOWNkZGUzNDlmZDU1NDUxMzc4YzRmMmFhNWE4MjZlNmViMWQ1NTVhOTA3NTRkZGYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjM1NmNhNGU2MjMxMTMzMTk5ZjkyMTVkYzIyNzMxOWViODEwNDU3MmIyMzFlNmViZjQzMWNkYjM1YzY5ZTM2ZmIifQ"
+        },
+        {
+          "resource": "repo://build.sh#L53-L75",
+          "version": "repo-lines-v1:sha256:52e1a7de007178c854e2b7afa21839742f1a8d636ce70610d86f1e0c6181d334:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzNDRlYTNmY2U0OWQ4MjE2ZjcwMDkyMDdmNGEyMjM0ZTYyODU5MmM1ODgyMmI5YzM1OGZhMThhYmZjNjEwOTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjM1NmNhNGU2MjMxMTMzMTk5ZjkyMTVkYzIyNzMxOWViODEwNDU3MmIyMzFlNmViZjQzMWNkYjM1YzY5ZTM2ZmIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU0ZmUwZDdhZGY4YjExOTJlODgwZmY3OGNhNzMxMmJmY2M3ZTlhZjMzNzJjZGUzNTViMmJhODUxOTExMmE0YjIifQ"
+        },
+        {
+          "resource": "repo://build.sh#L88-L102",
+          "version": "repo-lines-v1:sha256:099a7ff7b38992280db385419fe2118aa212a17ad9bf7c46afb86a9dfa125982:eyJzZWxlY3RlZExpbmVDb3VudCI6MTUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImZmNGExNGIwODNmYjMyYTU2NjcxYjYzYzMyNWI2MWE1ZGM3ZTlhZDBjYWNkM2ZjYTBlNmY0ZTBlODNlNWQ3NGIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ4NDQ0NGFiZDFkMThhODZlNzYyM2I3ODhhYjIxMDM4Mzk0MWM2NGMyMmE4ODNkMWJhNjIwNWRjOGUwODI5ZjAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVmMWRjMmFkODg5YmY3YWQ1MGI5NGFjYjM0ZDZlNmY5YjcxMjYxZmZiNjNjMDE5YzNhZjA3Mjk5YThkYWNjMjUifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e2ba0c6130f04dac828c0c584550a35a",
+      "statement": "阶段过滤按脚本名前缀的字符串比较完成：`--only` 一旦给出就完全接管（可多个、要求精确匹配），否则 `--from` 跑“阶段号大于等于它”的阶段；因为比较是字典序而非数字且参数不做校验，`--from 03` 会连带跑 `03b`，而写成 `--from 3` 这类非补零形式会静默地一个阶段都不跑。",
+      "evidence": [
+        {
+          "resource": "repo://build.sh#L63-L75",
+          "version": "repo-lines-v1:sha256:90c5d0dba31a5a5b9828da1cbdbbcd2e844bb133bb2060ac1d01ac81cefbb163:eyJzZWxlY3RlZExpbmVDb3VudCI6MTMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwYWEwOTdmNmRiMGIzMDdlNDUzMTU3YzcyYzVlZjEzMGNkYTU1YTJhODg3NmI0YTI1N2U1OGUyOTAxYjc5YWUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImFkM2RmN2ZjNjc3ZWFhN2Q1ZDY4MTZhYzdkMTIzODA0ZDNhMWVlMjg3MjJlMWQ4ZjU4MTViOGJkZjQ5YzI0NzIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImU0ZmUwZDdhZGY4YjExOTJlODgwZmY3OGNhNzMxMmJmY2M3ZTlhZjMzNzJjZGUzNTViMmJhODUxOTExMmE0YjIifQ"
+        },
+        {
+          "resource": "repo://build.sh#L90-L93",
+          "version": "repo-lines-v1:sha256:1f115e55693e253501d8cce19178085f8262a56f0c2ebdceba43a89c4618b873:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiOGNiZTI3ZTIzNzQwNzBmODBiOGU3NzBiNTM5Y2NlZmU0MDYxYWIxODIyMWJjN2JhYzJiOTgzMmFiYTllYTIwOSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDQzN2UyYmU1NTg0NjcwZTY3MDQzNmI3NWUzMGJjMTA5MjZjYzhjNzA4OGRhNzg3ODA1NmVmMzllYzI2MTgzMSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDE4YWZmOWMxMTVkZWZjNmQ3NDg3M2ExYzNmNDI1YzZlZmQzMjAxOGNiM2JiMWExM2FjZDNkYWEyNWQ0MTM5OSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOTdmMzY3MjIzMWU5YzQwNzNkNWI5NTgzMzUyYjM4YTU0ZjZmMDM2NGQ4ZWU1NzdhMjRjYjY1NjYzMzE3NjE0YSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_8d07c9a2ff5043f98ccf6a8e0676afde",
+      "statement": "`build.sh` 在仓库根目录用 `bash scripts/<脚本名>` 逐个执行阶段，把输出追加（`tee -a`）到 `logs/build.log` 并在任一阶段失败时立即报错退出；但它自己不创建 `logs/`（目录由阶段脚本 source 的 `scripts/lib.sh` 创建），所以全新克隆第一次运行前要先有 `logs/`。",
+      "evidence": [
+        {
+          "resource": "repo://build.sh#L18-L19",
+          "version": "repo-lines-v1:sha256:99dfd15b684a9cd79b1184e5fd8cf0806596376d46df48be8f899d22f26fddb8:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYjA2M2IxNzZkMjk4ZmE0NjMzYzIxYmNjMzAzZTUyNDEzM2FiYTYxMWQwZDExN2I5ZWI0N2I3YjFmZTNkZjgxMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMDRmNmE3OWQ1NzI5NGQ0M2NlMjllNzI5OGRmOGE3NjhlNDE1ODBmZjU0OTQ0OTEwMmUwMDJkMTQ1OGM1OGM3ZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmFlYjcxOWUxMmE2ODUxNDRiOGFmMTI5MDViMzc1MWJmZTM1MGM2MTJlOTU0ZjFkMGYzN2RhYjliYzczNTVmZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTMwYjJjNmNkYWVkNjNmM2ViNmY5YWI0YjA4NWJkZDJlYmE2YjkyOWRiNjRlNTEwZDNkMWVjMzA1MmI0Y2I4MSJ9"
+        },
+        {
+          "resource": "repo://build.sh#L96-L100",
+          "version": "repo-lines-v1:sha256:c06d72a5443026929af143cc680fcd16687f1b0e0ff213a71c691d1c6871670a:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNWIzZjZhOTRkN2NhYzVmNzI2ODQyYzZiMDQxZGZlZDk1ZjYyYzQ2MjNiMzYxNjQ4NjdkYmNlMjRlMDE1Yzk5MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDg5M2Y0MGUzNzgxZWI4OTZjODJkMDQ2YTA4MDY3YTExZTM1Y2RmMmYxZGZhZjI2ZmVhOTBiOGRiNjY3NjQxMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYzUxN2ExMzk5NzBiM2I4NmNmYTlhOWI4ODgzYThjMjZjNmFhNGI5YWI4M2M5NTRmNWFhN2JlNjM2MDgwZTkwNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNjc0MDI1NTQzNmIzM2QxOTkwMTlmOGI4MGI2N2UwYzM3MmJiZDkwZGM4YzhkYjI0YTkxNGIzZTMyZTQ2NjY2NSJ9"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L15-L25",
+          "version": "repo-lines-v1:sha256:12790435acfb594e0f363340b4f69b9adcb2a4286a7dcd58b8c181cd0b50ddae:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQwODUyMjNiZTY5NzM1MGZiOTdhYjQ3MjE3MmZiMWZiNTAwMzRmODhmNDNiNjFmZDhjNDY2M2JjYTFiMTQ1YjMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhmMjY0NTY4ZDczOWU3Y2YyMTVhYmU4YzlhN2EzZDljMDMwN2FkOTRmZjI3MGY1ODEyNmM0YTNmZDUzMDVjODgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjNkMzk5OTA1Njc5ZDMxYzBhMGY5NTA1OGRjNGZhNGU0NDg0Mjk2YjhhMTgwNjA0ZjM5MDkyNWJkNzVjMWFjMDMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY5MTJjMWM3MGZiYjdlMGNlZjE2NGIyY2RkMjVhZWIzM2MyOGMzZDVlYzc0NjYxZTYxMTQ4MDk5MjkzNzRhYzQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_b8cea6e166ea4da6b15881af771aa42e",
+      "statement": "阶段脚本的共同契约是：`#!/bin/bash` + `set -euo pipefail` + `source \"$(dirname ...)/lib.sh\"` + `confirm_stage`，且不接收命令行参数；需要 chroot 的阶段再调用 `require_ns`（自我重入 namespace，用 `RAPHAEL_NS=1` 作哨兵）与 `ns_mount`，例外只有不重入的 `00-fetch.sh`、`03b-ms91xx.sh`，以及只重入不挂载的 `08-initramfs.sh`。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/00-fetch.sh#L7-L10",
+          "version": "repo-lines-v1:sha256:84fab55d330b31931e56c05a8b74ca36155d33d31dece51fad9e05a06e857667:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODhmYzYzMzY2N2QwMzAwNzMxYmRkODQ0NzJkYzQyNGUxZjljNjQxNzVlYTJiYWRiNjY2NDcyZDkxYWViNGVmYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTYzMzYwZWRmMzM3NjVjZTYyMTM0ZjA4MTFlMDQ4ZjY0OWIzNmUxNGY0ZjFhYjc2NjIyZjVlMTMyNjMxYmNhZCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNzU0YjMwODMwNzk3OGRkMjE0ZjExNDlkMTU5N2UzMGQ1MzEyZGJmOWY2ZTIyOTU2NWRjOTNjZDcxOGU1NjQzNSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiOWUzMmFhNzhiNzVlZWU4ZWIwNWUxNTJlZjM5YjM0OWQ5NWJkZmI0YzRlZjU1NGE0MTZhYzlkNWM0YjU1Y2ZiYyJ9"
+        },
+        {
+          "resource": "repo://scripts/01-rootfs.sh#L8-L14",
+          "version": "repo-lines-v1:sha256:a869758ecf2d3edd677a139d76dc1fe413047199304c16346ee706ddb8c703d3:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODhmYzYzMzY2N2QwMzAwNzMxYmRkODQ0NzJkYzQyNGUxZjljNjQxNzVlYTJiYWRiNjY2NDcyZDkxYWViNGVmYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMjQ1OGRlNzdiOTVmZmI1YjgwNDM5NzRhMjMyZGM5OGExNTUxY2UxMDQxNjg3OTFkZDY0N2M0NzAyMWZjZjliYSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYzZhY2UwOTMyMzM2Yjk3ZjQyMWJkMGQyZGE5YjhhNzNhNDUyMmQ3MmE5MGM0ZjQ1ZGVlNzQ3NjBmNWVmMGQ4MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiM2JlMzAxMGU4ZDcwYzIwNTU4MGNjNzY1YWYxYTMxM2Y2NTVjNjg2ZWNmYjk2NDU4MDZmZDlkM2U0NjlkMGJkZSJ9"
+        },
+        {
+          "resource": "repo://scripts/03b-ms91xx.sh#L25-L28",
+          "version": "repo-lines-v1:sha256:1f17abadec506495ed5b68e5c88e4a4c0d62a4e28bb36e14da70988e594b1067:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODhmYzYzMzY2N2QwMzAwNzMxYmRkODQ0NzJkYzQyNGUxZjljNjQxNzVlYTJiYWRiNjY2NDcyZDkxYWViNGVmYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTdmOTg1NmE0YjM4Y2ZiZmEwYTc0Nzk4YmI4NWI4OWIyOTRmYTkzMjZkODAzYjEwZjJjZjU2YzU0ZDAxYjhiMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYjE4OTMwNjlmZDQ5MTMyNWVlZGVlOGNjZGYyYTY5YWE3Nzg4MThlYjI2YjhjNTQ1MzJiNDk4NjlmYmNlNTc5YiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGEwZTRiNjI0YjJjMjQ2ZjRlZDg4MDRkMTYxNTMzMTZlZWYwZmViMzM3MDI5NjAxZDI1NmRkZmIyMGY0NWI5NCJ9"
+        },
+        {
+          "resource": "repo://scripts/08-initramfs.sh#L10-L15",
+          "version": "repo-lines-v1:sha256:efaa54f3ce0e8b9fcdc3056cfdd7210a5c9cc49fae8480e7ad3059c18c854479:eyJzZWxlY3RlZExpbmVDb3VudCI6NiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiODhmYzYzMzY2N2QwMzAwNzMxYmRkODQ0NzJkYzQyNGUxZjljNjQxNzVlYTJiYWRiNjY2NDcyZDkxYWViNGVmYyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjYyYzIwZjY4MDk5NTg0YTgzZGZlMWRkNzI4NjVmNzNlNDQyMzJjNDU5MGU5YmIwZTI1MjI3ZWM3YTU1ODA0NSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGViNGM3YzJjMmM4ZTUyNzcyNGRlMDMzNWYwNTFlYWZhNTFkODI2OGQyYzgwM2ZhZmViZDZkOTc4Zjg0YmM4OCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiNDJhZWNmOTEwNjY0OGNjZTZlODNhZjJkYzJmOWZkODk2MTk1ZTVmZmYzNjFlNTFkY2EyMDJjNDUxMjUzOTYwMyJ9"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L42-L59",
+          "version": "repo-lines-v1:sha256:219df3fdc165ce5cfff2d299104db0edc703b11a5e5b17e6a12b0f3291b69cbb:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAzNDZhNWYzNWNhNjkwOTg1ZDM2ZDg2NTY5MTAwMGVjNzZkNzk2YmM0YmUxOTQ3ZTk5ODMyZGQ1M2ExODNlNTMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjQ0NWVlNjcwOGIyMTYxOWNjZmE4YjU4NGM5ZDA5ZmExNDFjYjZhMDg4NWFlNTUxMzUyZjVjNTMzZWUyZGEyMjIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJiZmQwZTVhODkxOWNkYzBiY2Y5MzM4MmI1ODk4MmFiNGM3MmI1OGM5ZjRmNmEzMjQ2N2JmM2UzYjFlYjYxMmYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_e2529f7bb5bd451dafc2545d8c8d639e",
+      "statement": "`scripts/lib.sh` 是所有阶段与工具脚本共用的契约层：它基于 `BASH_SOURCE` 定位仓库根、source `config/build.conf`，定义并创建 `work/`、`dl/`、`out/`、`logs/`、`tools/` 等生成目录，并集中提供日志、带缓存与重试的 `fetch`、userns 自举、qemu 垫片、mtools 包装、`rootfs_layout`/`write_root_fstab`、`enable_unit`/`mask_unit`、`normalize_ownership` 与蓝牙地址注入。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/lib.sh#L310-L354",
+          "version": "repo-lines-v1:sha256:244e0f3c0859ff52bb5389f0835055c734c19d3636358b2acb04f267fef5f14a:eyJzZWxlY3RlZExpbmVDb3VudCI6NDUsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI2ZjhhMDc5YTQ4NzJmYjY5YzVkMDI0MTdjM2Q2ZjUzN2U0N2Q2OTcwZmI5ZmRhNjVjYmRlYWQ1NmQwNjU2ZWYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjI3MTY1Y2M5YTQyNzBiNjcwOTMxZjY5ZWY0ZGQ3Y2RiMWI1NGYxYzZkYjZlOTViNWZkOWFhNjg4Y2FkNTYyYWYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImMxZDQ4MTNiNDM4Nzg1MDVkNWJlNTk2N2VlNDE0Mzg2N2E5MjAyMDYwOTQ1OWYzODczYjgwZWI4Yzg3MjJiYzYifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L33-L40",
+          "version": "repo-lines-v1:sha256:638f995f0bf5b1f43a08f4aa53d428ddc02bf8356d9ad474e79bb71feb994294:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzYzYmU0MjZiZTgzOWU0M2QxNDJhZmZjNGQ3MGYwZGVmNDkzYWRmYzI1ODM5YjRjNDVhYWQ2M2MxMTJjODljNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDQ1ZWZlZTAzMzg0OTFmM2YzOGZhMGE4MGNiNWQ1MGVlOGFhZjkxNjkzYjVlNzFhNDc5NDIwMDhlZjJkMzdmZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDFkOTk2OGY1YmUyYjBkMDY4ZDIxYTA1NGEyMTM5OWU2ODE5YTQ1OTUzNGIyNmRjZWE1NTY0OTIyNDRkZjYyZCJ9"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L44-L59",
+          "version": "repo-lines-v1:sha256:dc800d7f0552bcac76c18db3ed6b82183aaf52662402dcd968d55b7cd9022f44:eyJzZWxlY3RlZExpbmVDb3VudCI6MTYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRjNDkyNTM2ZTU5ZmQwMWQyZjFmNTgwMDQ3OGUyZGQ4YzcxODk3NWRiODgyNTVmMWM5ZWI2YmZhODEzNmNiMzAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjQxMmNhMzQ1Y2NmNzViZjljMDgwNmJjZTY5NWJlOGRlODA4Yjc5OTg0MjUxYTdhNTRkMjAyY2Y2MTAxZGQ0NTEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAxZDk5NjhmNWJlMmIwZDA2OGQyMWEwNTRhMjEzOTllNjgxOWE0NTk1MzRiMjZkY2VhNTU2NDkyMjQ0ZGY2MmQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjJiZmQwZTVhODkxOWNkYzBiY2Y5MzM4MmI1ODk4MmFiNGM3MmI1OGM5ZjRmNmEzMjQ2N2JmM2UzYjFlYjYxMmYifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L9-L25",
+          "version": "repo-lines-v1:sha256:f20aa6921b2263e5c44b59de56854fbb078e5ce3a5782bdfe70d090b1be7df24:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijg4ZmM2MzM2NjdkMDMwMDczMWJkZDg0NDcyZGM0MjRlMWY5YzY0MTc1ZWEyYmFkYjY2NjQ3MmQ5MWFlYjRlZmMiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhmMjY0NTY4ZDczOWU3Y2YyMTVhYmU4YzlhN2EzZDljMDMwN2FkOTRmZjI3MGY1ODEyNmM0YTNmZDUzMDVjODgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjBiNDc4ZTM3ZTk2OTYyZWMyNDVlMGE0YTgzMzk1ODQ5Y2ViODBmYjJjYzE0MjliYzQzMTY5ZDBhZDVkYTlmY2EiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImY5MTJjMWM3MGZiYjdlMGNlZjE2NGIyY2RkMjVhZWIzM2MyOGMzZDVlYzc0NjYxZTYxMTQ4MDk5MjkzNzRhYzQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_7401f543d5d249b7bf858905c028df4b",
+      "statement": "`config/build.conf` 不是被解析的键值清单，而是会被 source 执行的一段 bash：内含 `case`/`if` 逻辑、`de_has`/`drop_pkgs` 等函数，并在桌面名不认识时直接 `exit 1`；`build.sh` 因此在解析命令行参数之前就先 source 它，好让写错的 `DESKTOPS` 立刻失败。",
+      "evidence": [
+        {
+          "resource": "repo://build.sh#L21-L24",
+          "version": "repo-lines-v1:sha256:a1c14effee1dbf387655d2f96a8767c6b1908f93f3dd67573ec55d069337d715:eyJzZWxlY3RlZExpbmVDb3VudCI6NCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiN2I0YWQ1ODI5MzQ0MzJiZTU1MTU1YThhOGYwMjlkMGVhNWQzZWZkNzY2OGZjMDRiZDE1YjIyNjhmY2FhNWNlMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNTY3NDdjZmU2N2UxODc2YzU1Yzc4MTA1MmI0Njg2Yjg4ZDU3ZTUxNjAwNGQ4NGVjMzdiMmRlNmFjNWY4OWE2OCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYzZiOTExMDY0OWFhYmE4ZWYxZGE2NGVhZjg5ZGI1NWRjOTdjMDlmYjg3ZjNiODFkZTcyZmMyNGU4YzdlNTFiNiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiM2Q0NmQxOWQ0NTRkY2Q1MDY0MTJiMjFiOGQxNTUxNzY5MDFkZjg2Zjk1NDNlYWU0Mzc1N2QzZWMxYWI2MmE2NSJ9"
+        },
+        {
+          "resource": "repo://config/build.conf#L292-L313",
+          "version": "repo-lines-v1:sha256:ad80a1db378dcfe5ed4ef3a7c51f449db415894fa815c41c6319e94c230577ac:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjIzYWUwOWRkNTg3YjkwYzI4NmY4OWJkMjNhZjUzNDkxOGEwODU1YWUzYWNkYTExNmQ2NzNhMDkxNjk1NDJiMTciLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImNlZTFiMzY4ZTI3NzJkMTM0ZjEzZTNkMmExMTlkMjEwZDFjMzMwNWViZWRlOTFmZGZkMDM0NzQwMmZkODQ0MWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjY1MTIwZWRhYWJmYThiMDFlNDk3ZmQyZjYzMmYwOWE5OTdhYjczMTIwZWU5YzVmOGUwM2MzZWU4Y2YyMmM3YTEiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk2ZmZjYmMwMWE0ZDYzYTBjNGVjYmMzMzg3YWZiYzgwNWVhYzk0OTJhNTg1YWFhYjU2YjI4OTMzZjY1Y2Y5OGUifQ"
+        },
+        {
+          "resource": "repo://config/build.conf#L69-L94",
+          "version": "repo-lines-v1:sha256:4d6c397b348318bce2eebcab74999bdcde90a9ab6fae2fae05a1b4ba37973392:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVjOWIyNDJkNDczZDk5NTlmMGQ4YTg0M2U1NTAyYTM3M2E0YWNiYTYxYzFhYzU5YjUwMmU3Y2U5OWE1NzMyNzUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRiNGQwNDk1NTgwZTFkYWY0NDU0Y2U1OTE4ODBiMzJiMGEwNWE3MWQ1MWRmZGUxYzUxOWYwZGVjYmZkNTM2MGQiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg1ZjQyZGI3NzA0YjcyYjAzN2MxN2YyY2IxYWVkZDU1YTZmMDQxNDhkMDUyMzQyYTU2MTFiZGE1OGRjYmM5NjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjVmOWJjMjQyMzAxYzA3ZTlmNGZjZmM3YmI1ZWFkMDYzMzZmYjA4NmNjNjZjNzI3M2FmMGZkMDRjZmE5ZTg0OTYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_45a99f6df2144422ac6c7c10b5368360",
+      "statement": "私密值走 `config/local.conf`（已被 `.gitignore` 忽略，仓库里只提交脱敏模板 `config/local.conf.example`，示例值为 `BT_MAC=\"aa bb cc dd ee ff\"`）：阶段 10 用 `sed` 从该文件读 `BT_MAC`，环境变量 `RAPHAEL_BT_MAC` 优先于它，两者都缺失时只 WARN（该镜像蓝牙不可用）。",
+      "evidence": [
+        {
+          "resource": "repo://.gitignore#L24-L25",
+          "version": "repo-lines-v1:sha256:8e82bbaff1b0b84b4c54a8c6998f9ae8314449da9c097faec528e43a89414d7c:eyJzZWxlY3RlZExpbmVDb3VudCI6MiwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNjM0Yjg0MDY1OTQ1ZGEzMjYyODVkNmRiODllZTQ4YjA2MTA3YzMyMmU4MDMxYmFiY2YwZDk3ZDBhMTY0NjJlOCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOGEzOTk5MDcyNzRhYWI4NGRkNjQ5YjEzYWViMTgzZDczZDNlZTdkZWU2ZTEzZjNjMmU3NWQxZDMwMmU1NzJkYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYTdkYjhlMDQ5ZjAxZWY4ZWM5YTUxN2I3MTA1MThiMDFjMDJkYTA4ODQyNGI3ODg2YmNmYzE5OTJlOWJiNjY4ZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZWY0NWQ4OTY0YmY1ZWFkYjBkMTliOWI4N2JhNDQ3ODY5NjMzOWVlODgxMDVhN2E2Mzg2Zjc1NDdhZTRiNWM2YSJ9"
+        },
+        {
+          "resource": "repo://config/local.conf.example#L1-L10",
+          "version": "repo-lines-v1:sha256:979b8cff36d40472b707ab2f57832a89f17a617a3ec8f027ee472ac75ef84b47:eyJzZWxlY3RlZExpbmVDb3VudCI6MTAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZhMjdiOGQxYmYxZGEzNDMxYTg0ZmY5MjU0ZjZhNDdkYTFjNTFjMDkwNmQ5YmRlNWJiYzU0NTcyNzM3ZWE5YmIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYyZjlmMTRmY2NhYjY0ZTViM2MzOGM1MmFhMWJjNjg0OWQzNWMyYmYyZDk0MGFmYTVmNjFhOTUyNTk1MDc0YWYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L56-L77",
+          "version": "repo-lines-v1:sha256:e46246f0268de5debebcb5ab21be7dec1d36e62a133dfa8ea91483be4b7abc78:eyJzZWxlY3RlZExpbmVDb3VudCI6MjIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjI0OWRiMmZmOGIwMjQ5OTI2YzgxYzQ4ZTkzNTg0ZmUxZTY5NDkxN2JlMGIxMDM1Y2QyNWY5MmY5MDMzNjAwYzgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVmODYwNTI2NmYyYmE1Yjg2OTAzYzZhNzUxNTQ2MDQ4ZjU5MGYwMGMxMTU1NDUwYmRiYzRmYWFkZGRiODVkM2UiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjgwODFiOTg4MDhiYzg5NDc2OWYyMjdjZTUzMjVkZDI1MmI4MDRiMDgyN2Y2NmYzZTE2OWIzNmEzYmQ5MWM5NzAiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc4NTg2NmZjMWRlOGVkMTJhOGU3ZGI5NGExNmNmZjU5NjY0OGJiMWMxM2U5NTk1MGQ3MGJhNjI5YWZiZWZkZDYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_f19b93b3389c4b8eaddbede02d2b21be",
+      "statement": "`.gitignore` 把 `out/`、`work/`、`dl/`、`logs/`、`tools/`、`_recon/`、`config/local.conf` 以及 `*.img`/`*.deb`/`*.tar.gz` 等产物排除在仓库之外，这些树必须当作可随时删除重建的东西而不是源码；其中 `dl/` 是“命中即复用”的下载缓存（目标文件非空就跳过下载、不校验内容），怀疑缓存损坏时唯一的失效手段是手工删掉对应文件。",
+      "evidence": [
+        {
+          "resource": "repo://.gitignore#L1-L34",
+          "version": "repo-lines-v1:sha256:33889bd20ab1650500bfa1eeab355ee2d251a96414db0592f286c1c3922f2430:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MzVhZGU2MDVmYWM2ZGQyYTUwMDNlY2MwNmJkNjg1NDc2NWU0MGYwN2E0NDJkYWM0Zjk3N2YxMTU4NWU5MDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzOWRlYTIyMzNiZmZjMjczYWUzNDBlODBkOGM2NmYzMTllNGNiYzEyYzNlNjQ5YzhlNjU3MDgwY2NlYTY0YjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L33-L40",
+          "version": "repo-lines-v1:sha256:638f995f0bf5b1f43a08f4aa53d428ddc02bf8356d9ad474e79bb71feb994294:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzYzYmU0MjZiZTgzOWU0M2QxNDJhZmZjNGQ3MGYwZGVmNDkzYWRmYzI1ODM5YjRjNDVhYWQ2M2MxMTJjODljNCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDQ1ZWZlZTAzMzg0OTFmM2YzOGZhMGE4MGNiNWQ1MGVlOGFhZjkxNjkzYjVlNzFhNDc5NDIwMDhlZjJkMzdmZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDFkOTk2OGY1YmUyYjBkMDY4ZDIxYTA1NGEyMTM5OWU2ODE5YTQ1OTUzNGIyNmRjZWE1NTY0OTIyNDRkZjYyZCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_f1af1081309740b184b9f514c934304d",
+      "statement": "`release/` 不在 `.gitignore` 里（忽略模式只覆盖 `*.img`、`*.img.zst`、`*.img.xz` 等，而分卷名是 `*.img.zst.part00` 这类）：它由 `scripts/99-make-release.sh` 每次运行时先清空再生成 zstd 分卷、`SHA256SUMS`、`刷机说明.txt` 与 `upload.sh`，因此同样是生成目录，不应手工编辑或提交。",
+      "evidence": [
+        {
+          "resource": "repo://.gitignore#L1-L34",
+          "version": "repo-lines-v1:sha256:33889bd20ab1650500bfa1eeab355ee2d251a96414db0592f286c1c3922f2430:eyJzZWxlY3RlZExpbmVDb3VudCI6MzQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6Ijk5MzVhZGU2MDVmYWM2ZGQyYTUwMDNlY2MwNmJkNjg1NDc2NWU0MGYwN2E0NDJkYWM0Zjk3N2YxMTU4NWU5MDQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImYzOWRlYTIyMzNiZmZjMjczYWUzNDBlODBkOGM2NmYzMTllNGNiYzEyYzNlNjQ5YzhlNjU3MDgwY2NlYTY0YjgiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjowLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUifQ"
+        },
+        {
+          "resource": "repo://scripts/99-make-release.sh#L24-L30",
+          "version": "repo-lines-v1:sha256:2843ec92657faccf31acd66876ce55535a014490b79a32fd90e86c85e704b3ba:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYzEzMzNjMmNhYzg5Yzg0ZDhmOGJkYjk5M2JmMDgwZjc3OTYwODc3MjllOTM3NzQ5MjVkNTdhNWFmYTdiMzdmZiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzFjYjkwYmMzNmY3NGY2MDEyZDhkMDEzMTQxYTI2MDM3NmNmN2Y3YWE1ODVjYjNlNTRjMGEzODJlMjc3OTc5YyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZTg3MWM0ODA1NzU0ODdlNGNjNDQ2ZGM3OWQyZmYzNDk4NWM1ZDQ4ZGFiN2MwMTkyNDBmNGNhZTgyNjI0NGY3NiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGVkNGU3NzQzMDk5NmFhYTE4OTI1OGVmMmVlOWJjYWNhMGI2MTUzMjgzZmJlMTk2NGIxYmY1NmU0M2IwYTNiZSJ9"
+        },
+        {
+          "resource": "repo://scripts/99-make-release.sh#L68-L74",
+          "version": "repo-lines-v1:sha256:5466abbbad062a3506274a5bf7c014fb11b7eb7e898e55bd3960245f139e0d5e:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZmEwYzIxYWVjMjhlNjYyMGZlYzIyNDU4OWU5YTAyNDY5OWVmM2JlOGVmY2FkZGFhMTZiNDM1M2JlYWIyZTU1ZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDZjYWUzMGZhOGRiOWUzZmMzYmNlOWNiNzU4NmFhNDNhMDBlY2FjMDljZjAxMGQ4NjJmZDQxYzVjNGM0NjBhYiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiMGEwOTNiODE4OTkyNGM5MDAwNmVkZDViY2RjNjlhMDA3NThkNDhjM2UxNTY0Zjg2ZWVkZDQ5MWIxZWY2MmFlYyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZGI4MTdmYThkMDQ5ZWFjZmVkYzQxYTFlYzgzNWVhZmQ4MzdhNDBhN2FkYTY4NjBhOTQxY2VmNzhlNjgzNjcyYiJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_f0720243cb07495ea4368788dbe8de01",
+      "statement": "最终可刷写产物的位置是分裂的：`out/boot-cache.img` 与 `out/rootfs.img`/`out/rootfs.sparse.img`，而第三个产物 U-Boot 镜像在 `work/uboot/u-boot.img`；`99-make-release.sh` 三样都收，且在 `u-boot.img` 缺失时硬失败，因为生成的刷机说明要求用户 `fastboot flash boot u-boot.img`。",
+      "evidence": [
+        {
+          "resource": "repo://scripts/00-fetch.sh#L24-L40",
+          "version": "repo-lines-v1:sha256:428958c63ac0bba95e171e0bb69421cde6a92cd01ac4aa18fba8b6376a054da3:eyJzZWxlY3RlZExpbmVDb3VudCI6MTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjkzZTA2NmEyZGU0MzZiYmEzNDMzZTBjODEwNWMzNmVjNTA1NmRmZTI0MTdhOWY5ZDNhZmExMWU5OWJhZTA3ZGQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjM3NjlkMjM3Y2Q0MjBiOWQzOGI5ODFhMGE0ZjY3NzAxOTBhNGE4M2RjYTFmZTU2YzRmNWJhMWUyY2JjMGVmNzYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImU5ZTkwNTgwZGM1MWIyNTRlNjc0OTk5OTE4YTdjNDJiZjk0ZWM0MGFkOTJiZWUwZWM5ZjI3YjA4NGNjM2ZlNWMiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImZjNjdiNWU4YTM2MjQ1M2ViNzNlN2MzNTkwNWExNDcyMjhkMGEwYzVjMzFjMmFjYjFlMWRmYzY4NWY3NGI0MTIifQ"
+        },
+        {
+          "resource": "repo://scripts/99-make-release.sh#L37-L45",
+          "version": "repo-lines-v1:sha256:f782765b4dcc4658ba161c70da44f101f9b04146df3d12773958b2d30daf5ca6:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMTI4NWMwMzhmNjkyYTI5MTU3YzE5NGMwNzA2NjI2NjIyYjQ1ZjY0NjRlN2MzZTdhMGVkNjFkMmQ3MTZjOTRjMSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiN2M1NTk2YmMwNTI2ZWRkYzNiOGRmOWE3YzBhYzlmNWMzYTk4OTg4MjhhYjA1MTEwMzdjMGYxOGU4ZGU3NmYwMyIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZmUyMzMxNDVkN2I2MzMwNmEzODlmM2E5ODRjMjY2ZjJlYzE1Y2VkZDZmNDRiYzc2MWFmZWIxNzIxYjY4YTFhYSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMmIxOWNiYWYxOTg2MTA3MTI2ZTRjODM5MzIzNTFhM2E5Y2IzOGEzOGZjMmQ1NDM0NWRlYjY5M2UzNzI2NGEzNiJ9"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L15-L23",
+          "version": "repo-lines-v1:sha256:5c073e1a7836cbc1b4090c24cd28f2b67bab8ba34a0d7010e85a4ca66269d414:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDA4NTIyM2JlNjk3MzUwZmI5N2FiNDcyMTcyZmIxZmI1MDAzNGY4OGY0M2I2MWZkOGM0NjYzYmNhMWIxNDViMyIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjVhN2Y1MTc5MDkxOTI1OTYyMDc3ZDQ2N2E4NDNmMjU1YTA2ZGQ0Y2QyOWUzZjMzNGU4MzZlMjg1NzE5ODhkZSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiM2QzOTk5MDU2NzlkMzFjMGEwZjk1MDU4ZGM0ZmE0ZTQ0ODQyOTZiOGExODA2MDRmMzkwOTI1YmQ3NWMxYWMwMyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMGI1YWY2MmMxNGE0ODc0ZjhhNGNkN2U1ZGZmMzJkZjhlYTZhMmU4MjYyYzQ2YTgzNWU0YmI5ZWI3NDc4YWM4YSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_0d0872898f414929a0bad3e9789a7bcd",
+      "statement": "`dtb/raphael-redmi-k20pro.dtb` 是仓库里唯一随源码分发的设备树，阶段 10 把它复制成引导镜像里的 `dtbs/qcom/raphael-redmi-k20pro.dtb` 并将其设为 systemd-boot 条目的 `devicetree` 目标；该文件缺失只会 WARN，症状是蓝牙与麦克风不可用。",
+      "evidence": [
+        {
+          "resource": "repo://dtb/raphael-redmi-k20pro.dtb",
+          "version": "repo-file-v1:sha256:60322922d36456483fad2a8fc2fc450769038a188d4084751b43af0affd64bc3"
+        },
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L50-L54",
+          "version": "repo-lines-v1:sha256:a857c08a0388c33d4971bb314b1264a6d5d2fca963f87fab608f524ef71dee00:eyJzZWxlY3RlZExpbmVDb3VudCI6NSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZjkxYTczOTdiNTkyNTcwZDkyZWYxNmZiMDVmYTE3MDM4YmM4ZGNlYjdhYzM1ZDM4NWRlNzZlODRjYmY1OWYwZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZmM1ZGExN2ZlY2RjZmE0NWZmZjhiMGY0OTBjYjhkMWQ1MzZlMDk5NmY5NWUzMWE0Mzk4ZGRlNzU2MDkxNjI2NSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNDM1YThjNjA2MDA2MjQwNjU1M2YwN2MzNzRkMDgyOTk0MTU0YWFlNDUyMjIzMmFjOWM2NjhlODc0NjJlMmEyYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiN2NhMTViZWJkZTIzNDFmYjFiNGFhMGZmNzE2NTNhZTIyM2NkNDQ5Zjk0NjY0ZWZkMGMyM2U0ODZjZWIwMjZlYyJ9"
+        },
+        {
+          "resource": "repo://scripts/10-image-boot.sh#L79-L81",
+          "version": "repo-lines-v1:sha256:6e8993ab98fcd1634a0190bdd3997212c291fb8bb3a7ab79956f399d3f0a5aa8:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiMjM1ZGYzZjcyOWRmYTdlZWU2ZjkxNzY3ZDA0NWI5NmI2ZDNhYTNjMjgzYTE4NGNjMzg5ZGJhNDY5NmRlMTRlMCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiMzc2OWQyMzdjZDQyMGI5ZDM4Yjk4MWEwYTRmNjc3MDE5MGE0YTgzZGNhMWZlNTZjNGY1YmExZTJjYmMwZWY3NiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiZGVlZjNhMDU5OWU3MmFiNDJiZWJkYzY1NDA3NjA5ZTBmZjM4ZDUwOGM0YWVjYWVmZDIyMmY3OTI2ZTAwZjU2MSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZDA1OWM3NTJjNzAzNGVkM2Q5NjE4ODBkZmI2OTI2NzgzNjQ0M2JjZDJiNDJjMjFmMzNiYzNjMTUzMmQzYTJjZCJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_38888a7f712b4455b5ca149e72eb11c8",
+      "statement": "`vendor/ms91xx` 是随仓库跟踪的内核模块源码树（自带 `README.md`/`dkms.conf`/`Makefile`，驱动在 `vendor/ms91xx/drm`），由 `03b-ms91xx.sh` 用阶段 03 留下的 `work/kver` 与头文件树交叉编译；`.gitignore` 只忽略这棵树里的 in-tree 构建产物（`*.o`/`*.ko`/`*.mod*`/`modules.order`/`Module.symvers`），正常输出在 `work/ms91xx-build`。",
+      "evidence": [
+        {
+          "resource": "repo://.gitignore#L27-L34",
+          "version": "repo-lines-v1:sha256:c1255f0c7c7975dafc940b1a7cb51e525d0e5723567697e20fc0c97d96702f34:eyJzZWxlY3RlZExpbmVDb3VudCI6OCwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiY2Q3NmQxNjczZDA0NTBhMjI5MDg3NWY0ZTY2ZmY2MjA2ZDg1MDc3MDIxYTZkMTk1YzkwYmYzOTk5ZjVkM2M0MiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiZjM5ZGVhMjIzM2JmZmMyNzNhZTM0MGU4MGQ4YzY2ZjMxOWU0Y2JjMTJjM2U2NDljOGU2NTcwODBjY2VhNjRiOCIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiYzBjNjU1MDAyMjU5ZjRkYmRjNDQwZTc1OTdkYzk5MWNmMGQ3OGM0OTBmOTA4Nzc2ZDViNGMyMDFhODQ3OWMwNyIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjAsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZTNiMGM0NDI5OGZjMWMxNDlhZmJmNGM4OTk2ZmI5MjQyN2FlNDFlNDY0OWI5MzRjYTQ5NTk5MWI3ODUyYjg1NSJ9"
+        },
+        {
+          "resource": "repo://scripts/03b-ms91xx.sh#L26-L36",
+          "version": "repo-lines-v1:sha256:ba6ce04dae69d0cbc9244ca5ea1a2b8fada5a08c9afd20629375fbdee3bdf2e5:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU4NzUxYjBhNDY4ZDdiZmRiYWU1ZDFkOTVhODNmNzM2NzliMjU1MDFjMWEzYjQxZTk1MTQ1YzM4MDk5ZGNkOGEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjlkZjcyOTA5NzIzNjQ1MjM4MjA2NmU2NjdmOWY3OTQzZDI1YzljNGYwNjkwNDk2MWNmOTAyNDhkZjc4M2E2ZWEiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImEwMDk0NWIwMzU4NzI1ODg1N2VjYjAxNTRjYjI5ZGNlMjQxNGZjYjRmMmI5YmUyZTZlNzE5NjJlMGFiNTVmNzUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjY0NzFjZTdhZWE5ZDUzNjcxYjVhNDFlOTRkNGIzODMwOGU5NjgzOWIxZWE5YzIyNDUyNTYyYTM2MDMzODUxNjUifQ"
+        },
+        {
+          "resource": "repo://vendor/ms91xx/README.md#L1-L30",
+          "version": "repo-lines-v1:sha256:b6a00916c9cf419c751a376147d2d1c23d9a2ebf68c28db8397786dbad3e9b5c:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImEwNGY1YTA4YjZlNThhN2IxYzQxOGQ2NTkzOTkyODliZGQ5OWJjN2E2YWVhZGE2NDhlY2E5MjZkNWMyZmM1OTIiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJiNDdjNjkxYWMxMDcxNDhiYTYzYTFjZjQ0OWM3OTg3YjZhMWJkY2E5YmI1OGNiZmYxYzJmNTY0M2JlNGFjNzMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjEzMjk4M2NmNTk2OTkwZTI5OTFkZjg3YzU3NWM1OTU2MDQ5YTJjNmVjYTAwNGIzZGFiNTg4YTIxMThhNWExN2YifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_8cc493bc4ed64368b0e5e4dd4aaefc1d",
+      "statement": "`pkgs/` 下的 6 个 PKGBUILD（`qrtr`/`rmtfs`/`pd-mapper`/`tqftpserv`/`qbootctl`/`hexagonrpc`，部分带 `.install`）是 native Arch 打包的参考配方与“哪个单元该 enable”的说明，构建流水线并不使用它们：阶段 05 直接从 `linux-msm` 上游仓库拉 tarball 并用 clang 交叉编译。",
+      "evidence": [
+        {
+          "resource": "repo://notes/qcom-userspace.md#L773-L783",
+          "version": "repo-lines-v1:sha256:ce99ee2b8c599be09636365ca0d8fe21d19c4687e4a7e62d7ed802ecad165520:eyJzZWxlY3RlZExpbmVDb3VudCI6MTEsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImMwY2Y0ZDY3MDNhNjgzNmUzYjI5ZTc1NWViZTBjMjRlMzVkMzIwYTg0MDJjNWQxZGM1NTU5MWI0NmI0ZmQ2OWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjAyNzE4Mjk2YmZjYWExMTM4NWU2YTdhM2NlMDZhZWU2MmQ4NGExN2U4YTc0YWI4YTQyMWY4MGVkMTc4OTFlYjUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijc4NThiM2VmYWZiYzU3ZThjOTQ5MmNkYzc0MjVjYjQwOWRlNDZhMTFmY2QyNzdmZjVmZjg4ZDhlMmJjOTI1OTQifQ"
+        },
+        {
+          "resource": "repo://pkgs/qbootctl/PKGBUILD#L1-L30",
+          "version": "repo-lines-v1:sha256:7a967ad5c087e26eb603dc40d46ce5f4ec084f662c5ab638c7e76df05aa2af33:eyJzZWxlY3RlZExpbmVDb3VudCI6MzAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImVhOWI0Y2FkNDllN2E0ZmVmZTk5MTAyZTI0ZDhkMDM4N2VhYzRjM2VlNzgwYzQ3NjMxMGVjMmJiZDIxZjY2YzUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjY0MmVjMTZmYmFjYjg2MzExOGU0ZjhlYzM5NDVhZGQyNWYyNTZhNDc1Y2EyYjQxOWJmZTVkNzcyMjMyYTRmMGUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjA5ODQyYTc3OTk0MTRlZDZkNGIxODIyNDRkNDQzYTdkNTMwMWU1YWJmYTFhZWQxZDMxNzkwNWJhYmQ1NTM2NGMifQ"
+        },
+        {
+          "resource": "repo://scripts/05-qcom.sh#L55-L63",
+          "version": "repo-lines-v1:sha256:16501af5261bd5bd696e8f664fefca29d981ce7f58fa465066d04f78aacc0941:eyJzZWxlY3RlZExpbmVDb3VudCI6OSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiNWI2MjdhNjE1MjYyZTQ5ODhmMzIyN2NjOTlkMWExZTY3YWIzODI3ZTc1MWQyMWRhMjhhYjI4Y2YyYzRiYjlhMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiOTkyYzg3ZmNlZDU5OWZhNzM5ZGIwMTkyODA1M2E2YjE1NzY0OTU1Y2EzNzEyOGY3MzQzOGNmNjkyZWMwYzIwZiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiODIyMDk5MmZhYjAwZDBjNmFkZDcxMjU3YzU5ZTI2ZWNmOTE4ZDkwMzdiZGU4YmRiZWVjNzRhMjc2MGE5ZDEzZiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZjZkNjA1ODZjZmQzZTJlZGE5ZjA4NDAwMTg5YzA4NTcxNDFhZjJmOWVjNGU2NTU1NzA5MWNhY2ZkODg2MDEyOSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_7bddb94b99144c25a64cc1ea7d96b090",
+      "statement": "文档面分工明确：`README.md` 是使用与交付文档（开头即把 `HANDOVER.md` 标为接手必读），`notes/` 是按主题归档的深度调研（桌面环境、qcom 用户态、移植清单、蓝牙、相机、麦克风、上游对齐），`AGENTS.md` 是给编码代理的仓库约定，其中的 OpenWiki 块由自动流程维护。",
+      "evidence": [
+        {
+          "resource": "repo://AGENTS.md#L1-L14",
+          "version": "repo-lines-v1:sha256:6c90a8ee260419ce52c98ce902d593546e4e6c9b455577ea517f64e10c04699c:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjVmMTgwZjljMTI2OTAzYmNjMzMxYWE5NTQ1NmU0OTQ0NGE3ZDRkMDExZThhMmE4M2Y1ZGM4NzAyMzkxODEyZDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFiNTM5NTNiZmI3MmMxMjYyYmJhZTJlYWNhNzJjYWJmMWFmNDk5MjdhMGJiYTExNTdiMmQ1YmRiMjg1YzRiZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjoyLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjMwODlkZjkzZjhiYTU3YTRkZGJmZDhmMDEzOTYyYzM5NzhjZTRkYjY4MTk5YzRkYTY2NjY0OWIwOTk2Y2VkYTkifQ"
+        },
+        {
+          "resource": "repo://README.md#L12-L14",
+          "version": "repo-lines-v1:sha256:31aa8bc593b829167f414837e48e356303b5398ab3ca55ba56715df5a16eebb1:eyJzZWxlY3RlZExpbmVDb3VudCI6MywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiZDM3MTA1NGEyMmE5ZjJkOGI1OGIwZTEwN2JhOGFjYTA5ZGFiNDYxMmNlNzA3MGY1M2VlMmVjMDliZWJhODMxZSIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDllMzZkMTMzYWQzYmQwMzk5NmQzMWE1MzY1YTczNzA5MDFiOThmZjJiNDYxODEzNmRmM2VmODQ3NzhmNmJmNSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiOWUyN2RhOTdlZjcyODZjNTA1NTNiNjYzMTliMjIxMzBmZDMzZDkwZTIzZTY0OTQwNGRkNjIwNmZiNGI2NGJhNCIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMDAxZjJlYzE3NTkzYzEwNTRlYjQ2MzY3ZDg0NTNlZjI0YTE3M2NlOTZiNzExN2Q5MWY5YTY4ZDQ0ZmVmOGIwMSJ9"
+        },
+        {
+          "resource": "repo://notes/porting-checklist.md#L1-L20",
+          "version": "repo-lines-v1:sha256:ae5364e703842356daaae82c00556da65fe59b5c2b9c5749dbd91219fad65121:eyJzZWxlY3RlZExpbmVDb3VudCI6MjAsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU2Y2U5NWZjNTcxODNlMzVmNzYzNTA3MWY1YTU2OWNhN2ZmYmY5YTNiYjVlNzJmZGU0ZDc3M2M2M2Q4M2RkN2YiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjAxYmE0NzE5YzgwYjZmZTkxMWIwOTFhN2MwNTEyNGI2NGVlZWNlOTY0ZTA5YzA1OGVmOGY5ODA1ZGFjYTU0NmIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjNlM2YzOWVlYTRiNGI2ZDhjZjEyYWQxMzJhMDk5MDE5Yzk3NTgwZGNkZjYxMzhlZWM1OGYxNDM4YTE0OGE1OWYifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4e42523669a34e17818526c6a4939521",
+      "statement": "`.github/workflows/build.yml` 在 `archlinux:latest` 容器中以 `--privileged -v /mnt:/mnt` 跑同一支 `build.sh`（需要宿主 pacman 与 `unshare`/loop 支持），先把 `dl work out tools logs release _recon` 软链到 30 GiB 以上的大磁盘，缓存 `dl/` 与 `work/pkgcache`，再在被就地改写账号字段的 `config/build.conf` 上构建，最后按需用 `99-make-release.sh --upload` 发布 Release。",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/build.yml#L211-L233",
+          "version": "repo-lines-v1:sha256:789a9952ba8c55037b3bde59d990c25562324eade52d9ddaadc26cc31b37de1a:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjZkMTRkZDczZTcyMDg2ZTcyZmY0YjBhYWQ2ZDkyZmFjYWEwMDAxZTNmNDZhOWUyYmIyOWExZWNhZTZlMTFjNDAiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjEyOTRjMTcyZGY5M2Q3NDc5ODA2MTI1OGMwYTBhNjRiNzVjZGY3OTY0YjY4OWFjOWVmOTM2ZGNjMTY0MTY1NWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjllMjE0MDUxODFjYjFkMzMxMDZhZDBiZWViMTU2YTc5ODg0YTU1ZDQwZDIxNjIzMGViNWU5ZmM4MTM1MzY1ZjYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6Ijk1N2JiNTlkYjU2YmY0ZDgxNWRhYzA0ZTczYmE2Y2M2ZjBjYjlmOGJhOGNkNjZmMWIwZDYwZDBjMzNjZDY4YWYifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/build.yml#L321-L352",
+          "version": "repo-lines-v1:sha256:620b25abc766119bd0ba7574d8c436fa19478111e7ccb85675cdaa0edd23f051:eyJzZWxlY3RlZExpbmVDb3VudCI6MzIsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM0ZDNlNDQxMDJjNTVkZjZmYzFmNWY1NzA0OWE0MzUzMjlkZGIwZmYzMDY4NzcyYjQyZDAxZWVmMGU2MTczZTgiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJmNTU5NzljZTczMDIwMzNlNmIyZmQ3ZDg4ZjUzN2EzYjhlMDkxZWEzMDVjODExZmZhMTI3NGJmNTc2NGVhNWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjU5OWM1M2QxMjVmZTJkNjcyZGE1MzhjNThlYWMyOTg4ZDE5ZTM0ZTc3MjFlNzNhZGVlOTFkNGJlNDE5ODgxMjQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVlMDAyMmQ5MzZhNzNlOTA1NTQ3OTBjMzkwMjY0ZmJlZDZkMmQ1OTcyMmY4ZDljN2JjNmY4ZDU3ZTY1YTY3YWUifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/build.yml#L99-L124",
+          "version": "repo-lines-v1:sha256:a79b825e31a17b569747a6b0ed4ee55e2203c68e89e19634d2b8ba07c1fd7ba7:eyJzZWxlY3RlZExpbmVDb3VudCI6MjYsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5ZDgwMTU0ZWQ0MmZjNWM3NzliMTMzMTU3OGI1OGI4OWM4MDFlYWNlNzRmMjRjZDQ4ZWI0YTIzNTc5NDBhOTUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2MjdlMjJjMjZkYjEzY2FjM2ZkZDkxYWJlNWIzYWQzNTRkYzgzZDZlOWQ3Mjg4Y2I5MTNhYzlhM2QzNzQ4YTMiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijg4MmU3YTRiY2I4ZmIxOTQxM2ZkNTY1Y2JiODc1OTIxMjNiNjYxOTc2ZDQ5OGFlNzkwYzQxZGJhNzVlYThhMTciLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBkMGFhOGZkOWU5NTFhNzkyZmU3NzYxYWJhMmRhNTA0M2IxNTViN2Q1NWU1YjUzMWU0NDZlYzdmNzc0MjcwMDQifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_95d42d11d1f24954b03b57e294387ccb",
+      "statement": "CI 的触发面是“手动 dispatch + push 到 main 且改动 `scripts/**`、`config/**`、`dtb/**`、`build.sh` 或该工作流本身”；手动输入（4 个桌面复选框、旧 `session`、`stages`、`upload_rootfs`、`publish_release`、`release_tag`）被翻译成写入 `$GITHUB_ENV` 的 `DESKTOPS`、`build.sh --only` 以及打包/发布行为，账号密码则按 Secrets > 输入 > `build.conf` 默认值的顺序注入并用 `::add-mask::` 打码。",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/build.yml#L236-L332",
+          "version": "repo-lines-v1:sha256:a9ca1f388d8750626aa25500699857cabdc315ccf5cbc539616ef7efaf4d1105:eyJzZWxlY3RlZExpbmVDb3VudCI6OTcsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQ1ODEyNjU3YjZjOGRmNmE2YmFjOTkwZTIxNWMzMWU2MDM4YjU1ZmZhNTc5ODk3MmY0MjMzMGI4OTRiZDlkNDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImJmNTU5NzljZTczMDIwMzNlNmIyZmQ3ZDg4ZjUzN2EzYjhlMDkxZWEzMDVjODExZmZhMTI3NGJmNTc2NGVhNWUiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQ3MDUyYmRlZjkyZjA4NzM4ZjE4YTc3Y2E2ODY4ZGQ5YzQ5ZWQwNWEwMmJiMDdmZGU4NmQ0ZTU2NDMyNTMxOTYiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjBhNzgwYTUxZGFkOTQ0MmJiZDNiMTNkOWY0OTkxYzM0YjdkNWUzN2UwYTQxNjU1MWFkNTI3MDJlNDhjMGViYzIifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/build.yml#L25-L97",
+          "version": "repo-lines-v1:sha256:af756e559286c508122514826b35c54bcc35a316ab8d6bbed2ad7708e1ee42c7:eyJzZWxlY3RlZExpbmVDb3VudCI6NzMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImU5NmRjNDgxNDlmNWE4M2QxZWQ2ZGJiMzliYmM3ZTJiOTAyYWEzZDM0ZDZiZDVhZTRiMjkxYjY4ZGYwY2E3OWEiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjU4NTYwZmVjOWMyNDg2MGYwNzU1MTliNDk2NTQ3Mjk3M2Q1YjRmYzBiNTI5NTZjZGQ2YmI2MDA0NGZiMjhiMzkiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6Ijk2NTg2OTZkZWI0ZWZhZTM0OGY1NTFmMjg0NDU1NWNmNTk1MTgwZGMzZTVmMDhhY2ViMTM5YjkzYThjNmI1MWQiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjhkMjc4ZjE5N2ZiZjhmZGI2MTdlMTdhMzJhN2I0MmRlYjdmOGYzZGYzNzY4NjYwZjM4ZjVkOGJlNTM3NGZlYTMifQ"
+        }
+      ]
+    },
+    {
+      "id": "claim_4d516a7aa9ed47428e57d40b80a408e6",
+      "statement": "仓库没有独立的单元/集成测试目录，验证依赖 CI 的产物校验步骤与阶段内自检：CI 用 `sha256sum -c release/SHA256SUMS` 校验产物并用 mtools 的 `mdir` 列出 `out/boot-cache.img` 的根目录、`::/dtbs/qcom`、`::/loader/entries/arch.conf`（构建前还会自检必需工具并探测 loop 挂载 btrfs 可用性）；阶段侧则以硬失败作断言，例如 `05-qcom.sh` 缺 `rmtfs`/`tqftpserv` 直接失败。",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/build.yml#L190-L207",
+          "version": "repo-lines-v1:sha256:09f7f08fe435fdd42d82e0a814c8d240755e3d2b5c8917f883a9b3bab759875d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTgsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImUwNzZiMDgwOGE0ODI1ZTViNGM0YjRmNDlhMjE2NzMzZDQ2NjBmMWQ4YmRiYzI3NzBlYjllM2ZlMGU1M2VjMDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjhhNDFiMDAzNzk1NWVjODlkYjBjYzFiNGE4NTIyMDI1MDM3MWZlNmYwYTdmNjJmYjI1NDYxNmFiNWZhMTJkOTYiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImVlYmM5MTcxY2Y1OWJjMDIxMjhiYzdlMWFjZTgxODMxMzQ3NzA3YTQyY2ZjM2UxNmJmZGZjYmNlMmE0NjM4ZjkiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjllMjE0MDUxODFjYjFkMzMxMDZhZDBiZWViMTU2YTc5ODg0YTU1ZDQwZDIxNjIzMGViNWU5ZmM4MTM1MzY1ZjYifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/build.yml#L354-L367",
+          "version": "repo-lines-v1:sha256:8cd0065943fbb73b0c3a9bfe8263e27d86cedcd9f6b134879c235210613dd690:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImFmNzUxZGI3NjFhZmU5YWViYmZjNmVlMmEyYzkyOTlkNDVlNWY2OGFhZTA0MmU3MWFmMjBiYjA5YWQ1ODEzOWQiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjdhMGYxMGNjMDNjNjY1ZTUwNDNmMDExZjhjYWJkMWMwMGNlNWE0ZWY0YTNjNDQ2NzE4NjJkNmE4NzE4MTBlMTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6IjdmYTVlMjNlNjFkMWVjMzM3MDY4MjkyMWNlMjE5Y2U2NDRmMDE5NTA0MjgzYmEzMzU1MzI2NGMyM2NhNjliMTgiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6IjliODlmYjc2YWE2ZmVhZTU5ZGIxMTc2ZjYzODA3ZDk2YWNlNjJlODg0ZmJiOWMzMTkxMzM3NWYwNTU5Nzk3ZTAifQ"
+        },
+        {
+          "resource": "repo://scripts/05-qcom.sh#L237-L250",
+          "version": "repo-lines-v1:sha256:6f76b12bd2e31c7384306db7d94ebaf62e8360f7fa3b20a8b47e65166a6db93d:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImRlZTE5OWMxN2FhODQxNjIyZDkwM2MxZDgxNTQ1MjNhOWQxZjJhNTI5ZjJlZWFlMTRlNjJjMzBjOWY4ZmI0ZjYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6ImQxMTdmYTAwNmJhOTIwODUwMGIyOTMwY2U2OWNiZGU0MzZjNjQ3YWZhOTE3Y2I3Mzk2YTliYzkxMTFhNDZkZDIiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImY3MjZjOGIzYTQyNTg4ZGE2OWQ1MjA3MzgxMGYwZTZjY2VhZjEyMmQ1YjMzNjhkMDAyOGNkNjdhYWRlMGVlN2MiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImVkZjBjM2Y2YWEzNzdkYmE0ZjllYTE2NDEwOTMwNTNmMDU0MDU4NGVlZWYwNjFlMDc4NjEzZDk3MDZlZjhiYWQifQ"
+        },
+        {
+          "resource": "repo://scripts/lib.sh#L121-L127",
+          "version": "repo-lines-v1:sha256:627ed1e63b24f907f8b1b398a683c85067e4630b849b3ed869a46118ed72aa5d:eyJzZWxlY3RlZExpbmVDb3VudCI6NywiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYWMzODk5YTQxZTA1YTgxYjhiM2MyNWUzMTJhMzQ0MWFlZDFmZmU2ZDUyYjNkOTA1NTdjNWM5NWFmNjI0Yjc3NCIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiNDEyY2EzNDVjY2Y3NWJmOWMwODA2YmNlNjk1YmU4ZGU4MDhiNzk5ODQyNTFhN2E1NGQyMDJjZjYxMDFkZDQ1MSIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjhiODhhYWQ3MTNhZGEyY2RmMWVjYmYwN2U4MjM3NGQ5ZDkwZDJkMzRhM2I5YjcxY2JhNmI5OWViNWRjZTNmYiIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjMsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiZWUxOGMzOTRkMTk5MWM4YmExZTA5NzIyMmI5M2M5ODIwMTJlODQ3OTVjMGY2NzJlZWIwNmRiMDgyMmMyMDNmNSJ9"
+        }
+      ]
+    },
+    {
+      "id": "claim_fd827ff717134cbe84d4dccff29a3b3f",
+      "statement": "`openwiki/` 是“生成但被提交”的目录：`.github/workflows/openwiki-update.yml` 每天定时（以及手动）运行 `openwiki code --update`，把 `openwiki/`、`AGENTS.md` 与该工作流本身提交成一个 PR，所以这些页面应由自动流程维护而不是手工编辑。",
+      "evidence": [
+        {
+          "resource": "repo://.github/workflows/openwiki-update.yml#L1-L14",
+          "version": "repo-lines-v1:sha256:6e613703071f9917cc78b3627cd7f94b0bbced7b19fb8a6cabadf05678c23ef8:eyJzZWxlY3RlZExpbmVDb3VudCI6MTQsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6IjA2MDI3ODdhZjZkY2MwODM0ZGUxMjFjYmIxY2I5NWY5NDU5YjcyMWVhYjAzNDlmMTA1MDFiOTk2YzFjNzdmZmYiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjMzMzczMzRhZWMwZGNiMjRlNDBlM2MyMGRjMDlkNTlhZjY3NDNkMDI3ZGJmZjUwYzFhY2EwODk3NDcxMTc2NzAiLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjowLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImUzYjBjNDQyOThmYzFjMTQ5YWZiZjRjODk5NmZiOTI0MjdhZTQxZTQ2NDliOTM0Y2E0OTU5OTFiNzg1MmI4NTUiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImUwMjYwNDVjMTc5MzkwMzA1NWIzYWQ1Y2RhYjRhNGY1ZjA0NzlhMTYwZTc3NWNiYWZmNjg5YTQ3NWI1ZWRmNTQifQ"
+        },
+        {
+          "resource": "repo://.github/workflows/openwiki-update.yml#L52-L74",
+          "version": "repo-lines-v1:sha256:c9ae9ccb06e2cc28f9a73729ba2f7fcd88734219ff049c3dbff192bc32b79a65:eyJzZWxlY3RlZExpbmVDb3VudCI6MjMsImZpcnN0U2VsZWN0ZWRMaW5lSGFzaCI6ImM3OWM4ODBmNjJkNDIyNTM4YmNhODRjYjU1ZWNlOGZlMTBlOTY1OGIwNjExMTVjM2ZhYmNkYzdiM2JlY2Y0NDUiLCJsYXN0U2VsZWN0ZWRMaW5lSGFzaCI6IjRkYTQxNjY0OTBiMTcyOWI1ZWNiZmFmYmRlMmY1YmFiMDlkMmY3ZWVmZTQ0ZGQ1ZWZkMDZkZmUyMDViYjYxYTciLCJwcmVjZWRpbmdDb250ZXh0TGluZUNvdW50IjozLCJwcmVjZWRpbmdDb250ZXh0SGFzaCI6ImQxOTEzNzMyNTgyYzNlNjAzNTkwNzg2Yzg2ODM2OTUxZmYzNWU5YjJkMGY4ZDMxMDY3ZDRmNGM4NzQzZGIyYWIiLCJmb2xsb3dpbmdDb250ZXh0TGluZUNvdW50IjozLCJmb2xsb3dpbmdDb250ZXh0SGFzaCI6ImRkODlkZGU2NjgwODU1NjRmYmRkYzFiZDc3MzAxMGMyNGNhZGViOTViYzQ2ZTcxMTBiMzE5N2NkYmJhN2NkZjgifQ"
+        },
+        {
+          "resource": "repo://AGENTS.md#L14-L14",
+          "version": "repo-lines-v1:sha256:ab53953bfb72c1262bbae2eaca72cabf1af49927a0bba1157b2d5bdb285c4bd2:eyJzZWxlY3RlZExpbmVDb3VudCI6MSwiZmlyc3RTZWxlY3RlZExpbmVIYXNoIjoiYWI1Mzk1M2JmYjcyYzEyNjJiYmFlMmVhY2E3MmNhYmYxYWY0OTkyN2EwYmJhMTE1N2IyZDViZGIyODVjNGJkMiIsImxhc3RTZWxlY3RlZExpbmVIYXNoIjoiYWI1Mzk1M2JmYjcyYzEyNjJiYmFlMmVhY2E3MmNhYmYxYWY0OTkyN2EwYmJhMTE1N2IyZDViZGIyODVjNGJkMiIsInByZWNlZGluZ0NvbnRleHRMaW5lQ291bnQiOjMsInByZWNlZGluZ0NvbnRleHRIYXNoIjoiNjZjYjMwYThmOTQ4MTMxNDkwODJmM2RjYjkxOWRiMTJmMjIwYjMxYTI5NWZiZWU5NTM1MWNmOGYxNGJhZGEyZSIsImZvbGxvd2luZ0NvbnRleHRMaW5lQ291bnQiOjIsImZvbGxvd2luZ0NvbnRleHRIYXNoIjoiMzA4OWRmOTNmOGJhNTdhNGRkYmZkOGYwMTM5NjJjMzk3OGNlNGRiNjgxOTljNGRhNjY2NjQ5YjA5OTZjZWRhOSJ9"
+        }
+      ]
+    }
+  ],
+  "verification": {
+    "by": "openwiki/0.7.2",
+    "at": "2026-10-10T11:58:54.634Z"
+  }
+}

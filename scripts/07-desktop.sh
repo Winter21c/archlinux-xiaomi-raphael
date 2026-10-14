@@ -835,6 +835,14 @@ ENVEOF
   if [ -d "$H" ]; then
     install -d "$H/.config/environment.d"
     printf 'FD_MESA_DEBUG=noubwc\n' > "$H/.config/environment.d/10-raphael-gpu.conf"
+    # ★ 真机实测 environment.d 到不了 KDE 的合成器(kwin 的 environ 里没有),
+    #   KDE 的 plasma-*.service 是自己的一套 systemd 用户单元, 用 drop-in 才稳。
+    install -d "$H/.config/systemd/user/plasma-kwin_wayland.service.d"
+    printf '[Service]\nEnvironment=FD_MESA_DEBUG=noubwc\n' \
+      > "$H/.config/systemd/user/plasma-kwin_wayland.service.d/10-raphael-gpu.conf"
+    install -d "$H/.config/systemd/user/plasma-plasmashell.service.d"
+    printf '[Service]\nEnvironment=FD_MESA_DEBUG=noubwc\n' \
+      > "$H/.config/systemd/user/plasma-plasmashell.service.d/10-raphael-gpu.conf"
   fi
   if [ -f "$ROOT/etc/environment" ]; then
     grep -q '^FD_MESA_DEBUG=' "$ROOT/etc/environment" || \

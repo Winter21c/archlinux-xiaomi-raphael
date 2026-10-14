@@ -64,6 +64,19 @@ sed -i -e 's/^Architecture = .*/Architecture = aarch64/' \
 #   结果是用户根本没法用 pacman 装软件。这里关掉沙箱。
 for opt in DisableSandboxFilesystem DisableSandboxSyscalls; do
   grep -q "^$opt" "$ROOT/etc/pacman.conf" || sed -i "/^\[options\]/a $opt" "$ROOT/etc/pacman.conf"
+
+# ---------------------------------------------------------------------------
+# 拉住 linux-firmware 元包 (2026-10-15 真机踩到)
+#   设备专属固件 (Wi-Fi 的 crnv21.bin.zst、ADSP、GPU 的 a640_gmu.bin 等) 来自作者
+#   的 firmware-xiaomi-raphael.deb, 装在自己的独立路径上; 而发行版的
+#   linux-firmware 元包一升级就会连带拉进 12 个 linux-firmware-*(atheros/broadcom/
+#   realtek/... 几百兆), 既有覆盖设备固件的风险, 又白占空间。所以默认拉住元包:
+#   需要时执行 pacman -S linux-firmware 手动解锁 (先改这行)。
+# ---------------------------------------------------------------------------
+if ! grep -q '^IgnorePkg' "$ROOT/etc/pacman.conf"; then
+  sed -i "/^\[options\]/a IgnorePkg = linux-firmware" "$ROOT/etc/pacman.conf"
+  log "  pacman: 已拉住 linux-firmware (设备固件来自作者 deb, 避免被发行版覆盖)"
+fi
 done
 # 目标系统加 archlinuxcn 源 (密钥由 raphael-firstboot 首次开机导入)
 if ! grep -q '^\[archlinuxcn\]' "$ROOT/etc/pacman.conf"; then
