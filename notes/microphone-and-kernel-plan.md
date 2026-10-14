@@ -337,3 +337,42 @@ DAPM 触发；打不开又可能和路由 mixer 未就位有关 —— 这次实
 routing 脚本设置。另外观察到它在空闲时会被 DAPM 自动关掉、播放时自动拉起 ——
 这符合预期（`apr-service@8:routing` 就是 q6routing 组件，FE↔BE 由 DAPM 管理），
 userspace 那两条 cset 只是兜底。
+
+
+### 6. 第三轮的收尾：寄存器级的铁证
+
+按上一节的建议读了 codec 寄存器（经 SLIMbus 接口设备暴露）：
+
+```bash
+cat /sys/kernel/debug/regmap/217:250:0:0/registers > /tmp/reg-idle.txt
+# 录音中再抓一份, diff
+```
+
+**空闲 vs 录音中**的对比结果：
+
+```
+060e: 00   →   060e: 00      ← ADC1 的供电位(mask 0x80)始终是 0
+```
+
+其它寄存器（`0807/0c07/1807/1c07/2007/2407/2807/2c07` 等 SLIMbus 端口寄存器）
+在录音时**确实会变化**，说明数字侧有动作；但 **ADC 供电位从头到尾没被置起来过**，
+所以模拟前端（AMIC → ADC）根本没工作 —— 这与"样本恒为 0"完全吻合。
+
+同时把几个控件的真实语义也钉死了（之前文档里没写清）：
+
+| 控件 | 取值 | 含义 | 默认值 |
+|:--|:--|:--|:--|
+| `ADC MUX0` | ZERO/DMIC/AMIC/ANC_FB_TUNE1/ANC_FB_TUNE2 | **ADC 的输入源**（DMIC=数字麦, AMIC=模拟麦）| `DMIC`(默认) |
+| `AMIC MUX0` | ZERO/ADC1/ADC2/ADC3/ADC4 | AMIC 侧选择接哪个 ADC | `ZERO`(默认) |
+| `CDC_IF TX0 MUX` | ZERO/RX_MIX_TX0/DEC0/DEC0_192 | 送往 SLIM TX0 的源 | `DEC0` |
+| `DEC0 Volume` | 音量, **默认 mute=1** | 数字抽头音量 | 静音 |
+
+**DAPM 部件里没有 `DEC*`**（那些只是 kcontrol），采集链的部件是
+`AMIC1 → ADC1 → (DEC0 kcontrol) → SLIM TX0 → AIF1_CAP Mixer`。
+第三轮试过把 `ADC MUX0` 从 `DMIC` 改成 `AMIC`、解除 `DEC0` 静音、按正确顺序设全路由，
+结果仍然：`AMIC1/ADC1/SLIM TX0/AIF1 CAP` 全是 `Off ... out 0`、`060e` 恒为 0、
+采集 PCM 时开时不开、样本恒为 0。
+
+**结论（可作为后续内核工作的起点）**：软件侧能配的都配了，缺的是**内核 DAPM 把
+采集通路接起来并上电**（wcd934x 的 capture DAPM 图 / q6asm 的 MM_UL 采集会话）。
+这已经不是发行版/配置层面的问题。

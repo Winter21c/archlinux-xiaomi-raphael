@@ -3,9 +3,6 @@ type: architecture
 title: 系统总览：宿主构建流水线与设备运行时
 description: 这个仓库在宿主上把 Arch Linux ARM 组装成三个刷机产物（u-boot.img、boot-cache.img、rootfs 镜像），并把它们分别落到设备的 boot/cache/userdata 分区；设备侧的启动链是 U-Boot 到 systemd-boot 到定制 7.2 内核到 btrfs 根，再交 SDDM 起桌面。本页解释构建期与运行时的分工、两者之间的契约，以及哪些部分是 raphael/SM8150 专属、哪些是通用 Arch/ALARM 机制。
 tags: [architecture, build-pipeline, boot-chain, raphael, arch-linux-arm]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # 系统总览：宿主构建流水线与设备运行时

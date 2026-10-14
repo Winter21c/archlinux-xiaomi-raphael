@@ -9,11 +9,11 @@
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/architecture/repository-layout-and-entrypoints.md": {
-      "gitHead": "997149c63348c0ed7ee8beb86093c6e0e7524b05",
-      "sourceFingerprint": "sha256:b6d8cee18acb74464249c8257587a0d4a450afb4508a6a0ffeb8c651ed8b2ef8",
-      "pageVersion": "sha256:a39436951fcc9a82f0bb5e7a8896793b5d259f4f8b231b314cf2aee2339cb7af",
+      "pageVersion": "sha256:43854a732f094faca238f32d23beed8f5ae696e7867f16d4ab51ab78e06f2075",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
+      "gitHead": "67b70d9a47a94259506e779d8188ede91aecaf99",
+      "sourceFingerprint": "sha256:8b3de184b3c000512ddb17eafd5adc3aed6533162af1ea406be7a91a41ceb878"
     },
     "/openwiki/architecture/rootless-build-runtime.md": {
       "gitHead": "68d72b1899da7e430dd86bb8cd0d7a8d9fe77324",
@@ -37,11 +37,11 @@
       "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     },
     "/openwiki/concepts/rootfs-layout-and-fstab.md": {
+      "gitHead": "68d72b1899da7e430dd86bb8cd0d7a8d9fe77324",
+      "sourceFingerprint": "sha256:5a4eb02f9af02ff7155ebd8bbafb46ab507659adb6bbe15dae6b22af54a40520",
       "pageVersion": "sha256:53e1b564aea47920a437194cf406a8682fe345d3db11bde2830b6a14fb272ae0",
       "completedBy": "openwiki/0.7.2",
-      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c",
-      "gitHead": "68d72b1899da7e430dd86bb8cd0d7a8d9fe77324",
-      "sourceFingerprint": "sha256:5a4eb02f9af02ff7155ebd8bbafb46ab507659adb6bbe15dae6b22af54a40520"
+      "completedRunId": "d07bddaf-68fe-4e6c-a3b5-c845b3d98a0c"
     }
   }
 }

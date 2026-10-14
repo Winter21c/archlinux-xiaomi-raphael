@@ -3,9 +3,6 @@ type: concept
 title: rootfs 布局、fstab 与 UUID 的一致性契约
 description: ext4 / btrfs-subvol / btrfs-flat 三种布局如何由 lib.sh:rootfs_layout() 一次判定并缓存到 work/rootfs-layout，fstab（write_root_fstab）、阶段 09 成像、阶段 10 的 rootflags 与阶段 08 initramfs 的运行时解析四处如何必须自洽，以及 UUID 成套刷写、@home 双写 + nofail、@swap 与首启动 growfs/交换文件的联动与残留缺口。
 tags: [rootfs, btrfs, fstab, subvolume, boot-parameters, image-build]
-verified:
-  - by: openwiki/0.7.2
-    at: 2026-10-10T11:58:54.634Z
 ---
 
 # rootfs 布局、fstab 与 UUID 的一致性契约
