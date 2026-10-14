@@ -1033,8 +1033,23 @@ SPDX-License-Identifier: GPL-2.0-only
 | pacman | `pacman -Syu` 干净通过（清掉残留的 `linux-aarch64.preset`；`IgnorePkg = linux-firmware` 防止拉进 12 个固件拆分包）|
 | 输入法 | fcitx5 + fcitx5-rime，`DefaultIM=rime`，KWin 虚拟键盘留空不抢 |
 | 账号 | 只有 `winter`（uid 1000），用户/root 密码都是 `031210`（SSH 登录 + sudo 提权实测通过）|
-| 投屏 | `usbdisp_drm.ko` 已移植，`modules-load.d` + USB modalias 双保险；未接硬件，只能验证到"模块可加载" |
+| 投屏 | `usbdisp_drm.ko` 已移植，`modules-load.d` + USB modalias 双保险。实测加载后会注册一张 DRM 卡 （`card1` = `msdisp_plat`，带 HDMI-A 连接器），**加载/热插拔时桌面不再崩溃**（见下）。未接转接器，出画待硬件确认 |
 | 子卷 | `@` / `@home` / `@swap` 都在；zram 10G + `/swap/swapfile` 4G |
+
+### 已修掉的坑（都是真机踩出来的）
+
+**KDE 单元重启会因缺显示环境而崩**：插投屏器（或任何 DRM 热插拔）会让
+`plasma-plasmashell.service` 重启，而重启后的单元环境里没有 `WAYLAND_DISPLAY`
+→ Qt 选不到平台插件 → `plasmashell` 直接 abort（`no Qt platform plugin could be
+initialized`），桌面只剩壁纸。修复：给 `plasma-plasmashell` / `plasma-kwin_wayland`
+的 systemd 用户单元 drop-in 里显式写上 `WAYLAND_DISPLAY=wayland-0` 与 `DISPLAY=:1`
+（顺带把 `FD_MESA_DEBUG=noubwc` 也放这里）。修复后实测：单元重启能正常拉起、
+环境正确、`active`，不再出现该报错。
+
+**声卡加载竞态 / 播放卡死 / 音量被复位**：见下面各节与
+[notes/microphone-and-kernel-plan.md](notes/microphone-and-kernel-plan.md)。
+其中音频侧的最终形态是：`blacklist snd_soc_sm8150` + 等 codec 就绪后带重试加载；
+routing 脚本**只在值不同时**才写 mixer，并按耳机插入状态二选一。
 
 ### 不可用（以及确切卡在哪）
 
