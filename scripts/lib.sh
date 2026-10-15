@@ -17,7 +17,7 @@ ROOT="$WORK/root"                      # 目标 rootfs 目录树
 DL="$PROJ/dl"                          # 下载缓存
 OUT="$PROJ/out"                        # 产物
 LOGS="$PROJ/logs"
-TOOLS="$PROJ/tools"                    # 从 Arch x86_64 仓库取来的宿主工具 (mtools)
+TOOLS="$PROJ/tools"                    # 备用宿主工具 (mtools; 优先用系统自带的, 见 setup_mtools)
 STAGE_DIR="$WORK/bootfat"              # cache 分区 FAT 内容暂存
 QDIR_IN_ROOT="/.raphael-build"         # rootfs 内的 qemu 宿主垫片目录 (相对路径)
 QDIR="$ROOT$QDIR_IN_ROOT"
@@ -128,23 +128,52 @@ verify_qemu() {
 
 # ------------------------------------------- 宿主工具 (mtools) --------------
 # mtools 用于在无 root 情况下读写 FAT 镜像 (cache 分区)
+#
+# ★ 这个脚本既要在 x86_64 开发机上跑, 也要能在 aarch64 设备上**原生**跑
+#   (设备原生构建是为了绕开 qemu 模拟把开发机压垮的问题, 见
+#    notes/flash-checklist.md)。原来这里无条件下载 x86_64 的 mtools 包,
+#   到了 aarch64 设备上就变成
+#     mcopy: cannot execute binary file: Exec format error
+#   整个阶段 00 直接失败。所以先找宿主的原生 mtools, 找不到再按宿主架构下载。
 setup_mtools() {
-  [ -x "$TOOLS/mtools/usr/bin/mcopy" ] && return 0
-  log "获取宿主 mtools (x86_64)"
-  local url fn base
-  base="https://geo.mirror.pkgbuild.com/extra/os/x86_64"
-  fn="$(curl -sSL --max-time 30 "$base/" | grep -oE 'mtools-[0-9][^"]*x86_64\.pkg\.tar\.zst' | head -1)"
+  # 1) 宿主自带 (设备上 pacman -S mtools 就有, 开发机上一般没有)
+  if command -v mcopy >/dev/null 2>&1 && mcopy --version >/dev/null 2>&1; then
+    MTOOLS_BIN="$(dirname "$(command -v mcopy)")"
+    log "mtools: 使用宿主自带 $("$MTOOLS_BIN/mcopy" --version 2>&1 | head -1)"
+    return 0
+  fi
+  # 2) 之前下载过且能跑
+  if [ -x "$TOOLS/mtools/usr/bin/mcopy" ] && "$TOOLS/mtools/usr/bin/mcopy" --version >/dev/null 2>&1; then
+    MTOOLS_BIN="$TOOLS/mtools/usr/bin"
+    return 0
+  fi
+  # 3) 按宿主架构下载对应仓库的包
+  local arch base fn url
+  arch="$(uname -m)"
+  case "$arch" in
+    x86_64)  base="https://geo.mirror.pkgbuild.com/extra/os/x86_64" ;;
+    aarch64) base="http://mirror.archlinuxarm.org/aarch64/extra" ;;
+    *)       die "不支持的宿主架构: $arch (请自行安装 mtools)" ;;
+  esac
+  log "获取宿主 mtools ($arch)"
+  fn="$(curl -sSL --max-time 30 "$base/" | grep -oE 'mtools-[0-9][^"]*\.pkg\.tar\.(zst|xz)' | head -1)"
   [ -n "$fn" ] || die "无法从镜像列出 mtools 包"
   url="$base/$fn"
   fetch "$url" "$DL/$fn"
   rm -rf "$TOOLS/mtools" && mkdir -p "$TOOLS/mtools"
-  tar --zstd -xf "$DL/$fn" -C "$TOOLS/mtools"
+  case "$fn" in
+    *.zst) tar --zstd -xf "$DL/$fn" -C "$TOOLS/mtools" ;;
+    *)     tar -xf    "$DL/$fn" -C "$TOOLS/mtools" ;;
+  esac
   [ -x "$TOOLS/mtools/usr/bin/mcopy" ] || die "mtools 解包失败"
-  log "mtools: $("$TOOLS/mtools/usr/bin/mcopy" --version 2>&1 | head -1)"
+  MTOOLS_BIN="$TOOLS/mtools/usr/bin"
+  log "mtools: $("$MTOOLS_BIN/mcopy" --version 2>&1 | head -1)"
 }
 
 # mtools 包装: 读写 FAT 镜像
-mrun() { MTOOLS_SKIP_CHECK=1 MTOOLSRC=/dev/null "$TOOLS/mtools/usr/bin/$@" ; }
+#   MTOOLS_BIN 由 setup_mtools 设定; 未设定时退回下载目录 (兼容旧调用)
+: "${MTOOLS_BIN:=$TOOLS/mtools/usr/bin}"
+mrun() { MTOOLS_SKIP_CHECK=1 MTOOLSRC=/dev/null "$MTOOLS_BIN/$@" ; }
 
 mtools_copy() {  # mtools_copy <img> <src> <dst-in-image>
   mrun mcopy -o -i "$1" "$2" "$3"
