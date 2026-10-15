@@ -133,6 +133,23 @@ gq() {
     --library-path "$QDIR_IN_ROOT/lib" "$QDIR_IN_ROOT/qemu-aarch64" "$@"
 }
 
+
+# 直接执行 rootfs 里的 aarch64 可执行文件 (不 chroot, 用宿主路径):
+#   gbin "$ROOT/usr/bin/busybox" --list
+#   原生 aarch64 宿主 -> 直接跑
+#   x86_64 宿主       -> 经 qemu-aarch64 跑
+# 原来 08-initramfs.sh 里写死了 /usr/bin/qemu-aarch64, 设备上没这个文件,
+# 于是 busybox 自检恒为空 -> "busybox 缺少 applet: mount" -> 阶段 08 失败。
+gbin() {
+  if host_is_native_arm64; then
+    "$@"
+  else
+    command -v qemu-aarch64 >/dev/null 2>&1 \
+      || die "缺少 qemu-aarch64 (x86_64 宿主上构建 aarch64 rootfs 需要它)"
+    qemu-aarch64 "$@"
+  fi
+}
+
 # 校验 rootfs 内 aarch64 工具链可用
 verify_qemu() {
   local out

@@ -34,7 +34,8 @@ ln -sfn usr/lib "$IR/lib"
 # mkinitcpio-busybox 里的精简版缺少 mount 等关键 applet, 不能用于自建 initramfs。
 BB="$ROOT/usr/bin/busybox"
 [ -x "$BB" ] || die "找不到 /usr/bin/busybox (需要 busybox 包)"
-APPETS="$(/usr/bin/qemu-aarch64 "$BB" --list 2>/dev/null || true)"
+# 用 gbin: 原生 aarch64 宿主直接跑, x86_64 宿主走 qemu (见 lib.sh)
+APPETS="$(gbin "$BB" --list 2>/dev/null || true)"
 for a in mount umount switch_root findfs modprobe sh; do
   echo "$APPETS" | grep -qx "$a" || die "busybox 缺少 applet: $a"
 done
