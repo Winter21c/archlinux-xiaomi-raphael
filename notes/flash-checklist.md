@@ -158,3 +158,143 @@ git / pacman / make / gcc / clang 均已就绪（只缺 dtc，pacman -S dtc 即�
 | `raphael-audio-init.sh` | — | — | 去注释后可执行行完全一致 |
 | `HiFi.conf` | 3489 字节 | 3101 字节 | 规范化后语义完全一致（仅空列表排版差异） |
 | `<card>.conf` | `SectionUseCase."HiFi"` | 同左 | 一致 |
+
+---
+
+## 设备原生构建实战记录（2026-10-15）
+
+### 结论
+
+在设备上原生构建**完全可行**，全程 **11 分 8 秒**跑完 `00 → 10`，
+产出可直接刷写的镜像，且开发机零负载。
+
+```
+开发机 (x86_64 + qemu):  三次都在阶段 02 把整机压重启
+设备   (aarch64 原生):   11 分 8 秒跑完, 一次通过
+```
+
+### 步骤
+
+```bash
+# 1) 设备装构建依赖 (系统里没有的)
+sudo pacman -S --needed dtc fakeroot mtools cpio android-tools
+
+# 2) 克隆仓库 (只有 3.6M, .git 才 7.2M)
+git clone https://github.com/Winter21c/archlinux-xiaomi-raphael.git ~/raphael-build
+cd ~/raphael-build
+
+# 3) 写本机私有配置 (决定桌面形态 / 用户 / 蓝牙地址)
+cat > config/local.conf <<'CONF'
+DESKTOPS="plasma-desktop"          # KDE 桌面形态 -> 自动带 fcitx5 + Rime
+BT_MAC="f0 04 e0 78 00 02"
+USERNAME="winter"
+USER_PASSWORD="031210"
+ROOT_PASSWORD="031210"
+CONF
+
+# 4) ★ 必须用真 root: 非 root 时无法把属主归一回 root:root,
+#    产出的镜像 setuid 全失效 (sudo/mount/sshd 全挂, 进不了桌面)
+sudo ./build.sh                    # 00 -> 10, 约 11 分钟
+```
+
+产物在 `out/`：
+
+| 文件 | 大小 | 刷到 |
+|:--|:--|:--|
+| `out/rootfs.sparse.img` | 5.4G | `userdata` |
+| `out/boot-cache.img` | 256M | `cache` |
+| `work/uboot/u-boot.img` | 656K | `boot` |
+
+`rootfs.sparse.img` 由 `img2simg out/rootfs.img out/rootfs.sparse.img 4096` 生成
+（需要 `android-tools`；没有它阶段 09 只会留下 14G 的 raw 镜像）。
+
+### 本轮为"能在 aarch64 上原生构建"修的 5 个 bug
+
+这套脚本原本只在 x86_64 开发机上跑过，搬到设备上暴露了一串硬编码假设：
+
+| # | 位置 | 症状 | 修法 |
+|:--|:--|:--|:--|
+| 1 | `lib.sh` `setup_mtools` | 无条件下 x86_64 的 mtools 包 → `mcopy: cannot execute binary file` | 先找宿主自带 → 再按 `uname -m` 选仓库 |
+| 2 | `lib.sh` `setup_qemu_shim`/`gq` | 无条件 `cp /usr/bin/qemu-aarch64` → `No such file` | 原生 aarch64 直接 `chroot`, 不装垫片 |
+| 3 | `08-initramfs.sh` | 写死 `/usr/bin/qemu-aarch64` 读 busybox applet → 空列表 → "缺少 applet: mount" | 新增 `gbin()` 按宿主架构执行 |
+| 4 | 宿主依赖 | 跑到阶段 08 才发现没装 `cpio` | 新增 `require_host_tools()` 开头一次性检查并给出安装命令 |
+| 5 | `config/build.conf` | `local.conf` 里写 `DESKTOPS` **不生效** (它被放在文件最后 source, 而 DESKTOPS 早就归一化完了) | source 两次: 开头(让 DESKTOPS 生效) + 末尾(让 USERNAME 等被覆盖) |
+
+### ★ 最严重的一个：补丁没进"真正被引导的那份 DTB"
+
+这个**只有把镜像真做出来、拆开看才会发现** —— 构建全程 0 错误、产物齐全。
+
+拆开 `out/boot-cache.img`：
+
+```
+dtbs/qcom/raphael-redmi-k20pro.dtb        108477  SLIMBUS_0_TX=0   <- arch.conf 用的
+dtbs/qcom/raphael-redmi-k20pro-good.dtb   108477  SLIMBUS_0_TX=0
+dtbs/qcom/sm8150-xiaomi-raphael.dtb       108460  SLIMBUS_0_TX=1   <- 补丁在这儿
+```
+
+`03-kernel.sh` 补的是 `sm8150-xiaomi-raphael.dtb`，而
+`loader/entries/arch.conf` 里写的是 `raphael-redmi-k20pro.dtb` ——
+**补丁打在一份永远不会被引导的 DTB 上**，刷进去麦克风照样不可用。
+
+根因是 `10-image-boot.sh` 无条件优先了仓库自带的 `dtb/raphael-redmi-k20pro.dtb`
+（早期从 U-Boot 导出、还把 slim 链路删掉的版本），而旁边的注释写的却是
+"直接用内核作者 deb 里那份" —— 代码和注释矛盾。
+
+修法：`patch_sound_routing()` 移到 `lib.sh`，阶段 10 改为
+**优先内核 deb 那份 DTB**（真机验证过能用的就是它），并在阶段 10
+**再补一次**采集路由，保证"被引导的那份"一定带 `SLIMBUS_0_TX`。
+
+修后复查：
+
+```
+启动 DTB 来源: usr/lib/modules/7.2.0-.../dtbs/qcom/sm8150-xiaomi-raphael.dtb
+采集路由补丁: DTB 里已存在 SLIMBUS_0_TX<->AIF1 CAP, 跳过
+设备树: 使用修补版, 并已注入本机蓝牙地址 (f0 04 e0 78 00 02)
+
+dtbs/qcom/raphael-redmi-k20pro.dtb        108497  SLIMBUS_0_TX=1  蓝牙=1  ✓
+dtbs/qcom/raphael-redmi-k20pro-good.dtb   108497  SLIMBUS_0_TX=1  蓝牙=1  ✓
+```
+
+108497 字节与真机上那份**已验证可用**的 DTB 完全同尺寸，只多注入了蓝牙地址。
+
+### 镜像内容核验
+
+| 项目 | 结果 |
+|:--|:--|
+| `sudo`/`passwd`/`su`/`mount` | `root:root -rwsr-xr-x`（setuid 完好）|
+| 桌面 | `plasma-desktop 6.7.5-1`，**没有** plasma-mobile |
+| 输入法 | `fcitx5 5.1.23-1` + `fcitx5-rime 5.1.16-1` + `fcitx5-qt` |
+| 用户 | `winter:x:1000:1000` |
+| 自动登录 | `User=winter` |
+| UCM | `HiFi.conf` 3489 字节，含 `SectionDevice."Mic"` |
+| `<card>.conf` | `Syntax 3` + `SectionUseCase."HiFi"`（引号正确）|
+| 采集路由保活 | `raphael-audio-routing.sh` 里 2 处 |
+| 投屏驱动 | `updates/msdisp/usbdisp_drm.ko` |
+| 启动 DTB | 采集路由 = 1，蓝牙地址 = 1 |
+
+### 传到开发机
+
+USB NCM 链路实测 **43 MB/s**，5.4G 约 3 分钟：
+
+```bash
+scp winter@172.16.42.1:~/raphael-build/out/rootfs.sparse.img   out/
+scp winter@172.16.42.1:~/raphael-build/out/boot-cache.img      out/
+scp winter@172.16.42.1:~/raphael-build/work/uboot/u-boot.img   work/uboot/
+```
+
+三个文件的 md5 两端逐字节一致：
+
+```
+c8cc529ce1ea237018b1ede1630a83d4  boot-cache.img
+556990e364c4b2c290859add5844c0a1  rootfs.sparse.img
+f6db3e66b6dffc8d1cbd7322978b6516  u-boot.img
+```
+
+### 刷机（需要人工按键）
+
+```bash
+echo yes | ./scripts/11-flash.sh --flash          # 或先 --dry-run 看计划
+```
+
+手机关机后按住 **音量- + 电源** 进 fastboot，然后执行上面的命令。
+镜像里已注入蓝牙地址，**不需要**再加 `--bt-mac`。
