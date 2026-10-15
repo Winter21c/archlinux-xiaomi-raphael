@@ -1,7 +1,8 @@
 # Raphael 实机验证报告
 
 > 由自动化脚本在真机上逐项执行，输出原样附在下面。
-> 生成时间：2026-10-15 18:35　仓库 HEAD：c9356f7（扩展到 46 项）
+> 生成时间：2026-10-15 21:40　仓库 HEAD：7e0a31f
+> **这是设备原生构建 → 刷入真机 → 重启后的完整 46 项回归，全部通过。**
 > 设备：Redmi K20 Pro (raphael)，KDE 桌面形态镜像，内核 7.2.0-sm8150-ga1573649db08
 > 本轮为**麦克风修复后**的完整重跑（DTB 采集路由 + UCM 重写 + 路由保活）。
 
@@ -31,11 +32,11 @@
 【声音 - 麦克风 (本轮修复重点)】
     ✓ 麦克风 source 存在            1
     ✓ Q6 TX 路由 (MM2)                 1
-    ✓ DTB 采集路由已打补丁       3bcded4b80a581e765b975335e9263b6
+    ✓ DTB 采集路由已打补丁       3647f98fc177abdd99ecc03cedd7cbce
 【声音 - 实测录音 (静音测试, 1% 音量)】
-    ✓ 录音帧数                       133120
-    ✓ 非零采样占比                 96%
-    ✓ 峰值                             24966
+    ✓ 录音帧数                       378880
+    ✓ 非零采样占比                 99%
+    ✓ 峰值                             32762
     ✓ 扬声器静音播放              0
     ✓ AFE 报错                         0
     ✓ underrun                           0
@@ -109,9 +110,32 @@ HPHL/HPHR` 通路是通的** —— 这恰好是 `pro-audio` profile 会失败�
 还原后：`raphael-audio-routing.timer` = active、profile 回到
 `HiFi (Mic, Speaker)`、`HPHL/HPHR PA` 回到 Off，扬声器路由恢复。
 
+## 刷机链路的实测结论
+
+镜像不是"构建成功"就算数 —— 走完 **构建 → 刷机 → 重启 → 回归** 才算。
+两轮刷机各暴露出一批只有真机才会发现的问题（详见
+[flash-checklist.md](flash-checklist.md)）：
+
+| 轮次 | 结果 | 发现 |
+|:--|:--|:--|
+| 第一次刷入 | 41/46 | `raphael-audio-routing.sh` 缺 `chmod 755`（systemd 203/EXEC → 麦克风非零只剩 9%）；`loop` 模块没加载 → btrfs 静默退化 flat，丢了 `@`/`@home`/`@swap` |
+| 第二次刷入 | **46/46** | 无 |
+
+### ⚠️ 一个容易误判成"功能坏了"的运维现象
+
+反复做录音测试（尤其被 `kill -9` 打断）会**泄漏 Q6 DSP 会话**，
+`/proc/asound/card0/pcm1c/sub0/status` 卡在 `SETUP`，之后：
+
+* `arecord` 报 `Device or resource busy`
+* `pw-record` 能开、能出帧数，但**全是零**（看起来像"麦克风又坏了"）
+* 更麻烦的是 ACP 探测 `hw:0,1` 失败 → **放弃整个 UCM** → profile 掉到 `off`
+
+实测**重启即可完全复位**（重启后 `pcm1c` 回到空闲，首次录音 98% 非零）。
+所以排查麦克风时先看这一条，别急着改代码 —— 这一轮我在这上面绕了很久。
+
 ## 仍需人工确认的项
 
 | 项目 | 状态 |
 |:--|:--|
-| 3.5mm 耳机实际出声 | **软件侧已完整验证**：`HPHL PA`/`HPHR PA` 在耳机路由下均为 On、PCM RUNNING、AFE 报错 0、underrun 0（详见上一节）。仅剩"插上耳机用耳朵听"这一步需要物理操作 |
-| USB 外接显示器实际输出 | **软件侧已验证**：`usbdisp_drm` 已加载、DRM `card1` 驱动 `msdisp_plat`、暴露 3 个 `HDMI-A-*` 连接器（当前 `disconnected`，因为没有插转接器）。接上 MS91xx 转接器即可点亮 |
+| 3.5mm 耳机实际出声 | **软件侧已完整验证**：`HPHL PA`/`HPHR PA` 在耳机路由下均为 On、PCM RUNNING、AFE 报错 0、underrun 0。刷机后回归里"耳机未插时功放关闭/耳机后端 mixer 关闭/扬声器后端 mixer 开启"三项也全过。仅剩"插上耳机用耳朵听" |
+| USB 外接显示器实际输出 | **软件侧已验证**（刷机后回归 5 项全过）：`usbdisp_drm` 已加载、DRM `card1` 驱动 `msdisp_plat`、暴露 3 个 `HDMI-A-*` 连接器、开机自动加载已配置。接上 MS91xx 转接器即可点亮 |
