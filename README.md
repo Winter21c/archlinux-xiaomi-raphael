@@ -251,7 +251,7 @@ GitHub 仓库设 Secret `IMAGE_BT_MAC`（云端构建）。
   `sudo pacman -S fcitx5 fcitx5-rime`。
 - **锁屏/PIN**：默认**不锁屏**（`~/.config/kscreenlockerrc` 里 `Autolock=false`），
   所以不存在"锁了以后解不开"的问题。密码 `1234` 只用于 `sudo` 和 SSH。
-- **装软件**：已加 archlinuxcn 源（含密钥环）并预装 `paru`（手机形态额外带 `yay`），联网后直接
+- **装软件**：已加 archlinuxcn 源（含密钥环）并预装 `paru` + `base-devel`（手机形态额外带 `yay`），联网后直接
   `paru -S 包名`（AUR）/ `sudo pacman -S 包名`（官方仓库）。**镜像不会自己装任何 AUR 包**
   （首启动自动安装那套已删除，原因见 §8.15），手动装时按提示输入 `sudo` 密码。
   > ⚠️ 作者内核**没有编 Landlock**，而 pacman 7.1 默认用它做下载沙箱 —— 镜像里已经
@@ -1034,7 +1034,8 @@ SPDX-License-Identifier: GPL-2.0-only
 | KDE 桌面 | 开机后 5 个会话单元（kwin_wayland / plasmashell / ksmserver / kded6 / portal）全部 `active`，D-Bus 名 `org.kde.plasmashell` 等全部注册（plasmashell 约 30-34 线程）。`panels().length = 1`（底部面板、高 46）、内部屏输出 `1080x2340@60`、逻辑 400x867 / Scale 2.7。**连续 3 次重启逐项复测一致**（系统失败单元 0、用户失败单元 0）|
 | GPU / 花屏 | `FD_MESA_DEBUG=noubwc` 经 KDE systemd 用户单元 drop-in 生效。**CCU fault 是"显示活动"现象**：固定 3 分钟窗口实测，**息屏时 0 条/分钟**（142→142），屏幕活跃渲染时成簇出现（一次会话启动 12~149 条），hangcheck 恢复 0~1 次。⚠️ 早先"从 151 降到个位数"的说法是**采样时机造成的假象**（不同开机时长对比）。`nolrz` 实测**无改善**（149 vs 142），已回退只保留 `noubwc`；用户实测**没有可见花屏** |
 | Wi-Fi | 连 `ChinaNet_XQP2_5G`（**5GHz**，channel 44 / 5220MHz），拿到 `192.168.31.90`，与本机 `192.168.31.65` 同网段 |
-| pacman | `pacman -Syu` 干净通过（清掉残留的 `linux-aarch64.preset`；`IgnorePkg = linux-firmware` 防止拉进 12 个固件拆分包）|
+| pacman | `pacman -Syu` 干净通过（清掉残留的 `linux-aarch64.preset`；`IgnorePkg = linux-firmware` 防止拉进 12 个固件拆分包 —— 原因见 §FAQ）|
+| AUR 助手 | `paru` / `yay` 可用，并一起装了 `base-devel`（否则 `yay -S` 必报 `exit status 15`，见 §FAQ）|
 | 输入法 | fcitx5 + fcitx5-rime，`DefaultIM=rime`、12 个 Rime 方案就位、`GTK/QT/XMODIFIERS` 均指向 fcitx，KWin 虚拟键盘留空不抢（真机 5 项断言通过）|
 | 账号 | 只有 `winter`（uid 1000），用户/root 密码都是 `031210`（SSH 登录 + sudo 提权实测通过）|
 | 投屏 | `usbdisp_drm.ko` 已移植，`modules-load.d` + USB modalias 双保险。真机确认：模块已加载（`lsmod` 计数 1），注册的 DRM 卡 `card1` 设备路径 `/sys/devices/usbevdi/msdisp_plat.0`、驱动 `msdisp_plat`，**暴露 3 个 `HDMI-A-*` 连接器**（当前 `disconnected`，因未插转接器）；加载/热插拔时桌面不再崩溃（见下）。**软件侧就绪，接上 MS91xx 转接器即可出画** |
@@ -1109,3 +1110,53 @@ UCM、打开顺序、DSP 会话泄漏（重启清干净后复测）。细节与�
 软件途径全部验证无效：Android BCB（misc 分区写 `boot-fastboot`/`boot-bootloader`，
 bootloader 不读）、`systemctl reboot bootloader`（systemd 262 无此参数）、
 U-Boot 环境变量（编译进去的，无可写存储）、EFI 启动项（只有固件内部 `csi`/`lkmap`）。
+
+---
+
+## 常见问题（FAQ）
+
+### 为什么锁住 `linux-firmware`（`IgnorePkg = linux-firmware`）？
+
+设备专属固件（Wi-Fi 的 `crnv21.bin.zst`、ADSP、GPU 的 `a640_gmu.bin` 等）来自内核作者的
+`firmware-xiaomi-raphael.deb`，装在**自己的独立路径**上。
+
+而发行版的 `linux-firmware` 元包一旦升级，会连带拉进 12 个拆分包
+（`linux-firmware-atheros` / `-broadcom` / `-realtek` / …，几百兆）。后果有两个：
+
+1. **有覆盖设备固件的风险** —— 那些拆分包会往同样几个公认路径写文件；
+2. 白占几百兆空间。
+
+所以默认把元包拉住。以后真需要（比如要蓝牙/网卡的新固件）就手动解锁：
+
+```bash
+sudo sed -i 's/^IgnorePkg.*/#&/' /etc/pacman.conf   # 或直接把那行删掉
+sudo pacman -Syu
+```
+
+### 为什么 `yay -S` 总是失败、退出代码 15？
+
+**退出代码 15 是 makepkg 的 `E_MISSING_MAKEPKG_DEPS`**（构建依赖不全），
+定义在 `/usr/share/makepkg/util/error.sh`。典型输出：
+
+```
+==> 错误： 无法找到 fakeroot 的二进制文件。
+ -> 生成时出错: xxx-exit status 15
+```
+
+原因：`yay` / `paru` 只是 `makepkg` 的包装，真正编译 AUR 包的是 `makepkg`，
+而它需要 `gcc` `make` `fakeroot` `pkg-config` `patch` `binutils` 等 —— 这一整套
+就是 `base-devel` 包组。
+
+**早期版本的镜像只装了 `yay` 没装 `base-devel`，所以任何 AUR 包都装不上。**
+新版镜像已经把 `base-devel` 和 AUR 助手一起装（见 `config/build.conf` 的
+`PKGS_CN_FULL`）。如果你手上是旧镜像，一条命令修好：
+
+```bash
+sudo pacman -S --needed base-devel
+```
+
+装完 `yay -S <包名>` 就能正常构建 + 安装了（实测 `yay -S cowsay` 全流程通过）。
+
+> 顺带一提：`command -v binutils` 找不到东西是**正常的** —— `binutils` 是包名，
+> 它提供的是 `ld` `as` `ar` `nm` `objdump` `strip` 这些单独的可执行文件。
+> 想确认装没装用 `pacman -Q binutils`。
