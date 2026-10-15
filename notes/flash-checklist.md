@@ -298,3 +298,91 @@ echo yes | ./scripts/11-flash.sh --flash          # 或先 --dry-run 看计划
 
 手机关机后按住 **音量- + 电源** 进 fastboot，然后执行上面的命令。
 镜像里已注入蓝牙地址，**不需要**再加 `--bt-mac`。
+
+---
+
+## 第二轮：刷完第一次镜像后发现的 2 个问题（2026-10-15 夜）
+
+第一次刷入后跑 46 项回归，41/46。逐条查下来是 2 个真实缺陷 + 3 个预期行为。
+
+### 缺陷 1：`raphael-audio-routing.sh` 少了执行位
+
+```
+✗ routing service 结果   exit-code (期望 success)
+✗ 非零采样占比           9% (期望 >50%)
+```
+
+systemd 报 `status=203/EXEC`、`Permission denied`。同目录其它脚本都是 755，
+只有它是 644 —— `06-config.sh` 生成完这个脚本后只做了 `sed` 替换 `@USER@`，
+**漏了 `chmod 755`**。
+
+后果不止"服务失败"：这个服务是采集路由的保活器，它不跑，PipeWire/ACP 就会
+把 MM2 的 TX 路由复位，录音只剩个位数百分比非零 —— 看起来像"麦克风又坏了"。
+
+⚠️ 特别阴的一点：手工 `bash /usr/local/sbin/raphael-audio-routing.sh` 是**能跑通**的
+（bash 不需要 +x），所以只读脚本逻辑怎么查都查不出来，必须看 `status=203/EXEC`。
+
+补上后真机复测：**非零 9% → 96%**，峰值 1001，0 失败单元。
+
+### 缺陷 2：btrfs 子卷退化成 flat
+
+第一次构建出来是单子卷（`fstab` 里只有 `/`，没有 `subvol=`），
+而你要求的 `@`/`@home`/`@swap` 没了。
+
+原因：`09-image-rootfs.sh` 建子卷需要 `mount -o loop`，而设备上 **loop 模块没加载**
+（`lsmod | grep loop` = 0，`/dev/loop0` 不存在），于是脚本自动回退成
+`btrfs-flat` 并把 fstab 重写 —— 这是它的正常兜底，不是 bug。
+
+修法：构建前 `modprobe loop` + 写 `/etc/modules-load.d/raphael-loop.conf`。
+重建后日志：
+
+```
+子卷完成: /@ (默认子卷) + /@home (/home) + /@swap (/swap)
+(布局 btrfs-subvol; ...)
+```
+
+fstab 三条都对（swap 子卷还带 `nodatacow,compress=no`，交换文件必须如此）。
+镜像也从 5.4G 缩到 **3.45G**（子卷 + 压缩更省）。
+
+### 三个"预期行为"，不是缺陷
+
+| 回归项 | 说明 |
+|:--|:--|
+| `wld0 已获取 IP` 无 | 新镜像里**不该**有 Wi-Fi 密码（镜像里塞密码是安全问题）。重新 `nmcli device wifi connect` 即可 |
+| `btrfs @/@home/@swap 三子卷` 0 | 就是缺陷 2 |
+| `swap 已启用` | 首启动由 `raphael-swapfile.sh` 在 `@swap` 里建 `/swap/swapfile`，正常 |
+
+### ★ 设备端构建的完整依赖（新镜像里默认没有，必须先装）
+
+```bash
+sudo pacman -S --needed \
+    dtc fakeroot mtools cpio android-tools \
+    make clang lld llvm bc flex bison pahole
+sudo modprobe loop && echo loop > /etc/modules-load.d/raphael-loop.conf
+```
+
+第一次刷完的镜像里这些**一个都没有**（`make: command not found`），
+所以第二轮构建是一边失败一边补出来的：
+
+| 缺什么 | 报错 |
+|:--|:--|
+| `make` / `clang` / `lld` | `编译 fixdep` → `fixdep 没编出来` |
+| `bc` `flex` `bison` `pahole` | 同上（内核 scripts 编译需要）|
+| `cpio` | 阶段 08 打包 initramfs 时 `command not found` |
+| `loop` 模块 | 阶段 09 静默退化 flat 布局（不报错，只在日志里写一行）|
+
+### ⚠️ 千万不要 `chown -R` 构建目录
+
+我在补依赖的脚本里顺手写了 `chown -R winter:winter "$D"`，结果把
+`work/root` 也一起改了 —— **`chown` 会清掉 setuid 位**，于是阶段 09 的
+安全检查正确地拒收：
+
+```
+ERROR: 属主归一化失败: setuid 程序属主不对, 这样的镜像刷进去开不了机
+```
+
+（`sudo` 变成 `-rwxr-xr-x` 而不是 `-rwsr-xr-x`。）
+只 chown `config/` `scripts/` `logs/` `dl/` 这些，**别碰 `work/root`**。
+恢复办法：`rm -rf work/root` 后从阶段 01 重新解包（以真 root）。
+
+这个检查本身很值得保留 —— 它挡住的正是"刷进去开不了机"的镜像。
