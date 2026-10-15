@@ -726,6 +726,8 @@ sleep 4
 #   使能失败(-110/-22) -> 完全没声音; 换成普通立体声 profile 后 PCM RUNNING、零报错。
 # HiFi 优先(带麦克风)。set-card-profile 探测 PCM 时可能阻塞, 必须带 timeout,
 # 否则这一行会把 oneshot 单元挂到 TimeoutStartSec, 报 failed。
+# ⚠️ profile 名 "HiFi (Mic, Speaker)" 带空格, 判断时不能只取最后一个字段。
+#    这里直接"先试 HiFi, 不行再退 stereo-fallback", 不需要读当前值。
 timeout 90 as_user pactl set-card-profile alsa_card.platform-sound HiFi >/dev/null 2>&1 \
   || timeout 60 as_user pactl set-card-profile alsa_card.platform-sound output:stereo-fallback >/dev/null 2>&1
 sleep 2
@@ -889,7 +891,11 @@ cap_active() {
     /proc/asound/card0/pcm1c/sub0/status 2>/dev/null
 }
 
-if cap_active; then
+# 无条件兜住采集路由: PipeWire/ACP 每次重启都会重新加载 UCM, 那时它探测
+# CapturePCM "hw:0,1" 会真的打开 PCM, 而 Q6 的 sessions[1].port_id 还没写成 3
+# -> 打开失败 -> ACP 判定整个 UCM 不可用 -> **放弃整个 UCM**,
+# profiles 里连扬声器都没了 (只剩 off / pro-audio)。实测重启 3 次必现。
+if true; then
   set_if_diff "MultiMedia2 Mixer SLIMBUS_0_TX" 1
   set_if_str() {  # 只在值不同时写字符串枚举
     local cur
@@ -904,6 +910,7 @@ if cap_active; then
   capmix=$(amixer -c 0 cget "name=AIF1_CAP Mixer SLIM TX0" 2>/dev/null | tail -1)
   case "$capmix" in *on*) ;; *) timeout 5 amixer -c 0 cset "name=AIF1_CAP Mixer SLIM TX0" 1 >/dev/null 2>&1;; esac
 fi
+cap_active() { :; }   # 兼容旧调用, 采集路由现在无条件保活
 
 # 声卡 profile 兜底: pro-audio 会让 Q6 AFE 使能失败(-110/-22) -> 完全没声音;
 # off 则连 sink 都没有(auto_null 假播放)。
@@ -916,10 +923,17 @@ if command -v pactl >/dev/null 2>&1; then
   #   执行真实可执行文件, 会直接 127 (command not found), 整个 oneshot 判 failed。
   #   所以走 AU 环境变量, 直接对 sudo 套 timeout。
   AU="sudo -u @USER@ env XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
-  CUR="$(timeout 8 $AU pactl list cards 2>/dev/null | awk '/Active Profile/{print $NF; exit}')"
-  if [ "$CUR" = "pro-audio" ] || [ "$CUR" = "off" ] || [ -z "$CUR" ]; then
-    timeout 20 $AU pactl set-card-profile alsa_card.platform-sound HiFi >/dev/null 2>&1
-  fi
+  # ⚠️ 不能用 awk '{print $NF}': profile 名是 "HiFi (Mic, Speaker)", 带空格,
+  #    $NF 只会拿到 "Speaker)", 于是判定"当前不是 off 就不管", profile 卡死。
+  #    要取冒号后面整段再去掉换行。
+  CUR="$(timeout 8 $AU pactl list cards 2>/dev/null \
+         | sed -n 's/^[[:space:]]*Active Profile:[[:space:]]*//p' | head -1 | tr -d '\r')"
+  case "$CUR" in
+    HiFi*) : ;;   # 已经是带麦克风的 profile, 不用动
+    *)
+      timeout 20 $AU pactl set-card-profile alsa_card.platform-sound HiFi >/dev/null 2>&1
+      ;;
+  esac
 fi
 REOF
 sed -i "s/@USER@/$USERNAME/g" "$ROOT/usr/local/sbin/raphael-audio-routing.sh"
