@@ -937,6 +937,12 @@ if command -v pactl >/dev/null 2>&1; then
 fi
 REOF
 sed -i "s/@USER@/$USERNAME/g" "$ROOT/usr/local/sbin/raphael-audio-routing.sh"
+# ★ 必须 chmod: 少这一行的话文件是 644, systemd 起服务直接
+#   status=203/EXEC "Permission denied" -> 采集路由保活从不执行 ->
+#   PipeWire/ACP 把 MM2 路由复位 -> 录音只剩个位数百分比的非零采样。
+#   (真机踩到: 全新刷入的镜像第一次回归就挂在这, 而脚本本身手工 bash 跑是好的,
+#    因为 bash 不需要 +x, 所以只看日志会以为是逻辑问题。)
+chmod 755 "$ROOT/usr/local/sbin/raphael-audio-routing.sh"
 cat > "$ROOT/etc/systemd/system/raphael-audio-routing.service" <<'REOF'
 [Unit]
 Description=Re-assert Raphael Q6 audio routing (ACP 会把它复位)
