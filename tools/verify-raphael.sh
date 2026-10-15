@@ -40,6 +40,19 @@ SINK=$(sudo -u winter $AU pactl list short sinks 2>/dev/null | grep -c "HiFi__Sp
 ck "扬声器 sink 存在" "1" "$SINK" test "$SINK" -ge 1
 DSN=$(sudo -u winter $AU pactl get-default-sink 2>/dev/null)
 ck "默认 sink 非 auto_null" "HiFi*" "$DSN" bash -c '[[ "$0" != *auto_null* && -n "$0" ]]' "$DSN"
+echo "【声音 - 3.5mm 耳机通路 (静音验证)】"
+D=/sys/kernel/debug/asoc/Raphael/wcd934x-codec.1.auto/dapm
+if [ -d "$D" ]; then
+  # 基线: 耳机未插 -> HPHL/HPHR PA 应为 Off
+  HPH_OFF=$(grep -oE 'On|Off' "$D/HPHL PA" 2>/dev/null | head -1)
+  ck "耳机未插时功放关闭" "Off" "${HPH_OFF:-无}" test "$HPH_OFF" = "Off"
+  RXOFF=$(amixer -c 0 cget "name=SLIMBUS_0_RX Audio Mixer MultiMedia1" 2>/dev/null | tail -1 | grep -c off)
+  ck "耳机后端 mixer 关闭" "1" "$RXOFF" test "$RXOFF" -ge 1
+  QON=$(amixer -c 0 cget "name=QUAT_MI2S_RX Audio Mixer MultiMedia1" 2>/dev/null | tail -1 | grep -c on)
+  ck "扬声器后端 mixer 开启" "1" "$QON" test "$QON" -ge 1
+else
+  ck "wcd934x DAPM 可读" "存在" "缺失" test -d "$D"
+fi
 echo "【声音 - 麦克风 (本轮修复重点)】"
 SRC=$(sudo -u winter $AU pactl list short sources 2>/dev/null | grep -c "HiFi__Mic__source")
 ck "麦克风 source 存在" "1" "$SRC" test "$SRC" -ge 1
