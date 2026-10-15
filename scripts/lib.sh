@@ -39,6 +39,27 @@ fetch() {  # fetch <url> <dest>
   mv "$dest.part" "$dest"
 }
 
+# ------------------------------------------- 宿主依赖自检 ------------------
+# 缺工具就一次性全列出来, 并给出可直接粘贴的安装命令。
+# 起因: 设备原生构建跑到阶段 08 才发现宿主没有 cpio, 报错只是一句
+#   "!!! 阶段 08-initramfs.sh 失败", 得翻日志才知道是 cpin 缺失。
+# 这些都是"宿主"工具 (在开发机/设备上跑构建的人自己装), 不随镜像分发。
+require_host_tools() {
+  local missing=() t
+  # 注意: mtools 不在此列 —— 它由 setup_mtools() 按宿主架构自动获取
+  #       qemu-aarch64 也不在 —— 只有 x86_64 宿主需要, 由 gbin()/gq() 按需报错
+  for t in curl tar zstd cpio find rsync python3 mkfs.vfat mkfs.ext4 losetup; do
+    command -v "$t" >/dev/null 2>&1 || missing+=("$t")
+  done
+  if [ ${#missing[@]} -gt 0 ]; then
+    warn "宿主缺少以下命令: ${missing[*]}"
+    warn "  Arch/ALARM:  sudo pacman -S --needed ${missing[*]}"
+    warn "  Debian/Ubuntu: sudo apt install ${missing[*]}"
+    die "宿主依赖不全, 已停止"
+  fi
+  log "宿主依赖自检通过 (cpio/zstd/mkfs 等就绪)"
+}
+
 # ------------------------------------------- user namespace 自举 ------------
 # 用法: 在每个阶段脚本开头 require_ns
 require_ns() {
