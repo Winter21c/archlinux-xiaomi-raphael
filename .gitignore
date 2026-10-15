@@ -32,3 +32,6 @@ vendor/**/*.mod
 vendor/**/*.mod.c
 vendor/**/modules.order
 vendor/**/Module.symvers
+
+# 本地调试工作区 (SSH helper / DTB / 临时脚本)
+.work/

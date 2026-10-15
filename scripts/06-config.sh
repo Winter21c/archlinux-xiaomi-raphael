@@ -494,25 +494,97 @@ if [ -d "$UCM/sm8150_raphael" ]; then
   # ---------------------------------------------------------------------------
   HIFI_TRIM="$UCM_SRC/HiFi.raphael.conf"
   cat > "$HIFI_TRIM" <<'HIFIEOF'
-# UCM2 for Xiaomi Raphael (SM8150) — 只暴露能工作的扬声器通路
-#   耳机(WCD9340/SLIMBUS)与麦克风通路在上游 DTB 里缺 slim-*-dai-link, 打不开;
-#   而 UCM 里出现打不开的 PCM 会让 ACP 放弃整个 UCM(退回 pro-audio -> 没声音),
-#   所以这里只留 Speaker。等 DTB 补上采集/耳机链路再逐步加回。
+# UCM2 for Xiaomi Raphael (SM8150) — 扬声器 + 耳机 + 内置麦克风
+#
+# 2026-10-15 真机定位 (完整证据链, 都写在各自的注释里):
+#  1) 原版 alsa-xiaomi-raphael.deb 里的 HiFi.conf 是个**自指符号链接**
+#     (HiFi.conf -> HiFi.conf), ACP 打开时 "Too many levels of symbolic links",
+#     加载不到任何设备 -> 退回通用 profile, 系统里**根本没有麦克风输入源**。
+#     所以这里写的是真文件。
+#  2) DTB 侧缺采集路由, 已在 03-kernel.sh 里补 "SLIMBUS_0_TX","AIF1 CAP"。
+#  3) Q6 的 FE session 槽是稀缺资源, 而 ASoC 只提供 2 个采集 PCM:
+#       MM1 = 播放 (耳机 SLIMBUS_0_RX / 扬声器 QUAT_MI2S_RX, 两者互斥)
+#       MM2 = 采集 (麦克风 SLIMBUS_0_TX)
+#     原版把扬声器也挂在 MM2 上, 与采集抢同一个槽 -> 录音全零。
+#     现在: MM1 只服务播放, MM2 只服务采集, 互不打架。
+#  4) ★ PipeWire 的 ACP **不会**执行 SectionDevice 的 EnableSequence 来配采集路��
+#     (实测: 录音时 pcm1c=RUNNING 但 AMIC1 DAPM=Off, TX mixer=off)。
+#     所以采集路由由 raphael-audio-routing.timer 保活 —— 见 11b-3。
+#     这里仍然写全, 这样裸 arecord / 直接用 UCM 的工具也能工作。
+#
+# 坑(原版注释 + 实测): Q6 routing mixer 绝不能在设备 DisableSequence 里"清零",
+# 否则 session->port_id 被重置 -> q6asm_dai_prepare() 失败 ->
+# "Routing not setup for MultiMedia-N Session"。这里只做"切换"不清零。
+
 SectionVerb {
 	EnableSequence [
-		cset "name='QUAT_MI2S_RX Audio Mixer MultiMedia2' 1"
+		# MM1 默认给扬声器(最常用); 插耳机时由 Headphone 设备切走
 		cset "name='QUAT_MI2S_RX Audio Mixer MultiMedia1' 1"
 	]
 	DisableSequence [ ]
 }
 
+# ---------- Speaker (TFA9874 via Quaternary MI2S, MM1) ----------
 SectionDevice."Speaker" {
 	Comment "Speaker (TFA9874)"
-	EnableSequence [ ]
+	EnableSequence [
+		cset "name='QUAT_MI2S_RX Audio Mixer MultiMedia1' 1"
+	]
 	DisableSequence [ ]
 	Value {
 		PlaybackPriority 100
-		PlaybackPCM "hw:0,1"
+		PlaybackPCM "hw:0,0"
+	}
+}
+
+# ---------- Headphone (WCD9340 HPHL/HPHR via SLIMBUS, MM1) ----------
+SectionDevice."Headphone" {
+	Comment "Headphone (WCD9340)"
+	EnableSequence [
+		cset "name='SLIMBUS_0_RX Audio Mixer MultiMedia1' 1"
+		cset "name='SLIM RX0 MUX' AIF1_PB"
+		cset "name='SLIM RX1 MUX' AIF1_PB"
+		cset "name='RX INT1_1 MIX1 INP0' RX0"
+		cset "name='RX INT2_1 MIX1 INP0' RX1"
+		cset "name='COMP1 Switch' 1"
+		cset "name='COMP2 Switch' 1"
+		cset "name='RX INT1 DEM MUX' CLSH_DSM_OUT"
+		cset "name='RX INT2 DEM MUX' CLSH_DSM_OUT"
+		cset "name='RX1 Digital Volume' 68"
+		cset "name='RX2 Digital Volume' 68"
+	]
+	DisableSequence [
+		cset "name='COMP1 Switch' 0"
+		cset "name='COMP2 Switch' 0"
+		cset "name='RX1 Digital Volume' 0"
+		cset "name='RX2 Digital Volume' 0"
+		cset "name='RX INT1 DEM MUX' ZERO"
+		cset "name='RX INT2 DEM MUX' ZERO"
+	]
+	Value {
+		PlaybackPriority 200
+		PlaybackPCM "hw:0,0"
+		JackControl "Headset Jack"
+		JackHWMute "Speaker"
+	}
+}
+
+# ---------- Internal microphone (WCD9340 AMIC1, MM2) ----------
+# codec 内部链路: AMIC1 -> ADC1 -> DEC0 -> CDC_IF TX0 -> AIF1 CAP -> SLIM TX0
+# (实测 PCM 只接受 S24_LE / S16_LE; S24_3LE 与 S32_LE 直接失败)
+SectionDevice."Mic" {
+	Comment "Internal microphone (WCD9340 AMIC1)"
+	EnableSequence [
+		cset "name='MultiMedia2 Mixer SLIMBUS_0_TX' 1"
+		cset "name='AMIC MUX0' ADC1"
+		cset "name='ADC MUX0' AMIC"
+		cset "name='CDC_IF TX0 MUX' DEC0"
+		cset "name='AIF1_CAP Mixer SLIM TX0' 1"
+	]
+	DisableSequence [ ]
+	Value {
+		CapturePriority 100
+		CapturePCM "hw:0,1"
 	}
 }
 HIFIEOF
@@ -522,10 +594,18 @@ HIFIEOF
   for name in Raphael sm8150 sm8150_raphael xiaomi-XiaomiRedmiK20Pro; do
     mkdir -p "$UCM/$name"
     ucm_copy "$HIFI_TRIM" "$UCM/$name/HiFi.conf"
-    printf 'Syntax 3\n\nSectionUseCase."HiFi" {\n\tFile "HiFi.conf"\n\tComment "HiFi quality Music"\n}\n' \
-      > "$UCM/$name/$name.conf"
+    # 用 heredoc 写, 不能用 printf: shell 转义会把 SectionUseCase."HiFi" 的引号吃掉,
+    # 变成非法的 SectionUseCase.HiFi, ACP 静默不加载 (实测: profiles 里看不到 HiFi)。
+    cat > "$UCM/$name/$name.conf" <<'UCONF'
+Syntax 3
+
+SectionUseCase."HiFi" {
+	File "HiFi.conf"
+	Comment "HiFi quality Music"
+}
+UCONF
   done
-  log "UCM: conf.d 下已备好 Raphael / sm8150 / sm8150_raphael / xiaomi-* 四套名字 (精简扬声器版)"
+  log "UCM: conf.d 下已备好 Raphael / sm8150 / sm8150_raphael / xiaomi-* 四套名字 (扬声器+耳机+麦克风)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -603,20 +683,40 @@ echo "raphael-audio: 声卡就绪"
 set_if_diff() {
   cur=$(amixer -c 0 cget "name=$1" 2>/dev/null | tail -1 | grep -oE "[0-9]+$")
   [ "$cur" = "$2" ] && return 0
-  amixer -c 0 cset "name=$1" "$2" >/dev/null 2>&1
+  timeout 5 amixer -c 0 cset "name=$1" "$2" >/dev/null 2>&1
+}
+
+set_if_str() {  # 只在值不同时才写字符串枚举
+  cur=$(amixer -c 0 cget "name=$1" 2>/dev/null | tail -1)
+  case "$cur" in *"$2"*) return 0;; esac
+  timeout 5 amixer -c 0 cset "name=$1" "$2" >/dev/null 2>&1
 }
 
 apply() {
-  # 只保留**稳定可用**的后端: 底部扬声器 TFA9874 走 QUAT_MI2S。
-  #   MultiMedia1 -> QUAT_MI2S_RX  (裸 aplay, hw:0,0)
-  #   MultiMedia2 -> QUAT_MI2S_RX  (PipeWire/KDE, hw:0,1)
-  # ⚠️ 不要把 SLIMBUS_0_RX(耳机) 挂到 MultiMedia1: 实测音频会同时走 codec 后端,
-  #    播放稳定卡死(连测 3/3 超时)。耳机通路因此停用, 详见
-  #    notes/microphone-and-kernel-plan.md。
+  # MultiMedia1 = 播放专用 (扬声器 TFA9874 走 QUAT_MI2S_RX; 插耳机时由
+  #   raphael-audio-routing.sh 切到 SLIMBUS_0_RX)。
+  # ⚠️ 不要把 SLIMBUS_0_RX(耳机) 和 QUAT_MI2S_RX(扬声器) 同时挂在 MultiMedia1:
+  #    音频会同时走两个 codec 后端, 播放稳定卡死(连测 3/3 超时)。
+  # MultiMedia2 = 采集专用 (麦克风 SLIMBUS_0_TX), 与播放互不抢占。
   set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia1" 1
-  set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia2" 1
+
+  # ★ 麦克风路由必须**在 PipeWire/ACP 起来之前**写好。
+  #   ACP 探测 CapturePCM "hw:0,1" 时会真的去打开 PCM; 那时 Q6 的 TX 路由
+  #   (sessions[1].port_id = 3) 还没写, arecord 直接 EINVAL -> ACP 判定
+  #   "这个 UCM 的采集设备打不开", 于是**放弃整个 UCM**, profiles 里连
+  #   扬声器都没有, 只剩 off / pro-audio。实测: 先手动 cset 好这几个 mixer
+  #   再重启 wireplumber, HiFi (Mic, Speaker) 立刻正常出现。
+  set_if_diff "MultiMedia2 Mixer SLIMBUS_0_TX" 1
+  set_if_str "CDC_IF TX0 MUX" DEC0
+  set_if_str "ADC MUX0" AMIC
+  set_if_str "AMIC MUX0" ADC1
+  capmix=$(amixer -c 0 cget "name=AIF1_CAP Mixer SLIM TX0" 2>/dev/null | tail -1)
+  case "$capmix" in *on*) ;; *) timeout 5 amixer -c 0 cset "name=AIF1_CAP Mixer SLIM TX0" 1 >/dev/null 2>&1;; esac
 }
 
+# ★ 先在 PipeWire/ACP 起来之前把 Q6 采集路由写好(见 apply() 里的说明)
+apply
+sleep 2
 for i in $(seq 1 60); do
   [ -S /run/user/1000/pipewire-0 ] && break; sleep 0.5
 done
@@ -624,11 +724,16 @@ as_user systemctl --user restart wireplumber >/dev/null 2>&1
 sleep 4
 # ★ 2026-10-15: 这里原来是 pro-audio, 实测 pro-audio 打开 PCM 的参数会让 Q6 AFE
 #   使能失败(-110/-22) -> 完全没声音; 换成普通立体声 profile 后 PCM RUNNING、零报错。
-as_user pactl set-card-profile alsa_card.platform-sound output:stereo-fallback >/dev/null 2>&1 \
-  || as_user pactl set-card-profile alsa_card.platform-sound HiFi >/dev/null 2>&1
+# HiFi 优先(带麦克风)。set-card-profile 探测 PCM 时可能阻塞, 必须带 timeout,
+# 否则这一行会把 oneshot 单元挂到 TimeoutStartSec, 报 failed。
+timeout 90 as_user pactl set-card-profile alsa_card.platform-sound HiFi >/dev/null 2>&1 \
+  || timeout 60 as_user pactl set-card-profile alsa_card.platform-sound output:stereo-fallback >/dev/null 2>&1
 sleep 2
 
-apply   # 后续由 raphael-audio-routing.timer 每 20 秒兜底
+apply   # mixer 已就位, 下面才让 PipeWire/ACP 起来 -> HiFi (Mic, Speaker) 能被探测到
+sleep 1
+apply   # 兜底: ACP 探测期间可能又把 MM2 复位了
+echo "raphael-audio: mixer 就位 (播放 MM1 + 采集 MM2)"
 echo "raphael-audio: 完成"
 exit 0
 AEOF
@@ -739,13 +844,18 @@ cat > "$ROOT/usr/local/sbin/raphael-audio-routing.sh" <<'REOF'
 #       没插   -> 只开 QUAT_MI2S_RX(底部扬声器) + 耳机路由关
 #     插入状态读 ALSA 的 CARD 级 jack 控件: iface=CARD,name="Headset Jack"
 #     (驱动是 snd_soc_wcd_mbhc, 另有输入设备 "Raphael Headset Jack" /dev/input/event4)
+#  4) ★ 麦克风(2026-10-15): PipeWire 的 ACP **不会**执行 UCM 里 Mic 设备的
+#     EnableSequence。实测 pw-record 时 pcm1c=RUNNING, 但 AMIC1 DAPM=Off、
+#     MultiMedia2 Mixer SLIMBUS_0_TX=off, 录出来 44 字节全零。
+#     所以采集路由(MM2 TX + codec 麦克风链)必须由这里保活。
+#     反过来, 这里的 MM2 也**不能**再被扬声器占用(同槽), 于是扬声器统一走 MM1。
 set +u
 aplay -l 2>/dev/null | grep -q "^card 0" || exit 0
 
 set_if_diff() {  # set_if_diff <control> <value>
   cur=$(amixer -c 0 cget "name=$1" 2>/dev/null | tail -1 | grep -oE "[0-9]+$")
   [ "$cur" = "$2" ] && return 0
-  amixer -c 0 cset "name=$1" "$2" >/dev/null 2>&1
+  timeout 5 amixer -c 0 cset "name=$1" "$2" >/dev/null 2>&1
 }
 
 jack_state() {
@@ -765,21 +875,50 @@ if [ "$(jack_state)" = "on" ]; then
   done
   set_if_diff "SLIMBUS_0_RX Audio Mixer MultiMedia1" 1
   set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia1" 0
-  set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia2" 0
 else
   # --- 没插耳机: 只走底部扬声器(这条路径最稳) ---
   set_if_diff "SLIMBUS_0_RX Audio Mixer MultiMedia1" 0
   set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia1" 1
-  set_if_diff "QUAT_MI2S_RX Audio Mixer MultiMedia2" 1
+fi
+
+# --- 麦克风采集路由 (MM2 + WCD9340 麦克风链) ---------------------------------
+# 只在真的有采集流时写, 否则 idle 状态下没必要反复 cset 去打断别的流。
+# 判据用 pcm1c 的 status (hw:0,1 = MultiMedia2, 就是 UCM 里 Mic 的 CapturePCM)。
+cap_active() {
+  grep -qE "state: (RUNNING|PREPARED|XRUN)" \
+    /proc/asound/card0/pcm1c/sub0/status 2>/dev/null
+}
+
+if cap_active; then
+  set_if_diff "MultiMedia2 Mixer SLIMBUS_0_TX" 1
+  set_if_str() {  # 只在值不同时写字符串枚举
+    local cur
+    cur=$(amixer -c 0 cget "name=$1" 2>/dev/null | tail -1)
+    case "$cur" in *"$2"*) return 0;; esac
+    timeout 5 amixer -c 0 cset "name=$1" "$2" >/dev/null 2>&1
+  }
+  set_if_str "CDC_IF TX0 MUX" DEC0
+  set_if_str "ADC MUX0" AMIC
+  set_if_str "AMIC MUX0" ADC1
+  # AIF1_CAP Mixer SLIM TX0 是纯开关, set_if_diff 的数字比较对它不适用
+  capmix=$(amixer -c 0 cget "name=AIF1_CAP Mixer SLIM TX0" 2>/dev/null | tail -1)
+  case "$capmix" in *on*) ;; *) timeout 5 amixer -c 0 cset "name=AIF1_CAP Mixer SLIM TX0" 1 >/dev/null 2>&1;; esac
 fi
 
 # 声卡 profile 兜底: pro-audio 会让 Q6 AFE 使能失败(-110/-22) -> 完全没声音;
 # off 则连 sink 都没有(auto_null 假播放)。
+# ★ 所有 pactl 调用都必须带 timeout: set-card-profile 会在探测 CapturePCM 时
+#   阻塞(ACP 正等 Q6 应答), 不设上限的话整个 oneshot 单元会挂住 ->
+#   systemd 报 failed, 后续路由全断。实测踩过: 服务卡在
+#   "pactl set-card-profile alsa_card.platform-sound HiFi" 直到超时。
 if command -v pactl >/dev/null 2>&1; then
-  as_user() { sudo -u @USER@ env XDG_RUNTIME_DIR=/run/user/1000 "$@"; }
-  CUR="$(as_user pactl list cards 2>/dev/null | awk '/Active Profile/{print $NF; exit}')"
+  # ⚠️ 不要写成 timeout 8 as_user pactl ...: as_user 是 shell 函数, timeout 只能
+  #   执行真实可执行文件, 会直接 127 (command not found), 整个 oneshot 判 failed。
+  #   所以走 AU 环境变量, 直接对 sudo 套 timeout。
+  AU="sudo -u @USER@ env XDG_RUNTIME_DIR=/run/user/1000 DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus"
+  CUR="$(timeout 8 $AU pactl list cards 2>/dev/null | awk '/Active Profile/{print $NF; exit}')"
   if [ "$CUR" = "pro-audio" ] || [ "$CUR" = "off" ] || [ -z "$CUR" ]; then
-    as_user pactl set-card-profile alsa_card.platform-sound output:stereo-fallback >/dev/null 2>&1
+    timeout 20 $AU pactl set-card-profile alsa_card.platform-sound HiFi >/dev/null 2>&1
   fi
 fi
 REOF
@@ -792,15 +931,16 @@ After=raphael-audio-init.service
 [Service]
 Type=oneshot
 ExecStart=/usr/local/sbin/raphael-audio-routing.sh
+TimeoutStartSec=45s
 REOF
 cat > "$ROOT/etc/systemd/system/raphael-audio-routing.timer" <<'REOF'
 [Unit]
-Description=Keep Raphael audio routing asserted every 20s
+Description=Keep Raphael audio routing (播放 + 麦克风) asserted every 2s
 
 [Timer]
 OnBootSec=25s
-OnUnitActiveSec=5s
-AccuracySec=5s
+OnUnitActiveSec=2s
+AccuracySec=1s
 
 [Install]
 WantedBy=timers.target

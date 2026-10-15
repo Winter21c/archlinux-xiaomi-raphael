@@ -96,6 +96,64 @@ else
 fi
 raph_dtb="$ROOT/usr/lib/modules/$KV/dtbs/qcom/sm8150-xiaomi-raphael.dtb"
 [ -f "$raph_dtb" ] || die "缺少 sm8150-xiaomi-raphael.dtb (来源目录: ${dtb_src#$TMP/image/})"
+
+# ---- ★ 补采集音频路由 (2026-10-15 真机定位, 麦克风的前提) -------------------
+# 上游 DTB 的 sound 节点 audio-routing 只有播放/偏置相关:
+#     "RX_BIAS","MCLK","AMIC1","MIC BIAS3","AMIC3","MIC BIAS4"
+# 没有任何 SLIMBUS_0_TX 路由。于是 q6routing_stream_open() 按 DAPM 找不到 TX 端口,
+# arecord 直接返回 EINVAL (实测: hw:0,0/hw:0,1 都是 "Invalid argument")。
+# slimcap-dai-link (cpu=<0xff 0x03> = SLIMBUS_0_TX) 本身是存在的, 只是没连线。
+#
+# 补丁: 追加 "SLIMBUS_0_TX","AIF1 CAP" (wcd934x 的 SND_SOC_DAPM_AIF_OUT_E)。
+#   实测必须**只加这一条** —— 如果再写 "AIF1 CAP","SLIM TX0" / "SLIM TX0","DEC0"
+#   (那是 codec 内部路由, 由 mixer 控制), machine driver 的
+#   snd_soc_dapm_add_routes() 找不到该 widget, probe 直接失败:
+#   lsmod 里有 snd_soc_sm8150, 但 /proc/asound/cards 是 "--- no soundcards ---"
+#   -> 全系统没声音。已实测踩过, 别加。
+patch_sound_routing() {
+  local dtb="$1" work="$TMP/dtbpatch"
+  command -v dtc >/dev/null 2>&1 || { warn "宿主没有 dtc, 跳过采集路由补丁"; return 0; }
+  rm -rf "$work"; mkdir -p "$work"
+  dtc -I dtb -O dts -o "$work/d.dts" "$dtb" 2>/dev/null || {
+    warn "DTB 反编译失败, 跳过采集路由补丁"; return 0; }
+  # 已打过补丁 (上游以后修好了) 就别重复
+  if grep -q 'SLIMBUS_0_TX", *"AIF1 CAP\|"AIF1 CAP", *"SLIMBUS_0_TX' "$work/d.dts"; then
+    log "采集路由补丁: DTB 里已存在 SLIMBUS_0_TX<->AIF1 CAP, 跳过"
+    return 0
+  fi
+  local n
+  n=$(python3 - "$work/d.dts" <<'PYEOF'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding='utf-8').read()
+# dtc 输出的是一行多值形式: audio-routing = "A", "B", "C";
+# 一直抓到分号为止, 不能只匹配单个引号字符串。
+m = re.search(r'audio-routing\s*=\s*(.*?);', s, re.S)
+if not m:
+    print(0); raise SystemExit
+# 用 audio-routing 所在行的缩进
+line_start = s.rfind('\n', 0, m.start()) + 1
+ind = s[line_start:m.start()]
+ind = re.sub(r'[^ \t]', '', ind)
+s = s[:m.end(1)] + f',\n{ind}\t\t\t"SLIMBUS_0_TX", "AIF1 CAP"' + s[m.end(1):]
+open(p, 'w', encoding='utf-8').write(s)
+print(1)
+PYEOF
+)
+  [ "$n" = "1" ] || { warn "在 DTB 里找不到 audio-routing, 跳过采集路由补丁"; return 0; }
+  dtc -I dts -O dtb -o "$work/new.dtb" "$work/d.dts" 2>/dev/null || {
+    warn "DTB 重新编译失败, 跳过采集路由补丁"; return 0; }
+  # 编译成功必须真的能反解回来, 否则宁可不动
+  if dtc -I dtb -O dts -o "$work/verify.dts" "$work/new.dtb" 2>/dev/null \
+     && grep -q 'SLIMBUS_0_TX", *"AIF1 CAP' "$work/verify.dts"; then
+    cp -f "$work/new.dtb" "$dtb"
+    log "采集路由补丁: 已给 sound 节点追加 \"SLIMBUS_0_TX\",\"AIF1 CAP\""
+  else
+    warn "补丁后的 DTB 校验不通过, 已保持原样 (麦克风仍不可用)"
+  fi
+}
+patch_sound_routing "$raph_dtb"
+
 log "设备树: $(ls "$ROOT/usr/lib/modules/$KV/dtbs/qcom" | wc -l) 个 dtb (含 raphael, 来自 ${dtb_src#$TMP/image/})"
 
 # ---- 头文件 (供用户后续自行编译模块) --------------------------------------
