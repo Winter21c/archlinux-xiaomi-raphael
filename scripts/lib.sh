@@ -93,7 +93,17 @@ ns_umount() {
 # 把 x86_64 的 qemu-aarch64 及其依赖放进 rootfs, 使得 chroot 内可以显式执行
 # aarch64 程序。注意: 只能直接 exec ELF (动态加载器), 不能依赖 shell 脚本,
 # 因为 chroot 内的 /bin/sh 是 aarch64, 没有 binfmt_misc 无法被执行。
+#
+# ★ 但如果宿主**本身就是 aarch64** (把仓库 clone 到设备上原生构建), 就完全
+#   不需要垫片 —— chroot 里直接 exec 就行。原来这里无条件去
+#     cp /usr/bin/qemu-aarch64
+#   设备上根本没装这个包, 于是
+#     cp: cannot stat '/usr/bin/qemu-aarch64': No such file or directory
+#   阶段 01 第一步就失败。所以先判断宿主架构。
+host_is_native_arm64() { [ "$(uname -m)" = "aarch64" ]; }
+
 setup_qemu_shim() {
+  host_is_native_arm64 && return 0        # 原生 aarch64: 不需要垫片
   [ -x "$QDIR/qemu-aarch64" ] && [ -x "$QDIR/ld-linux-x86-64.so.2" ] && return 0
   log "安装 qemu 宿主垫片 -> $QDIR"
   mkdir -p "$QDIR/lib"
@@ -110,6 +120,11 @@ setup_qemu_shim() {
 
 # 在 chroot 内执行一个 aarch64 程序: gq /usr/bin/ldconfig [-args]
 gq() {
+  # 原生 aarch64 宿主: 直接 chroot exec, 不经过 qemu
+  if host_is_native_arm64; then
+    chroot "$ROOT" "$@"
+    return $?
+  fi
   # 垫片可能被阶段 01 的 rootfs 清理删掉, 这里按需重建
   # (setup_qemu_shim 自带存在性检查, 正常路径下只是一次 [ -x ] 判断)
   # 注意重定向到 stderr: gq 常被 $(...) 捕获输出, 安装日志不能混进返回值
