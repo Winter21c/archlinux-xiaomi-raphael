@@ -86,6 +86,9 @@ echo "=============================================================="
 echo
 
 # 先确认宿主工具齐全, 否则跑到一半才报错很难定位
+# (build.sh 自己不带这些函数, 需要临时把公共库引进来)
+# shellcheck source=/dev/null
+. "$PROJ/scripts/lib.sh"
 require_host_tools
 
 START=$(date +%s)
