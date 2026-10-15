@@ -204,7 +204,8 @@ GitHub 仓库设 Secret `IMAGE_BT_MAC`（云端构建）。
 | GPU (Adreno 640, freedreno) | ✅ | `qcom/a640_gmu.bin` + `qcom/a630_sqe.fw`（A640 与 A630 共用 SQE） |
 | Wi-Fi (WCN3990, ath10k_snoc) | ✅ | 网卡名是 **`wld0`**（systemd 改名，不是 wlan0）。需要 `skip_otp=y` + **tqftpserv 必须运行**（见 §8.1）；真机已实测扫描到 AP |
 | 蓝牙 (WCN3998, hci_qca) | ✅ | **已修好**：真机实测扫描到 9 个设备、可 `powered`。需要**修补设备树**（补 `local-bd-address`）+ **机器自带的原厂 NVM**（`bluetooth` 分区里的 `crnv21.bin`），两者缺一不可 —— 详见 §8.9 |
-| 音频输出 (ADSP + TFA9874) | ✅ | **扬声器 + 3.5mm 耳机都可用**。Sink = `output:stereo-fallback` （`hw:0,0/0,1` → QUAT_MI2S → 底部扬声器；`SLIMBUS_0_RX` → WCD9340 → 耳机）。**不要用 `pro-audio` profile**（会让 Q6 AFE 使能失败 → 完全没声音）。关键前提：声卡必须**延后加载**（`blacklist snd_soc_sm8150` + 等 codec 就绪），否则 slim 链路被丢弃、codec 进不了声卡。见 §8.10 与 notes/microphone-and-kernel-plan.md |
+| 音频输出 (ADSP + TFA9874) | ✅ | **扬声器 + 3.5mm 耳机都可用**。Profile = **`HiFi (Mic, Speaker)`**（`hw:0,0` → QUAT_MI2S / SLIMBUS_0_RX；耳机插入时由 `raphael-audio-routing.sh` 自动切到 WCD9340）。**不要用 `pro-audio` profile**（会让 Q6 AFE 使能失败 → 完全没声音）。关键前提：声卡必须**延后加载**（`blacklist snd_soc_sm8150` + 等 codec 就绪），否则 slim 链路被丢弃、codec 进不了声卡。见 §8.10 与 notes/microphone-and-kernel-plan.md |
+| 内置麦克风 (WCD9340 AMIC1) | ✅ | Source = `alsa_input.platform-sound.HiFi__Mic__source`。**2026-10-15 才修好**，四个独立原因叠加（DTB 缺采集路由 / 原版 UCM 是坏符号链接 / Q6 FE session 槽被扬声器抢占 / PipeWire ACP 不执行 Mic 的 EnableSequence）。构建时自动补 DTB 路由并重写 UCM，详见 §8.10 与 notes/microphone-and-kernel-plan.md |
 
 > **2026-10-15 修好了**（真机验证：`Active Profile=output:stereo-fallback`、
 > 静音播放 `PCM state=RUNNING`、`AFE 报错 0 条`）。根因是**声卡名变化**：
@@ -1026,7 +1027,9 @@ SPDX-License-Identifier: GPL-2.0-only
 
 | 项目 | 验证方式与结果 |
 |:--|:--|
-| 底部扬声器 | `output:stereo-fallback`（**不用 `pro-audio`**）；静音播放连测 3 次退出码 0、AFE 报错 0 条、`PCM state=RUNNING` |
+| 底部扬声器 | Profile `HiFi (Mic, Speaker)`（**不用 `pro-audio`**）；静音播放 `pw-play` 退出码 0、AFE 报错 0 条、underrun 0 条 |
+| 内置麦克风 | 开机自动到位（`raphael-audio-init.service` → `success`），Source `HiFi__Mic__source`；零人工干预录音 2.7s **峰值 4124、非零 96.5%**、underflow 0、DSP 错误 0 |
+| 扬声器与麦克风共存 | MM1 供播放、MM2 供采集，Q6 FE session 槽互不抢占；录音时扬声器 sink 仍挂载 |
 | 3.5mm 耳机 | 声卡里有 `wcd934x-codec`，HPHL/HPHR 能上电；routing 脚本按 `iface=CARD,name="Headset Jack"` **自动二选一**。**两条分支都已真机验证**：插 = 走 SLIMBUS_0_RX 且扬声器 mixer 关（HPHL/HPHR On，播放 2/2 退出码 0、0 报错、PCM RUNNING，**不卡死**）；未插 = 只走 QUAT_MI2S（连测 3 次干净）。切换后状态能干净恢复。实际出声待插耳机确认 |
 | KDE 桌面 | 开机后 5 个会话单元（kwin_wayland / plasmashell / ksmserver / kded6 / portal）全部 `active`，D-Bus 名 `org.kde.plasmashell` 等全部注册（plasmashell 约 30-34 线程）。`panels().length = 1`（底部面板、高 46）、内部屏输出 `1080x2340@60`、逻辑 400x867 / Scale 2.7。**连续 3 次重启逐项复测一致**（系统失败单元 0、用户失败单元 0）|
 | GPU / 花屏 | `FD_MESA_DEBUG=noubwc` 经 KDE systemd 用户单元 drop-in 生效。**CCU fault 是"显示活动"现象**：固定 3 分钟窗口实测，**息屏时 0 条/分钟**（142→142），屏幕活跃渲染时成簇出现（一次会话启动 12~149 条），hangcheck 恢复 0~1 次。⚠️ 早先"从 151 降到个位数"的说法是**采样时机造成的假象**（不同开机时长对比）。`nolrz` 实测**无改善**（149 vs 142），已回退只保留 `noubwc`；用户实测**没有可见花屏** |

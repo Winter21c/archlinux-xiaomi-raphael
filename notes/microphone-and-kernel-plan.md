@@ -1,10 +1,75 @@
 # 麦克风 + 内核移植计划（真机实验记录）
 
-> 本轮结论：**麦克风不是"改 UCM 就能修"的问题**。我列出并实测了 12 种采集路由组合，
-> 全部是数字静音（峰值 0），说明采集后端在设备树/内核侧没有可用的配置。
-> 蓝牙同样需要带调试的自编译内核。内核源码已下载就位。
-
----
+> ## ✅ 2026-10-15 更新：麦克风已修好
+>
+> 本文前半段"12 种路由组合全是数字静音"的结论**是错的**，原因是当时把
+> 三个独立问题当成了一个问题。逐层拆开后四个原因全部找到并修复，
+> 现在开机自动到位、零人工干预即可录音：
+>
+> ```
+> profile: HiFi (Mic, Speaker)
+> sink  : alsa_output.platform-sound.HiFi__Speaker__sink
+> source: alsa_input.platform-sound.HiFi__Mic__source  (s24-32le 2ch 48000Hz)
+>
+> 录音 2.7s -> 峰值 4124, 非零 96.5%, underflow 0, DSP 错误 0
+> 扬声器静音播放 -> pw-play 退出码 0, AFE 错误 0
+> systemd --failed -> 0
+> ```
+>
+> ### 根因 1：DTB 缺采集路由
+> `sound.audio-routing` 只有 `"RX_BIAS","MCLK","AMIC1","MIC BIAS3","AMIC3","MIC BIAS4"`，
+> 没有任何 `SLIMBUS_0_TX`。`slimcap-dai-link`（`cpu=<0xff 0x03>`）存在但没连线，
+> 于是 `q6routing_stream_open()` 找不到 TX 端口，`arecord` 直接 EINVAL。
+> 修复：`scripts/03-kernel.sh` 构建时自动追加 `"SLIMBUS_0_TX", "AIF1 CAP"`。
+>
+> ⚠️ **只能加这一条**。曾试过再补 `"AIF1 CAP","SLIM TX0"` / `"SLIM TX0","DEC0"`
+> （那是 codec 内部路由，由 mixer 控制），machine driver 的
+> `snd_soc_dapm_add_routes()` 找不到 widget，probe 直接失败：
+> `lsmod` 里有 `snd_soc_sm8150`，但 `/proc/asound/cards` 是 `--- no soundcards ---`，
+> **全系统没声音**。已回滚验证。
+>
+> ### 根因 2：UCM 里的 HiFi.conf 是自指符号链接
+> 原版 `alsa-xiaomi-raphael.deb` 装出来的 `HiFi.conf -> HiFi.conf`，
+> ACP 报 `Too many levels of symbolic links`，加载不到任何设备
+> → 退化成通用 profile → 系统里**根本没有麦克风输入源**。
+>
+> ### 根因 3：Q6 的 FE session 槽被抢
+> `msm_routing_put_audio_mixer()` 把 mixer 值写进 `sessions[FE_Dai_id].port_id`，
+> **同一个槽只能存一个 port**。而 ASoC 只提供 2 个采集 PCM：
+>
+> ```
+> MM1 = 播放 (耳机 SLIMBUS_0_RX port 2 / 扬声器 QUAT_MI2S_RX port 22)
+> MM2 = 采集 (麦克风 SLIMBUS_0_TX port 3)
+> ```
+>
+> 原版把扬声器也挂 MM2 → 与采集抢槽 → `matrix_map` 打出
+> `path=1 matrix_id=0 port_idx=22`（**播放**矩阵 + 播放端口），DSP 返 `status=2`。
+> 改到 MM2 专供采集后，打出的是正确的
+> `path=2 matrix_id=1 port_idx=3 status=0`。
+>
+> ### 根因 4：PipeWire 的 ACP 不执行 Mic 设备的 EnableSequence
+> 这条最隐蔽。实测 `pw-record` 时 `pcm1c` 是 `RUNNING`，但
+> `AMIC1` DAPM = `Off`、`MultiMedia2 Mixer SLIMBUS_0_TX` = `off`，
+> 录出来 44 字节全零。两个后果：
+>
+> * `raphael-audio-init.sh` 必须**在 PipeWire/ACP 起来之前**就写好采集路由，
+>   否则 ACP 探测 `CapturePCM "hw:0,1"` 时打开失败 → **放弃整个 UCM**
+>   （profiles 里连扬声器都没有，只剩 off / pro-audio）。
+> * 播放期间由 `raphael-audio-routing.timer` 每 2s 保活采集路由。
+>
+> ### 顺带修掉的两个 shell 坑
+> * `timeout 8 as_user pactl ...` → `as_user` 是 shell 函数，`timeout` 只能执行
+>   真实可执行文件，直接 127，整个 oneshot 单元判 failed。
+> * `set-card-profile` 探测 PCM 时会阻塞，不套 timeout 会把单元挂到
+>   `TimeoutStartSec`。
+>
+> ### 已验证可用的 PCM 格式
+> `hw:0,1` 只接受 `S16_LE` / `S24_LE`；`S24_3LE` 与 `S32_LE` 直接失败。
+> PipeWire 侧 `HiFi__Mic__source` 报 `s24-32le`。
+>
+> ---
+>
+> 以下为当时（修好之前）的排查记录，保留作为踩坑参考。
 
 ## 1. 麦克风：已完成的工作与实测结果
 
