@@ -48,9 +48,30 @@ cp -f "$ROOT/usr/lib/modules/$KV/dtbs/qcom/sm8150-xiaomi-raphael.dtb" "$STAGE/dt
 #     arecord 打不开或录到全零 (见 notes/microphone-and-kernel-plan.md)。
 # 构建时仍然只注入蓝牙地址 (设备唯一值, 不进公开仓库)。
 DT_LINE=""
-if [ -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" ]; then
-  cp -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb"
+# ★ 到底用哪份 DTB 作为**被引导**的那份? (2026-10-15 真机踩坑后重写)
+#   原来这里无条件优先 $PROJ/dtb/raphael-redmi-k20pro.dtb (早期从 U-Boot 导出、
+#   还把 slim 链路删掉的版本), 于是:
+#     * 03-kernel.sh 的采集路由补丁打在 sm8150-xiaomi-raphael.dtb 上, 而启动项
+#       用的是 raphael-redmi-k20pro.dtb -> **补丁完全没进启动路径**, 镜像刷进去
+#       麦克风照样不可用;
+#     * 真正经过真机验证能用的那份是内核作者 deb 自带的
+#       qcom/sm8150-xiaomi-raphael.dtb (mm1/mm2/speaker/slimcap/slim-playback
+#       5 条 DAI 链路齐全)。
+#   现在: 优先内核 deb 那份, 仓库 dtb/ 仅作兜底; 并且无论用哪份, 都在**这里**
+#   再补一次采集路由 —— 保证"真正被引导的那份 DTB"一定带 SLIMBUS_0_TX。
+BOOT_DTB_SRC=""
+KDTB="$ROOT/usr/lib/modules/$KV/dtbs/qcom/sm8150-xiaomi-raphael.dtb"
+if [ -f "$KDTB" ]; then
+  BOOT_DTB_SRC="$KDTB"
+elif [ -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" ]; then
+  BOOT_DTB_SRC="$PROJ/dtb/raphael-redmi-k20pro.dtb"
+fi
+if [ -n "$BOOT_DTB_SRC" ]; then
+  cp -f "$BOOT_DTB_SRC" "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb"
   DT_LINE="devicetree /dtbs/qcom/raphael-redmi-k20pro.dtb"
+  log "启动 DTB 来源: ${BOOT_DTB_SRC#"$ROOT"/}"
+  # 兜底再补一次: 即使来源那份没被 03 阶段补过, 启动的这份也一定有采集路由
+  patch_sound_routing "$STAGE/dtbs/qcom/raphael-redmi-k20pro.dtb"
   # 蓝牙地址属于设备唯一标识, 不写进公开仓库 —— 构建时注入:
   #   优先 config/local.conf (已 gitignore), 其次环境变量 RAPHAEL_BT_MAC
   BT_MAC="${RAPHAEL_BT_MAC:-}"
@@ -76,7 +97,7 @@ if [ -f "$PROJ/dtb/raphael-redmi-k20pro.dtb" ]; then
     warn "未提供蓝牙地址 -> 该镜像蓝牙不可用 (在 config/local.conf 里设 BT_MAC, 或用 RAPHAEL_BT_MAC)"
   fi
 else
-  warn "缺少 dtb/raphael-redmi-k20pro.dtb -> 蓝牙与麦克风不可用"
+  warn "找不到任何可用 DTB (内核 deb 与 dtb/ 都没有) -> 蓝牙与麦克风不可用"
 fi
 
 # systemd-boot: 用 Arch 自己的版本 (与 rootfs 内 systemd 同版本), 同时保留模板自带版本

@@ -39,6 +39,60 @@ fetch() {  # fetch <url> <dest>
   mv "$dest.part" "$dest"
 }
 
+# ------------------------------------------- DTB 采集路由补丁 ----------------
+# 给 sound 节点的 audio-routing 补上 "SLIMBUS_0_TX", "AIF1 CAP" —— 麦克风
+# (WCD9340 AMIC1 -> SLIMBUS_0_TX -> Q6 MM2) 没有这条连线就 arecord EINVAL。
+# ⚠️ 只能加这一条。曾经试过再补 "AIF1 CAP","SLIM TX0" / "SLIM TX0","DEC0"
+#    (那是 codec 内部路由, 由 mixer 控制), machine driver probe 直接失败,
+#    /proc/asound/cards 变成 "--- no soundcards ---", 全系统没声音。
+# 幂等: 已存在则跳过 (上游以后修好了也不会重复加)。
+# ★ 被 03-kernel.sh 和 10-image-boot.sh **两处**调用。阶段 10 才是决定
+#   "哪份 DTB 真正被引导"的地方, 只补 03 会漏 —— 实测: 03 补的是
+#   sm8150-xiaomi-raphael.dtb, 而启动项用的是 raphael-redmi-k20pro.dtb,
+#   结果镜像里那份启动 DTB 完全没有采集路由, 麦克风依旧不可用。
+patch_sound_routing() {
+  local dtb="$1" work="$WORK/dtbpatch"
+  command -v dtc >/dev/null 2>&1 || { warn "宿主没有 dtc, 跳过采集路由补丁"; return 0; }
+  rm -rf "$work"; mkdir -p "$work"
+  dtc -I dtb -O dts -o "$work/d.dts" "$dtb" 2>/dev/null || {
+    warn "DTB 反编译失败, 跳过采集路由补丁"; return 0; }
+  # 已打过补丁 (上游以后修好了) 就别重复
+  if grep -q 'SLIMBUS_0_TX", *"AIF1 CAP\|"AIF1 CAP", *"SLIMBUS_0_TX' "$work/d.dts"; then
+    log "采集路由补丁: DTB 里已存在 SLIMBUS_0_TX<->AIF1 CAP, 跳过"
+    return 0
+  fi
+  local n
+  n=$(python3 - "$work/d.dts" <<'PYEOF'
+import re, sys
+p = sys.argv[1]
+s = open(p, encoding='utf-8').read()
+# dtc 输出的是一行多值形式: audio-routing = "A", "B", "C";
+# 一直抓到分号为止, 不能只匹配单个引号字符串。
+m = re.search(r'audio-routing\s*=\s*(.*?);', s, re.S)
+if not m:
+    print(0); raise SystemExit
+# 用 audio-routing 所在行的缩进
+line_start = s.rfind('\n', 0, m.start()) + 1
+ind = s[line_start:m.start()]
+ind = re.sub(r'[^ \t]', '', ind)
+s = s[:m.end(1)] + f',\n{ind}\t\t\t"SLIMBUS_0_TX", "AIF1 CAP"' + s[m.end(1):]
+open(p, 'w', encoding='utf-8').write(s)
+print(1)
+PYEOF
+)
+  [ "$n" = "1" ] || { warn "在 DTB 里找不到 audio-routing, 跳过采集路由补丁"; return 0; }
+  dtc -I dts -O dtb -o "$work/new.dtb" "$work/d.dts" 2>/dev/null || {
+    warn "DTB 重新编译失败, 跳过采集路由补丁"; return 0; }
+  # 编译成功必须真的能反解回来, 否则宁可不动
+  if dtc -I dtb -O dts -o "$work/verify.dts" "$work/new.dtb" 2>/dev/null \
+     && grep -q 'SLIMBUS_0_TX", *"AIF1 CAP' "$work/verify.dts"; then
+    cp -f "$work/new.dtb" "$dtb"
+    log "采集路由补丁: 已给 sound 节点追加 \"SLIMBUS_0_TX\",\"AIF1 CAP\""
+  else
+    warn "补丁后的 DTB 校验不通过, 已保持原样 (麦克风仍不可用)"
+  fi
+}
+
 # ------------------------------------------- 宿主依赖自检 ------------------
 # 缺工具就一次性全列出来, 并给出可直接粘贴的安装命令。
 # 起因: 设备原生构建跑到阶段 08 才发现宿主没有 cpio, 报错只是一句
