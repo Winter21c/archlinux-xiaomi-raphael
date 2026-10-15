@@ -90,8 +90,17 @@ log "交叉编译 usbdisp_drm.ko (aarch64, 内核 $KV)"
 MO="$WORK/ms91xx-build"
 rm -rf "$MO"; mkdir -p "$MO"
 make -C "$KDIR" M="$SRC" MO="$MO" ARCH=arm64 LLVM=1 CONFIG_DRM_MS91XX=m modules \
-     >"$WORK/ms91xx-build.log" 2>&1 || true
+     >"$WORK/ms91xx-build.log" 2>&1
 KO="$MO/drm/usbdisp_drm.ko"
+
+# ⚠️ MO= 不是所有内核版本都认。少数情况下 make 会忽略 MO=, 把产物直接写到
+#   源码树 vendor/ms91xx/drm/ 下, 于是 $MO 里什么都没有, 但日志里明明有
+#   "LD [M] drm/usbdisp_drm.ko"。所以找不到时再去源码树找一次,
+#   找到就搬进 $MO (保持"不弄脏源码树"的约定), 再跑一次 modpost。
+if [ ! -f "$KO" ] && [ -f "$SRC/drm/usbdisp_drm.ko" ]; then
+  log "  make 忽略了 MO=, 从源码树取产物"
+  cp -f "$SRC/drm/usbdisp_drm.ko" "$KO"
+fi
 
 # 开机自动加载: 插上 MS91xx 投屏器即可用, 不用手动 modprobe
 #   (没有硬件时加载也无害, 只注册一个 DRM 驱动)

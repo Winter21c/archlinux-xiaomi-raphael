@@ -88,6 +88,28 @@ ck "routing timer" "active" "$RT" test "$RT" = "active"
 RR=$(systemctl show raphael-audio-routing.service -p Result --value 2>/dev/null)
 ck "routing service 结果" "success" "$RR" test "$RR" = "success"
 ck "健康采样 timer" "active" "$(systemctl is-active raphael-health.timer 2>/dev/null)" test "$(systemctl is-active raphael-health.timer 2>/dev/null)" = "active"
+echo "【输入法 fcitx5 + Rime】"
+F5=$(pacman -Q fcitx5 >/dev/null 2>&1 && echo yes || echo no)
+ck "fcitx5 已安装" "yes" "$F5" test "$F5" = "yes"
+FR=$(pacman -Q fcitx5-rime >/dev/null 2>&1 && echo yes || echo no)
+ck "fcitx5-rime 已安装" "yes" "$FR" test "$FR" = "yes"
+RIMEDATA=$(ls /usr/share/rime-data/*.schema.yaml 2>/dev/null | wc -l)
+ck "Rime 方案文件" ">0" "$RIMEDATA" test "$RIMEDATA" -gt 0
+DIM=$(grep -h '^DefaultIM' /home/winter/.config/fcitx5/profile 2>/dev/null | head -1 | cut -d= -f2)
+ck "默认输入法 = rime" "rime" "${DIM:-无}" test "$DIM" = "rime"
+IME=$(grep -c 'GTK_IM_MODULE=fcitx' /etc/environment 2>/dev/null)
+ck "GTK_IM_MODULE=fcitx" ">=1" "$IME" test "$IME" -ge 1
+echo "【USB 外接显示器 (MS91xx)】"
+UD=$(ls /lib/modules/"$(uname -r)"/updates/msdisp/usbdisp_drm.ko* >/dev/null 2>&1 && echo yes || echo no)
+ck "usbdisp_drm 模块已装" "yes" "$UD" test "$UD" = "yes"
+UDL=$(lsmod | grep -c usbdisp_drm)
+ck "usbdisp_drm 已加载" ">=1" "$UDL" test "$UDL" -ge 1
+MSD=$(readlink -f /sys/class/drm/card1/device/driver 2>/dev/null | xargs -r basename)
+ck "DRM card1 驱动" "msdisp_plat" "${MSD:-无}" test "$MSD" = "msdisp_plat"
+HDMI=$(ls -d /sys/class/drm/card1-HDMI-A-* 2>/dev/null | wc -l)
+ck "HDMI 输出连接器" ">=1" "$HDMI" test "$HDMI" -ge 1
+UDC=$(ls /etc/modules-load.d/raphael-msdisp.conf >/dev/null 2>&1 && echo yes || echo no)
+ck "开机自动加载已配置" "yes" "$UDC" test "$UDC" = "yes"
 echo "【GPU】"
 # drop-in 在用户级且单元名是 plasma-* (KDE 6 的单元名), 不是系统级 kwin_wayland
 NOB=$(grep -rh FD_MESA_DEBUG /etc/systemd/user/ /etc/environment /home/*/.config/systemd/user/ 2>/dev/null | grep -c noubwc)

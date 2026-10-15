@@ -46,8 +46,32 @@ Server = https://mirrors.tuna.tsinghua.edu.cn/archlinuxcn/\$arch
 Server = https://repo.archlinuxcn.org/\$arch
 EOF
 
+# --overwrite '*': 这是**在已有 rootfs 上装包**, 不是全新安装。rootfs tarball 里
+# 已经带了 giflib 等包的部分文件, 而 ALARM 仓库里的版本可能换了路径/拆分了子包
+# (例如 libgif.so 变成 libgif.so.7 + 单独的 .so 链接), pacman 会以"文件已存在"
+# 拒绝整个事务 —— 实测卡在 giflib 上, 后面 144 个包一个都装不上。
+# 这个仓库的构建本来就是"往已解包的 rootfs 里补软件", 所以全量覆盖是正确语义。
 PACMAN=(pacman --arch aarch64 -r "$ROOT" --config "$BUILD_CONF"
-        --dbpath "$ROOT/var/lib/pacman" --cachedir "$PKGCACHE" --noconfirm)
+        --dbpath "$ROOT/var/lib/pacman" --cachedir "$PKGCACHE" --noconfirm
+        --overwrite '*')
+
+# ---------------------------------------------------------------------------
+# 缓存体检: 之前若有构建是在 root 下跑的, work/pkgcache 里会残留属主异常的
+# 软件包, pacman 读到会判定"无效或已损坏 (校验值)", 而 --noconfirm 是在**开始
+# 安装之后**才逐个删除, 一旦第一个坏包让事务直接提交失败, 后面的坏包不会被清掉,
+# 于是每次重跑都卡在同一处 (实测卡了 13 个包)。
+# 这里在安装前先跑一遍 -Sc 之外的完整性清理: 把解不开的包直接删掉。
+# ---------------------------------------------------------------------------
+if [ -d "$PKGCACHE" ]; then
+  bad=0
+  for f in "$PKGCACHE"/*.pkg.tar.*; do
+    [ -e "$f" ] || continue
+    tar -tf "$f" >/dev/null 2>&1 || { rm -f "$f"; bad=$((bad+1)); }
+  done
+  [ "$bad" -gt 0 ] && log "缓存体检: 删除 $bad 个损坏的软件包, 将重新下载"
+fi
+# 上一次被 kill 的构建可能留下 db.lck, 会让同步直接失败 (无法锁定数据库)
+rm -f "$ROOT/var/lib/pacman/db.lck"
 
 # 目标 rootfs 内的 pacman 配置 (设备上使用): 打开签名校验, 用国内镜像
 mkdir -p "$ROOT/etc/pacman.d"

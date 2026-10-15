@@ -1,14 +1,13 @@
 # Raphael 实机验证报告
 
 > 由自动化脚本在真机上逐项执行，输出原样附在下面。
-> 生成时间：2026-10-15 11:51　仓库 HEAD：1542a81（重启后重跑）
+> 生成时间：2026-10-15 18:20　仓库 HEAD：5a41d47（扩展到 43 项）
 > 设备：Redmi K20 Pro (raphael)，KDE 桌面形态镜像，内核 7.2.0-sm8150-ga1573649db08
 > 本轮为**麦克风修复后**的完整重跑（DTB 采集路由 + UCM 重写 + 路由保活）。
 
 ## 结果
 
 ```
-═══════ Raphael 全项回归 2026-10-15 11:51:34 ═══════
 【系统】
     ✓ 内核                             7.2.0-sm8150-ga1573649db08
     ✓ 系统失败单元                 0
@@ -30,9 +29,9 @@
     ✓ Q6 TX 路由 (MM2)                 1
     ✓ DTB 采集路由已打补丁       3bcded4b80a581e765b975335e9263b6
 【声音 - 实测录音 (静音测试, 1% 音量)】
-    ✓ 录音帧数                       133120
-    ✓ 非零采样占比                 96%
-    ✓ 峰值                             9361
+    ✓ 录音帧数                       129024
+    ✓ 非零采样占比                 97%
+    ✓ 峰值                             9491
     ✓ 扬声器静音播放              0
     ✓ AFE 报错                         0
     ✓ underrun                           0
@@ -41,6 +40,18 @@
     ✓ routing timer                      active
     ✓ routing service 结果             success
     ✓ 健康采样 timer                 active
+【输入法 fcitx5 + Rime】
+    ✓ fcitx5 已安装                   yes
+    ✓ fcitx5-rime 已安装              yes
+    ✓ Rime 方案文件                  12
+    ✓ 默认输入法 = rime             rime
+    ✓ GTK_IM_MODULE=fcitx                1
+【USB 外接显示器 (MS91xx)】
+    ✓ usbdisp_drm 模块已装           yes
+    ✓ usbdisp_drm 已加载              1
+    ✓ DRM card1 驱动                   msdisp_plat
+    ✓ HDMI 输出连接器               3
+    ✓ 开机自动加载已配置        yes
 【GPU】
     ✓ FD_MESA_DEBUG=noubwc (全局+KWin) 3
     ✓ KWin 运行环境已继承         1
@@ -52,7 +63,7 @@
     ✓ 根挂载是 btrfs                 1
     ✓ swap 已启用                     2
 
-═══════ 结果: 通过 33, 失败 0 ═══════
+═══════ 结果: 通过 43, 失败 0 ═══════
 ```
 
 ## 本轮新增/变化的验证项
@@ -65,6 +76,8 @@
 | DTB 采集路由 | 新增。已打补丁的 DTB 与构建脚本产物一致 |
 | KWin 环境继承 | 新增。`FD_MESA_DEBUG=noubwc` 在 `/etc/environment` 与 KWin drop-in 两处，且已被 KWin 进程继承 |
 | btrfs 三子卷 | 断言改用 `fstab` + 挂载来源（该机 `findmnt -o SUBVOL` 返回空），`@`/`@home`/`@swap` 齐全 |
+| 输入法 fcitx5 + Rime | 新增 5 项。已安装、12 个 Rime 方案、`DefaultIM=rime`、`GTK_IM_MODULE=fcitx` 均通过 |
+| USB 外接显示器 (MS91xx) | 新增 5 项。`usbdisp_drm` 已装且已加载，DRM `card1` 驱动为 `msdisp_plat`，暴露 3 个 `HDMI-A-*` 连接器，开机自动加载已配置 |
 
 ## 运维提示
 
