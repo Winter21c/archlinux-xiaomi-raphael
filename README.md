@@ -1030,14 +1030,14 @@ SPDX-License-Identifier: GPL-2.0-only
 | 底部扬声器 | Profile `HiFi (Mic, Speaker)`（**不用 `pro-audio`**）；静音播放 `pw-play` 退出码 0、AFE 报错 0 条、underrun 0 条 |
 | 内置麦克风 | 开机自动到位（`raphael-audio-init.service` → `success`），Source `HiFi__Mic__source`；零人工干预录音 2.7s **峰值 4124、非零 96.5%**、underflow 0、DSP 错误 0 |
 | 扬声器与麦克风共存 | MM1 供播放、MM2 供采集，Q6 FE session 槽互不抢占；录音时扬声器 sink 仍挂载 |
-| 3.5mm 耳机 | 声卡里有 `wcd934x-codec`，HPHL/HPHR 能上电；routing 脚本按 `iface=CARD,name="Headset Jack"` **自动二选一**。**两条分支都已真机验证**：插 = 走 SLIMBUS_0_RX 且扬声器 mixer 关（HPHL/HPHR On，播放 2/2 退出码 0、0 报错、PCM RUNNING，**不卡死**）；未插 = 只走 QUAT_MI2S（连测 3 次干净）。切换后状态能干净恢复。实际出声待插耳机确认 |
+| 3.5mm 耳机 | **输出级已实测上电**（2026-10-15 补测）：强制耳机路由后 `HPHL PA`/`HPHR PA` 由 Off → **On**、`SLIM RX0/1 MUX` 与 `RX INT1/2 DEM MUX` 均 On、PCM state=RUNNING、`pw-play` 退出码 0、AFE 报错 0、underrun 0；扬声器模式下这些全部回到 Off。即整条 `MultiMedia1 → SLIMBUS_0_RX → WCD9340 → HPHL/HPHR` 是通的（这正是 `pro-audio` 会失败的环节）。routing 脚本按 `iface=CARD,name="Headset Jack"` 自动二选一，两条分支验证后都能干净恢复。**仅剩「插上耳机用耳朵听」** |
 | KDE 桌面 | 开机后 5 个会话单元（kwin_wayland / plasmashell / ksmserver / kded6 / portal）全部 `active`，D-Bus 名 `org.kde.plasmashell` 等全部注册（plasmashell 约 30-34 线程）。`panels().length = 1`（底部面板、高 46）、内部屏输出 `1080x2340@60`、逻辑 400x867 / Scale 2.7。**连续 3 次重启逐项复测一致**（系统失败单元 0、用户失败单元 0）|
 | GPU / 花屏 | `FD_MESA_DEBUG=noubwc` 经 KDE systemd 用户单元 drop-in 生效。**CCU fault 是"显示活动"现象**：固定 3 分钟窗口实测，**息屏时 0 条/分钟**（142→142），屏幕活跃渲染时成簇出现（一次会话启动 12~149 条），hangcheck 恢复 0~1 次。⚠️ 早先"从 151 降到个位数"的说法是**采样时机造成的假象**（不同开机时长对比）。`nolrz` 实测**无改善**（149 vs 142），已回退只保留 `noubwc`；用户实测**没有可见花屏** |
 | Wi-Fi | 连 `ChinaNet_XQP2_5G`（**5GHz**，channel 44 / 5220MHz），拿到 `192.168.31.90`，与本机 `192.168.31.65` 同网段 |
 | pacman | `pacman -Syu` 干净通过（清掉残留的 `linux-aarch64.preset`；`IgnorePkg = linux-firmware` 防止拉进 12 个固件拆分包）|
-| 输入法 | fcitx5 + fcitx5-rime，`DefaultIM=rime`，KWin 虚拟键盘留空不抢 |
+| 输入法 | fcitx5 + fcitx5-rime，`DefaultIM=rime`、12 个 Rime 方案就位、`GTK/QT/XMODIFIERS` 均指向 fcitx，KWin 虚拟键盘留空不抢（真机 5 项断言通过）|
 | 账号 | 只有 `winter`（uid 1000），用户/root 密码都是 `031210`（SSH 登录 + sudo 提权实测通过）|
-| 投屏 | `usbdisp_drm.ko` 已移植，`modules-load.d` + USB modalias 双保险。实测加载后会注册一张 DRM 卡 （`card1` = `msdisp_plat`，带 HDMI-A 连接器），**加载/热插拔时桌面不再崩溃**（见下）。未接转接器，出画待硬件确认 |
+| 投屏 | `usbdisp_drm.ko` 已移植，`modules-load.d` + USB modalias 双保险。真机确认：模块已加载（`lsmod` 计数 1），注册的 DRM 卡 `card1` 设备路径 `/sys/devices/usbevdi/msdisp_plat.0`、驱动 `msdisp_plat`，**暴露 3 个 `HDMI-A-*` 连接器**（当前 `disconnected`，因未插转接器）；加载/热插拔时桌面不再崩溃（见下）。**软件侧就绪，接上 MS91xx 转接器即可出画** |
 | 子卷 | `@` / `@home` / `@swap` 都在；zram 10G + `/swap/swapfile` 4G |
 
 ### 已修掉的坑（都是真机踩出来的）
